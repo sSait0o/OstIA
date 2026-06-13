@@ -1,0 +1,45 @@
+import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth.guard';
+
+export const routes: Routes = [
+  {
+    path: 'auth',
+    children: [
+      {
+        path: 'login',
+        loadComponent: () =>
+          import('./pages/auth/login/login.component').then((m) => m.LoginComponent),
+      },
+      {
+        path: 'register',
+        loadComponent: () =>
+          import('./pages/auth/register/register.component').then((m) => m.RegisterComponent),
+      },
+    ],
+  },
+  {
+    path: '',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./layout/main-layout/main-layout.component').then((m) => m.MainLayoutComponent),
+    children: [
+      { path: '', redirectTo: 'kanban', pathMatch: 'full' },
+      {
+        path: 'kanban',
+        loadComponent: () =>
+          import('./pages/kanban/kanban.component').then((m) => m.KanbanComponent),
+      },
+      {
+        path: 'jobs',
+        loadComponent: () =>
+          import('./pages/jobs/jobs.component').then((m) => m.JobsComponent),
+      },
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
+    ],
+  },
+  { path: '**', redirectTo: '' },
+];

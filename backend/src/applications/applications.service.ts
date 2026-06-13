@@ -1,0 +1,71 @@
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Application, ApplicationStatus } from './entities/application.entity';
+import { CreateApplicationDto } from './dto/create-application.dto';
+import { UpdateApplicationDto } from './dto/update-application.dto';
+import { User } from '../users/entities/user.entity';
+
+@Injectable()
+export class ApplicationsService {
+  constructor(
+    @InjectRepository(Application)
+    private readonly appRepo: Repository<Application>,
+  ) {}
+
+  async create(user: User, dto: CreateApplicationDto): Promise<Application> {
+    const app = this.appRepo.create({ ...dto, user });
+    if (dto.appliedAt) app.appliedAt = new Date(dto.appliedAt);
+    return this.appRepo.save(app);
+  }
+
+  async findAllByUser(userId: string): Promise<Application[]> {
+    return this.appRepo.find({
+      where: { user: { id: userId } },
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  async findByStatus(userId: string): Promise<Record<ApplicationStatus, Application[]>> {
+    const apps = await this.findAllByUser(userId);
+    return apps.reduce(
+      (acc, app) => {
+        if (!acc[app.status]) acc[app.status] = [];
+        acc[app.status].push(app);
+        return acc;
+      },
+      {} as Record<ApplicationStatus, Application[]>,
+    );
+  }
+
+  async update(userId: string, id: string, dto: UpdateApplicationDto): Promise<Application> {
+    const app = await this.appRepo.findOne({ where: { id }, relations: { user: true } });
+    if (!app) throw new NotFoundException('Candidature non trouvée');
+    if (app.user.id !== userId) throw new ForbiddenException();
+    Object.assign(app, dto);
+    if (dto.appliedAt) app.appliedAt = new Date(dto.appliedAt);
+    return this.appRepo.save(app);
+  }
+
+  async remove(userId: string, id: string): Promise<void> {
+    const app = await this.appRepo.findOne({ where: { id }, relations: { user: true } });
+    if (!app) throw new NotFoundException('Candidature non trouvée');
+    if (app.user.id !== userId) throw new ForbiddenException();
+    await this.appRepo.remove(app);
+  }
+
+  async getStats(userId: string) {
+    const apps = await this.findAllByUser(userId);
+    const total = apps.length;
+    const byStatus = Object.values(ApplicationStatus).reduce(
+      (acc, s) => ({ ...acc, [s]: apps.filter((a) => a.status === s).length }),
+      {},
+    );
+    const responseRate = total > 0
+      ? Math.round(
+          (apps.filter((a) => a.status !== ApplicationStatus.APPLIED).length / total) * 100,
+        )
+      : 0;
+    return { total, byStatus, responseRate };
+  }
+}
