@@ -1,0 +1,69 @@
+<div class="map-page">
+  <div class="map-header">
+    <h2>Carte des candidatures</h2>
+    <p class="subtitle">Localisation géographique de vos candidatures — l'IA devine les villes inconnues.</p>
+  </div>
+
+  <nz-tabset>
+    <nz-tab nzTitle="Carte">
+      <div class="map-toolbar">
+        <nz-tag nzColor="default">⬤ Envoyée</nz-tag>
+        <nz-tag nzColor="blue">⬤ Reçue</nz-tag>
+        <nz-tag nzColor="orange">⬤ Entretien</nz-tag>
+        <nz-tag nzColor="purple">⬤ Test tech</nz-tag>
+        <nz-tag nzColor="green">⬤ Offre</nz-tag>
+        <nz-tag nzColor="red">⬤ Refusé</nz-tag>
+        <span class="map-count">{{ locatedApps().length }} / {{ allApps().length }} localisées</span>
+        @if (geocoding()) {
+          <nz-spin nzSize="small"></nz-spin>
+          <span class="geocoding-label">Géocodage IA en cours...</span>
+        }
+      </div>
+      <div #mapContainer class="ol-map"></div>
+    </nz-tab>
+
+    <nz-tab [nzTitle]="unlocatedTitle">
+      <ng-template #unlocatedTitle>
+        À localiser
+        @if (unlocatedApps().length > 0) {
+          <nz-badge [nzCount]="unlocatedApps().length" [nzStyle]="{ backgroundColor: '#faad14' }"></nz-badge>
+        }
+      </ng-template>
+
+      @if (unlocatedApps().length === 0) {
+        <nz-empty nzNotFoundContent="Toutes les candidatures sont localisées 🎉"></nz-empty>
+      } @else {
+        <div class="unlocated-list">
+          @for (app of unlocatedApps(); track app.id) {
+            <nz-card [nzBodyStyle]="{ padding: '16px' }" class="unlocated-card">
+              <div class="unlocated-header">
+                <div>
+                  <span class="unlocated-company">{{ app.company }}</span>
+                  <span class="unlocated-job">{{ app.jobTitle }}</span>
+                </div>
+                <nz-tag [nzColor]="getStatusColor(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+              </div>
+              <div class="unlocated-form">
+                <input
+                  nz-input
+                  placeholder="Ville, Pays (ex: Paris, France)"
+                  [(ngModel)]="manualLocations[app.id]"
+                  class="location-input"
+                />
+                <button
+                  nz-button
+                  nzType="primary"
+                  nzSize="small"
+                  (click)="saveManualLocation(app)"
+                  [disabled]="!manualLocations[app.id]"
+                >
+                  <span nz-icon nzType="environment"></span> Localiser
+                </button>
+              </div>
+            </nz-card>
+          }
+        </div>
+      }
+    </nz-tab>
+  </nz-tabset>
+</div>

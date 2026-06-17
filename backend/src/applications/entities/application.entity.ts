@@ -69,6 +69,15 @@ export class Application {
   @Column({ nullable: true, type: 'text' })
   notes: string;
 
+  @Column({ nullable: true, type: 'float' })
+  lat: number;
+
+  @Column({ nullable: true, type: 'float' })
+  lon: number;
+
+  @Column({ nullable: true })
+  resolvedLocation: string;
+
   @Column({ nullable: true })
   appliedAt: Date;
 

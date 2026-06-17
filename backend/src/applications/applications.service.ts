@@ -54,6 +54,20 @@ export class ApplicationsService {
     await this.appRepo.remove(app);
   }
 
+  async findForMap(userId: string) {
+    const apps = await this.findAllByUser(userId);
+    return apps.map((a) => ({
+      id: a.id,
+      company: a.company,
+      jobTitle: a.jobTitle,
+      status: a.status,
+      location: a.location,
+      resolvedLocation: a.resolvedLocation,
+      lat: a.lat ?? null,
+      lon: a.lon ?? null,
+    }));
+  }
+
   async getStats(userId: string) {
     const apps = await this.findAllByUser(userId);
     const total = apps.length;
