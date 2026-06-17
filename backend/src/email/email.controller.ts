@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Redirect } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailService } from './email.service';
@@ -17,7 +17,7 @@ export class EmailController {
   }
 
   @Get('google/auth')
-  @ApiOperation({ summary: 'Démarrer l\'authentification Gmail' })
+  @ApiOperation({ summary: "Démarrer l'authentification Gmail" })
   googleAuth(@Request() req: { user: any }) {
     return { url: this.emailService.getGoogleAuthUrl(req.user.id) };
   }
@@ -30,15 +30,28 @@ export class EmailController {
   }
 
   @Get('microsoft/auth')
-  @ApiOperation({ summary: 'Démarrer l\'authentification Outlook' })
+  @ApiOperation({ summary: "Démarrer l'authentification Outlook" })
   microsoftAuth(@Request() req: { user: any }) {
     return { url: this.emailService.getMicrosoftAuthUrl(req.user.id) };
+  }
+
+  @Get('microsoft/callback')
+  @ApiOperation({ summary: 'Callback OAuth2 Microsoft' })
+  async microsoftCallback(@Query('code') code: string, @Query('state') userId: string) {
+    await this.emailService.handleMicrosoftCallback(code, userId);
+    return { message: 'Compte Outlook connecté avec succès' };
   }
 
   @Post('sync/gmail')
   @ApiOperation({ summary: 'Synchroniser les emails Gmail (dossier Ostia)' })
   syncGmail(@Request() req: { user: any }) {
     return this.emailService.syncGmailEmails(req.user.id);
+  }
+
+  @Post('sync/outlook')
+  @ApiOperation({ summary: 'Synchroniser les emails Outlook (dossier Ostia)' })
+  syncOutlook(@Request() req: { user: any }) {
+    return this.emailService.syncOutlookEmails(req.user.id);
   }
 
   @Delete('connections/:id')

@@ -32,6 +32,10 @@ export class EmailService {
     return this.http.post<{ synced: number; created: number }>(`${this.base}/sync/gmail`, {});
   }
 
+  syncOutlook() {
+    return this.http.post<{ synced: number; created: number }>(`${this.base}/sync/outlook`, {});
+  }
+
   disconnect(id: string) {
     return this.http.delete(`${this.base}/connections/${id}`);
   }

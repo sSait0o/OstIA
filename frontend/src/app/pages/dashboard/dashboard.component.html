@@ -54,23 +54,43 @@
         <div class="email-list">
           @for (conn of emailConnections(); track conn.id) {
             <div class="email-item">
-              <div>
+              <div class="email-item-left">
                 <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'google' : 'windows'"></span>
+                <span class="email-provider-label">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</span>
                 <span class="email-address">{{ conn.email }}</span>
               </div>
-              <nz-tag nzColor="green">Actif</nz-tag>
+              <div class="email-item-right">
+                <nz-tag nzColor="green">Actif</nz-tag>
+                <button nz-button nzSize="small" nzDanger (click)="disconnect(conn.id)">
+                  <span nz-icon nzType="disconnect"></span>
+                </button>
+              </div>
             </div>
           } @empty {
             <div class="email-empty">Aucun compte email connecté</div>
           }
-          <div class="email-actions">
-            <button nz-button nzSize="small" (click)="connectGmail()">
-              <span nz-icon nzType="mail"></span> Connecter Gmail
-            </button>
-            <button nz-button nzSize="small" (click)="syncGmail()" [nzLoading]="syncing()">
-              <span nz-icon nzType="sync"></span> Synchroniser
-            </button>
-          </div>
+        </div>
+
+        <nz-divider nzText="Gmail"></nz-divider>
+        <div class="email-actions">
+          <button nz-button nzSize="small" (click)="connectGmail()" [disabled]="hasGmail()">
+            <span nz-icon nzType="mail"></span>
+            {{ hasGmail() ? 'Gmail connecté' : 'Connecter Gmail' }}
+          </button>
+          <button nz-button nzSize="small" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail()">
+            <span nz-icon nzType="sync"></span> Synchroniser
+          </button>
+        </div>
+
+        <nz-divider nzText="Outlook"></nz-divider>
+        <div class="email-actions">
+          <button nz-button nzSize="small" (click)="connectOutlook()" [disabled]="hasOutlook()">
+            <span nz-icon nzType="windows"></span>
+            {{ hasOutlook() ? 'Outlook connecté' : 'Connecter Outlook' }}
+          </button>
+          <button nz-button nzSize="small" (click)="syncOutlook()" [nzLoading]="syncingOutlook()" [disabled]="!hasOutlook()">
+            <span nz-icon nzType="sync"></span> Synchroniser
+          </button>
         </div>
       </nz-card>
     </div>
