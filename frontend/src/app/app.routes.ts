@@ -44,6 +44,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/cv/cv.component').then((m) => m.CvComponent),
       },
+      {
+        path: 'map',
+        loadComponent: () =>
+          import('./pages/map/map.component').then((m) => m.MapComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },
