@@ -1,0 +1,139 @@
+.cv-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.cv-header {
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+  }
+
+  .subtitle {
+    color: #666;
+    margin: 4px 0 0;
+  }
+}
+
+.upload-zone {
+  border: 2px dashed #d9d9d9;
+  border-radius: 12px;
+  padding: 48px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: #fafafa;
+  margin-bottom: 32px;
+
+  &:hover,
+  &.dragover {
+    border-color: #1890ff;
+    background: #e6f4ff;
+  }
+}
+
+.upload-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #bfbfbf;
+}
+
+.upload-label {
+  font-size: 16px;
+  color: #595959;
+  margin: 0;
+}
+
+.upload-link {
+  color: #1890ff;
+  text-decoration: underline;
+}
+
+.upload-hint {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+}
+
+.cv-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cv-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 24px;
+  background: #f0f7ff;
+  border-radius: 10px;
+  border-left: 4px solid #1890ff;
+}
+
+.cv-avatar {
+  background: #1890ff;
+  flex-shrink: 0;
+}
+
+.cv-name {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.cv-email {
+  color: #666;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.cv-summary {
+  color: #595959;
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.cv-sections {
+  margin-top: 0;
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.timeline-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.timeline-company {
+  color: #1890ff;
+  font-size: 13px;
+}
+
+.timeline-duration {
+  color: #999;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.timeline-desc {
+  color: #595959;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.empty-text {
+  color: #999;
+  font-size: 13px;
+}
