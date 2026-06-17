@@ -46,6 +46,22 @@ export class ApplicationsController {
     return this.applicationsService.getStats(req.user.id);
   }
 
+  @Get('map')
+  @ApiOperation({ summary: 'Candidatures avec coordonnées pour la carte' })
+  map(@Request() req: { user: any }) {
+    return this.applicationsService.findForMap(req.user.id);
+  }
+
+  @Patch(':id/coordinates')
+  @ApiOperation({ summary: 'Enregistrer les coordonnées géocodées' })
+  saveCoordinates(
+    @Request() req: { user: any },
+    @Param('id') id: string,
+    @Body() body: { lat: number; lon: number; resolvedLocation: string },
+  ) {
+    return this.applicationsService.update(req.user.id, id, body);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Mettre à jour une candidature' })
   update(
