@@ -1,0 +1,107 @@
+<div class="cv-page">
+  <div class="cv-header">
+    <h2>Mon CV</h2>
+    <p class="subtitle">Uploadez votre CV PDF — l'IA extrait automatiquement vos compétences et expériences.</p>
+  </div>
+
+  <div class="upload-zone"
+    [class.dragover]="isDragging"
+    (dragover)="onDragOver($event)"
+    (dragleave)="isDragging = false"
+    (drop)="onDrop($event)"
+    (click)="fileInput.click()"
+  >
+    <input #fileInput type="file" accept=".pdf" (change)="onFileSelected($event)" hidden />
+
+    @if (uploading()) {
+      <div class="upload-state">
+        <nz-spin nzSize="large"></nz-spin>
+        <p>Analyse IA en cours...</p>
+      </div>
+    } @else {
+      <div class="upload-state">
+        <span nz-icon nzType="cloud-upload" nzTheme="outline" class="upload-icon"></span>
+        <p class="upload-label">Glissez votre CV ici ou <span class="upload-link">parcourir</span></p>
+        <p class="upload-hint">PDF uniquement · 5 Mo max</p>
+      </div>
+    }
+  </div>
+
+  @if (cvData()) {
+    <div class="cv-content">
+      <div class="cv-identity">
+        <nz-avatar nzSize="large" nzIcon="user" class="cv-avatar"></nz-avatar>
+        <div>
+          <h3 class="cv-name">{{ cvData()!.firstName }} {{ cvData()!.lastName }}</h3>
+          @if (cvData()!.email) {
+            <p class="cv-email"><span nz-icon nzType="mail"></span> {{ cvData()!.email }}</p>
+          }
+          @if (cvData()!.summary) {
+            <p class="cv-summary">{{ cvData()!.summary }}</p>
+          }
+        </div>
+      </div>
+
+      <div nz-row [nzGutter]="[24, 24]" class="cv-sections">
+        <div nz-col [nzXs]="24" [nzLg]="12">
+          <nz-card nzTitle="Compétences">
+            <div class="skills-list">
+              @for (skill of cvData()!.skills; track skill) {
+                <nz-tag nzColor="blue">{{ skill }}</nz-tag>
+              }
+            </div>
+          </nz-card>
+        </div>
+
+        <div nz-col [nzXs]="24" [nzLg]="12">
+          <nz-card nzTitle="Langues">
+            <div class="skills-list">
+              @for (lang of cvData()!.languages; track lang) {
+                <nz-tag nzColor="green">{{ lang }}</nz-tag>
+              }
+            </div>
+          </nz-card>
+        </div>
+
+        <div nz-col [nzXs]="24" [nzLg]="14">
+          <nz-card nzTitle="Expériences">
+            <nz-timeline>
+              @for (exp of cvData()!.experience; track exp.title) {
+                <nz-timeline-item>
+                  <div class="timeline-title">{{ exp.title }}</div>
+                  <div class="timeline-company">{{ exp.company }}</div>
+                  @if (exp.duration) {
+                    <div class="timeline-duration">{{ exp.duration }}</div>
+                  }
+                  @if (exp.description) {
+                    <div class="timeline-desc">{{ exp.description }}</div>
+                  }
+                </nz-timeline-item>
+              } @empty {
+                <p class="empty-text">Aucune expérience détectée</p>
+              }
+            </nz-timeline>
+          </nz-card>
+        </div>
+
+        <div nz-col [nzXs]="24" [nzLg]="10">
+          <nz-card nzTitle="Formation">
+            <nz-timeline>
+              @for (edu of cvData()!.education; track edu.degree) {
+                <nz-timeline-item nzColor="green">
+                  <div class="timeline-title">{{ edu.degree }}</div>
+                  <div class="timeline-company">{{ edu.school }}</div>
+                  @if (edu.year) {
+                    <div class="timeline-duration">{{ edu.year }}</div>
+                  }
+                </nz-timeline-item>
+              } @empty {
+                <p class="empty-text">Aucune formation détectée</p>
+              }
+            </nz-timeline>
+          </nz-card>
+        </div>
+      </div>
+    </div>
+  }
+</div>
