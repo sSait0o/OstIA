@@ -16,8 +16,12 @@ async function bootstrap() {
     }),
   );
 
+  const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:4200',
+    /\.vercel\.app$/,
+  ];
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+    origin: allowedOrigins,
     credentials: true,
   });
 
