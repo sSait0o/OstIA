@@ -31,5 +31,18 @@ services:
       timeout: 5s
       retries: 5
 
+  core:
+    build: ./core
+    container_name: ostia_core
+    restart: unless-stopped
+    env_file: ./core/.env
+    ports:
+      - '8001:8001'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:8001/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:

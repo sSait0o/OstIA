@@ -1,0 +1,40 @@
+.loading-center {
+  text-align: center;
+  padding: 60px;
+}
+
+.stats-row {
+  margin-bottom: 24px;
+}
+
+.chart {
+  height: 300px;
+}
+
+.email-list {
+  padding: 8px 0;
+}
+
+.email-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.email-address {
+  margin-left: 8px;
+}
+
+.email-empty {
+  color: #999;
+  text-align: center;
+  padding: 20px;
+}
+
+.email-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}

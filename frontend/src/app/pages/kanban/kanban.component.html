@@ -1,0 +1,67 @@
+<div class="kanban-header">
+  <h2>Mes candidatures</h2>
+  <button nz-button nzType="primary" (click)="openModal()">
+    <span nz-icon nzType="plus"></span> Ajouter
+  </button>
+</div>
+
+@if (loading()) {
+  <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+} @else {
+  <div class="kanban-board">
+    @for (col of columns(); track col.key) {
+      <div class="kanban-column">
+        <div class="column-header">
+          <span>{{ col.label }}</span>
+          <nz-tag [nzColor]="col.color">{{ col.items.length }}</nz-tag>
+        </div>
+        <div class="column-body">
+          @for (app of col.items; track app.id) {
+            <nz-card [nzBodyStyle]="{ padding: '12px' }" class="kanban-card" (click)="selectApp(app)">
+              <div class="card-company">{{ app.company }}</div>
+              <div class="card-title">{{ app.jobTitle }}</div>
+              @if (app.location) {
+                <div class="card-location">
+                  <span nz-icon nzType="environment"></span> {{ app.location }}
+                </div>
+              }
+              @if (app.source === 'EMAIL') {
+                <nz-tag nzColor="blue" class="card-tag">
+                  <span nz-icon nzType="mail"></span> Email
+                </nz-tag>
+              }
+            </nz-card>
+          } @empty {
+            <div class="empty-column">Aucune</div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<nz-modal
+  [(nzVisible)]="modalVisible"
+  [nzTitle]="selectedApp() ? 'Modifier la candidature' : 'Nouvelle candidature'"
+  (nzOnOk)="saveApp()"
+  (nzOnCancel)="closeModal()"
+  [nzOkLoading]="saving()"
+  nzOkText="Enregistrer"
+  nzCancelText="Annuler"
+>
+  <ng-container *nzModalContent>
+    <div class="modal-form">
+      <input nz-input placeholder="Entreprise *" [(ngModel)]="form.company" />
+      <input nz-input placeholder="Poste *" [(ngModel)]="form.jobTitle" />
+      <nz-select [(ngModel)]="form.status" style="width: 100%">
+        @for (s of statusOptions; track s.value) {
+          <nz-option [nzValue]="s.value" [nzLabel]="s.label"></nz-option>
+        }
+      </nz-select>
+      <input nz-input placeholder="Localisation" [(ngModel)]="form.location" />
+      <input nz-input placeholder="Salaire" [(ngModel)]="form.salary" />
+      <input nz-input placeholder="URL de l'offre" [(ngModel)]="form.jobUrl" />
+      <textarea nz-input placeholder="Notes" [(ngModel)]="form.notes" [nzAutosize]="{ minRows: 2 }"></textarea>
+    </div>
+  </ng-container>
+</nz-modal>

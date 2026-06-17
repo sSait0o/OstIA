@@ -1,0 +1,43 @@
+.main-layout {
+  min-height: 100vh;
+}
+
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: white;
+  font-size: 20px;
+}
+
+.logo-text {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.main-header {
+  background: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.user-menu {
+  cursor: pointer;
+}
+
+.user-name {
+  margin-left: 8px;
+}
+
+.main-content {
+  margin: 24px;
+  background: #fff;
+  padding: 24px;
+  border-radius: 8px;
+  min-height: 360px;
+}

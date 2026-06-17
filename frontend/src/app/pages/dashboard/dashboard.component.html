@@ -1,0 +1,78 @@
+<h2>Dashboard</h2>
+
+@if (loading()) {
+  <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+} @else {
+  <div nz-row [nzGutter]="[16, 16]" class="stats-row">
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Total candidatures"
+          [nzValue]="stats()?.total ?? 0"
+          [nzValueStyle]="{ color: '#1890ff' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Taux de réponse"
+          [nzValue]="stats()?.responseRate ?? 0"
+          nzSuffix="%"
+          [nzValueStyle]="{ color: '#52c41a' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Entretiens"
+          [nzValue]="stats()?.byStatus?.['INTERVIEW'] ?? 0"
+          [nzValueStyle]="{ color: '#faad14' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Offres reçues"
+          [nzValue]="stats()?.byStatus?.['OFFER'] ?? 0"
+          [nzValueStyle]="{ color: '#52c41a' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+  </div>
+
+  <div nz-row [nzGutter]="[16, 16]">
+    <div nz-col [nzXs]="24" [nzSm]="12">
+      <nz-card nzTitle="Répartition par statut">
+        <div echarts [options]="pieOptions()" class="chart"></div>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="24" [nzSm]="12">
+      <nz-card nzTitle="Connexions email">
+        <div class="email-list">
+          @for (conn of emailConnections(); track conn.id) {
+            <div class="email-item">
+              <div>
+                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'google' : 'windows'"></span>
+                <span class="email-address">{{ conn.email }}</span>
+              </div>
+              <nz-tag nzColor="green">Actif</nz-tag>
+            </div>
+          } @empty {
+            <div class="email-empty">Aucun compte email connecté</div>
+          }
+          <div class="email-actions">
+            <button nz-button nzSize="small" (click)="connectGmail()">
+              <span nz-icon nzType="mail"></span> Connecter Gmail
+            </button>
+            <button nz-button nzSize="small" (click)="syncGmail()" [nzLoading]="syncing()">
+              <span nz-icon nzType="sync"></span> Synchroniser
+            </button>
+          </div>
+        </div>
+      </nz-card>
+    </div>
+  </div>
+}

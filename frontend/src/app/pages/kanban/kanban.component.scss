@@ -1,0 +1,91 @@
+.kanban-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.loading-center {
+  text-align: center;
+  padding: 60px;
+}
+
+.kanban-board {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  min-height: 60vh;
+}
+
+.kanban-column {
+  min-width: 240px;
+  flex: 1;
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 100px;
+}
+
+.kanban-card {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: box-shadow 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.card-company {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.card-title {
+  color: #666;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.card-location {
+  color: #999;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.card-tag {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.empty-column {
+  color: #ccc;
+  text-align: center;
+  padding: 20px;
+  font-size: 13px;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

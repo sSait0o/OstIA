@@ -1,0 +1,26 @@
+<div class="auth-container">
+  <nz-card class="auth-card">
+    <div class="auth-header">
+      <h1>Ostia</h1>
+      <p>Gérez vos candidatures intelligemment</p>
+    </div>
+    <form nz-form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <nz-form-item>
+        <nz-form-control nzErrorTip="Email invalide">
+          <input nz-input formControlName="email" placeholder="Email" type="email" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-control nzErrorTip="Mot de passe requis (min. 8 caractères)">
+          <input nz-input formControlName="password" placeholder="Mot de passe" type="password" />
+        </nz-form-control>
+      </nz-form-item>
+      <button nz-button nzType="primary" nzBlock [nzLoading]="loading" type="submit">
+        Se connecter
+      </button>
+    </form>
+    <div class="auth-footer">
+      Pas encore de compte ? <a routerLink="/auth/register">S'inscrire</a>
+    </div>
+  </nz-card>
+</div>

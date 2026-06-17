@@ -1,0 +1,81 @@
+<h2>Offres d'emploi</h2>
+<p class="subtitle">Les offres sont scorées en temps réel selon votre CV grâce à l'IA.</p>
+
+<div class="search-bar">
+  <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" />
+  <input nz-input placeholder="Localisation" [(ngModel)]="location" class="search-location" />
+  <button nz-button nzType="primary" (click)="search()" [nzLoading]="loading()">
+    <span nz-icon nzType="search"></span> Rechercher
+  </button>
+</div>
+
+@if (loading()) {
+  <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+} @else if (jobs().length === 0 && searched) {
+  <nz-empty nzNotFoundContent="Aucune offre trouvée"></nz-empty>
+} @else {
+  <div nz-row [nzGutter]="[16, 16]">
+    @for (job of jobs(); track job.id) {
+      <div nz-col [nzXs]="24" [nzSm]="12" [nzLg]="8">
+        <nz-card [nzBodyStyle]="{ padding: '16px' }" class="job-card">
+          <div class="job-header">
+            <div class="job-info">
+              <div class="job-title">{{ job.title }}</div>
+              <div class="job-company">{{ job.company }}</div>
+            </div>
+            @if (job.matchScore != null) {
+              <div class="job-score">
+                <nz-progress
+                  [nzPercent]="job.matchScore"
+                  nzType="circle"
+                  [nzWidth]="50"
+                  [nzStrokeColor]="getScoreColor(job.matchScore)"
+                  [nzFormat]="scoreFormat"
+                ></nz-progress>
+              </div>
+            }
+          </div>
+
+          <div class="job-tags">
+            @if (job.location) {
+              <nz-tag nzColor="default"><span nz-icon nzType="environment"></span> {{ job.location }}</nz-tag>
+            }
+            @if (job.contractType) {
+              <nz-tag nzColor="blue">{{ job.contractType }}</nz-tag>
+            }
+            @if (job.salary) {
+              <nz-tag nzColor="green">{{ job.salary }}</nz-tag>
+            }
+          </div>
+
+          @if (job.matchDetails?.matchedSkills?.length) {
+            <div class="matched-skills">
+              ✓ {{ job.matchDetails!.matchedSkills.slice(0, 3).join(', ') }}
+            </div>
+          }
+
+          @if (job.matchDetails?.summary) {
+            <div class="match-summary">{{ job.matchDetails!.summary }}</div>
+          }
+
+          <nz-divider class="job-divider"></nz-divider>
+          <div class="job-actions">
+            @if (job.url) {
+              <a [href]="job.url" target="_blank" style="flex: 1">
+                <button nz-button nzSize="small" nzBlock>Voir l'offre</button>
+              </a>
+            }
+            <button
+              nz-button
+              nzSize="small"
+              [nzType]="job.isSaved ? 'primary' : 'default'"
+              (click)="toggleSave(job)"
+            >
+              <span nz-icon [nzType]="job.isSaved ? 'heart' : 'heart'" [nzTheme]="job.isSaved ? 'fill' : 'outline'"></span>
+            </button>
+          </div>
+        </nz-card>
+      </div>
+    }
+  </div>
+}
