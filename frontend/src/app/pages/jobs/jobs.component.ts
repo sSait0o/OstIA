@@ -41,9 +41,9 @@ export class JobsComponent implements OnInit {
   }
 
   getScoreColor(score: number): string {
-    if (score >= 70) return '#52c41a';
-    if (score >= 40) return '#faad14';
-    return '#ff4d4f';
+    if (score >= 70) return 'rgba(255,255,255,0.9)';
+    if (score >= 40) return 'rgba(255,255,255,0.5)';
+    return 'rgba(255,255,255,0.2)';
   }
 
   search() {

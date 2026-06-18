@@ -1,8 +1,10 @@
+<canvas #bgCanvas class="bg-canvas"></canvas>
+
 <nz-layout class="main-layout">
-  <nz-sider nzCollapsible [(nzCollapsed)]="collapsed" nzTheme="dark">
+  <nz-sider nzTheme="dark">
     <div class="logo">
       <span nz-icon nzType="compass" nzTheme="outline"></span>
-      @if (!collapsed) { <span class="logo-text">Ostia</span> }
+      <span class="logo-text">OstIA</span>
     </div>
     <ul nz-menu nzTheme="dark" nzMode="inline">
       <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
@@ -30,7 +32,7 @@
   <nz-layout>
     <nz-header class="main-header">
       <span class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu">
-        <nz-avatar nzIcon="user" style="background: #1890ff"></nz-avatar>
+        <nz-avatar nzIcon="user" style="background: rgba(255,255,255,0.15)"></nz-avatar>
         <span class="user-name">{{ auth.currentUser()?.firstName }}</span>
       </span>
       <nz-dropdown-menu #userMenu="nzDropdownMenu">

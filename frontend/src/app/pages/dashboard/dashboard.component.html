@@ -1,4 +1,4 @@
-<h2>Dashboard</h2>
+<h2 class="page-title">Dashboard</h2>
 
 @if (loading()) {
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
@@ -9,7 +9,7 @@
         <nz-statistic
           nzTitle="Total candidatures"
           [nzValue]="stats()?.total ?? 0"
-          [nzValueStyle]="{ color: '#1890ff' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
@@ -19,7 +19,7 @@
           nzTitle="Taux de réponse"
           [nzValue]="stats()?.responseRate ?? 0"
           nzSuffix="%"
-          [nzValueStyle]="{ color: '#52c41a' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
@@ -28,7 +28,7 @@
         <nz-statistic
           nzTitle="Entretiens"
           [nzValue]="stats()?.byStatus?.['INTERVIEW'] ?? 0"
-          [nzValueStyle]="{ color: '#faad14' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
@@ -37,7 +37,7 @@
         <nz-statistic
           nzTitle="Offres reçues"
           [nzValue]="stats()?.byStatus?.['OFFER'] ?? 0"
-          [nzValueStyle]="{ color: '#52c41a' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
@@ -55,7 +55,7 @@
           @for (conn of emailConnections(); track conn.id) {
             <div class="email-item">
               <div class="email-item-left">
-                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'google' : 'windows'"></span>
+                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'"></span>
                 <span class="email-provider-label">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</span>
                 <span class="email-address">{{ conn.email }}</span>
               </div>
@@ -85,7 +85,7 @@
         <nz-divider nzText="Outlook"></nz-divider>
         <div class="email-actions">
           <button nz-button nzSize="small" (click)="connectOutlook()" [disabled]="hasOutlook()">
-            <span nz-icon nzType="windows"></span>
+            <span nz-icon nzType="laptop"></span>
             {{ hasOutlook() ? 'Outlook connecté' : 'Connecter Outlook' }}
           </button>
           <button nz-button nzSize="small" (click)="syncOutlook()" [nzLoading]="syncingOutlook()" [disabled]="!hasOutlook()">

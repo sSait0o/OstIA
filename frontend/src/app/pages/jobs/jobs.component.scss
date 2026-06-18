@@ -1,33 +1,39 @@
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0 0 4px;
+}
+
 .subtitle {
-  color: #666;
-  margin-bottom: 20px;
+  color: rgba(255,255,255,.35);
+  font-size: 13px;
+  margin-bottom: 24px;
 }
 
 .search-bar {
   display: flex;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
-.search-keywords {
-  flex: 2;
-}
-
-.search-location {
-  flex: 1;
-}
+.search-keywords { flex: 2; }
+.search-location  { flex: 1; }
 
 .loading-center {
   text-align: center;
-  padding: 60px;
+  padding: 80px;
 }
 
 .job-card {
-  border-radius: 8px;
-  transition: box-shadow 0.2s;
+  border-radius: 10px !important;
+  margin-bottom: 12px;
+  transition: transform .15s, border-color .2s, box-shadow .2s !important;
 
   &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
   }
 }
 
@@ -43,46 +49,63 @@
 }
 
 .job-title {
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .job-company {
-  color: #666;
-  font-size: 13px;
+  color: rgba(255,255,255,.45);
+  font-size: 12px;
+  margin-top: 2px;
 }
 
 .job-score {
   text-align: center;
-  min-width: 60px;
-  margin-left: 8px;
+  min-width: 56px;
+  margin-left: 10px;
+
+  .score-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: 10px;
+    color: rgba(255,255,255,.3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
 }
 
 .job-tags {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .matched-skills {
   margin-top: 10px;
   font-size: 12px;
-  color: #1890ff;
+  color: rgba(255,255,255,.6);
 }
 
 .match-summary {
   margin-top: 6px;
   font-size: 12px;
-  color: #666;
+  color: rgba(255,255,255,.3);
   font-style: italic;
 }
 
 .job-divider {
-  margin: 12px 0 10px;
+  margin: 12px 0 !important;
+  border-color: rgba(255,255,255,.06) !important;
 }
 
 .job-actions {

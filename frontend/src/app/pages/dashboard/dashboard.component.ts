@@ -44,8 +44,8 @@ export class DashboardComponent implements OnInit {
   };
 
   private readonly STATUS_COLORS: Record<string, string> = {
-    APPLIED: '#8c8c8c', ACKNOWLEDGED: '#1890ff', INTERVIEW: '#faad14',
-    TECHNICAL: '#722ed1', OFFER: '#52c41a', REJECTED: '#ff4d4f', WITHDRAWN: '#d9d9d9',
+    APPLIED: 'rgba(255,255,255,0.3)', ACKNOWLEDGED: 'rgba(150,200,255,0.7)', INTERVIEW: 'rgba(255,200,80,0.7)',
+    TECHNICAL: 'rgba(190,140,255,0.7)', OFFER: 'rgba(130,220,90,0.7)', REJECTED: 'rgba(255,120,120,0.7)', WITHDRAWN: 'rgba(255,255,255,0.15)',
   };
 
   ngOnInit() {
@@ -72,11 +72,23 @@ export class DashboardComponent implements OnInit {
       }));
 
     this.pieOptions.set({
-      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-      legend: { orient: 'vertical', left: 'left' },
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c} ({d}%)',
+        backgroundColor: 'rgba(10,10,10,0.9)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        textStyle: { color: '#e8e8e8' },
+      },
+      legend: {
+        orient: 'vertical',
+        left: 'left',
+        textStyle: { color: 'rgba(255,255,255,0.5)' },
+      },
       series: [{
         type: 'pie', radius: ['40%', '70%'], data,
-        emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } },
+        label: { color: 'rgba(255,255,255,0.6)' },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.8)' } },
       }],
     });
   }
@@ -96,8 +108,9 @@ export class DashboardComponent implements OnInit {
   syncGmail() {
     this.syncingGmail.set(true);
     this.emailService.syncGmail().subscribe({
-      next: ({ synced, created }) => {
-        this.message.success(`${synced} emails analysés, ${created} candidatures créées`);
+      next: ({ synced, created, skipped }) => {
+        const skipMsg = skipped ? `, ${skipped} doublon(s) ignoré(s)` : '';
+        this.message.success(`${synced} emails analysés, ${created} candidatures créées${skipMsg}`);
         this.syncingGmail.set(false);
       },
       error: () => { this.message.error('Erreur de synchronisation Gmail'); this.syncingGmail.set(false); },
@@ -107,8 +120,9 @@ export class DashboardComponent implements OnInit {
   syncOutlook() {
     this.syncingOutlook.set(true);
     this.emailService.syncOutlook().subscribe({
-      next: ({ synced, created }) => {
-        this.message.success(`${synced} emails analysés, ${created} candidatures créées`);
+      next: ({ synced, created, skipped }) => {
+        const skipMsg = skipped ? `, ${skipped} doublon(s) ignoré(s)` : '';
+        this.message.success(`${synced} emails analysés, ${created} candidatures créées${skipMsg}`);
         this.syncingOutlook.set(false);
       },
       error: () => { this.message.error('Erreur de synchronisation Outlook'); this.syncingOutlook.set(false); },

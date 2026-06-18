@@ -1,5 +1,15 @@
 @import 'ng-zorro-antd/ng-zorro-antd.min.css';
 
+$bg: #050505;
+$surface: #0d0d0d;
+$surface-2: #141414;
+$border: rgba(255, 255, 255, 0.1);
+$border-hover: rgba(255, 255, 255, 0.35);
+$text: #e8e8e8;
+$text-muted: #666;
+$glow: 0 0 24px rgba(255, 255, 255, 0.08);
+$glow-hover: 0 0 32px rgba(255, 255, 255, 0.15);
+
 * {
   box-sizing: border-box;
 }
@@ -7,30 +17,388 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f0f2f5;
+  background: $bg;
+  color: $text;
+  overflow-x: hidden;
 }
 
-nz-layout {
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 8%  12%, rgba(255,255,255,.75) 0%, transparent 100%),
+    radial-gradient(1px 1px at 82%  7%, rgba(255,255,255,.5)  0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 37% 32%, rgba(255,255,255,.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 68%  54%, rgba(255,255,255,.4)  0%, transparent 100%),
+    radial-gradient(1px 1px at 23%  67%, rgba(255,255,255,.7)  0%, transparent 100%),
+    radial-gradient(1px 1px at 58%  79%, rgba(255,255,255,.5)  0%, transparent 100%),
+    radial-gradient(2px 2px at 14%  91%, rgba(255,255,255,.3)  0%, transparent 100%),
+    radial-gradient(1px 1px at 88%  71%, rgba(255,255,255,.65) 0%, transparent 100%),
+    radial-gradient(1px 1px at 48%  21%, rgba(255,255,255,.5)  0%, transparent 100%),
+    radial-gradient(1px 1px at  3%  44%, rgba(255,255,255,.7)  0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 76% 28%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 33%  57%, rgba(255,255,255,.6)  0%, transparent 100%),
+    radial-gradient(1px 1px at 94%  39%, rgba(255,255,255,.5)  0%, transparent 100%),
+    radial-gradient(1px 1px at 19%  84%, rgba(255,255,255,.4)  0%, transparent 100%),
+    radial-gradient(2px 2px at 62%  11%, rgba(255,255,255,.65) 0%, transparent 100%),
+    radial-gradient(1px 1px at 44%  96%, rgba(255,255,255,.4)  0%, transparent 100%),
+    radial-gradient(1px 1px at 71%  47%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 29%   3%, rgba(255,255,255,.6)  0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 52% 63%, rgba(255,255,255,.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at  1%  73%, rgba(255,255,255,.5)  0%, transparent 100%);
+  animation: twinkle-a 5s ease-in-out infinite;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 27%   5%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 74%  18%, rgba(255,255,255,.7)  0%, transparent 100%),
+    radial-gradient(1px 1px at 53%  43%, rgba(255,255,255,.4)  0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 9% 61%, rgba(255,255,255,.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 43%  76%, rgba(255,255,255,.5)  0%, transparent 100%),
+    radial-gradient(1px 1px at 87%  89%, rgba(255,255,255,.7)  0%, transparent 100%),
+    radial-gradient(1px 1px at 21%  31%, rgba(255,255,255,.4)  0%, transparent 100%),
+    radial-gradient(2px 2px at 66%  66%, rgba(255,255,255,.5)  0%, transparent 100%),
+    radial-gradient(1px 1px at  4%  19%, rgba(255,255,255,.65) 0%, transparent 100%),
+    radial-gradient(1px 1px at 91%  53%, rgba(255,255,255,.4)  0%, transparent 100%),
+    radial-gradient(1px 1px at 57%  35%, rgba(255,255,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15%  48%, rgba(255,255,255,.45) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 79% 82%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 38%  14%, rgba(255,255,255,.7)  0%, transparent 100%),
+    radial-gradient(1px 1px at 96%  26%, rgba(255,255,255,.35) 0%, transparent 100%);
+  animation: twinkle-b 7s ease-in-out infinite;
+}
+
+@keyframes twinkle-a {
+  0%,  100% { opacity: 1; }
+  50%        { opacity: 0.45; }
+}
+
+@keyframes twinkle-b {
+  0%,  100% { opacity: 0.8; }
+  30%        { opacity: 0.25; }
+  70%        { opacity: 1; }
+}
+
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.3); }
+
+.ant-layout,
+.ant-layout-content {
   background: transparent;
+  color: $text;
+  position: relative;
+  z-index: 1;
 }
 
-.ant-layout-sider .logo {
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: white;
+.ant-layout-sider {
+  background: rgba(8,8,8,.97) !important;
+  border-right: 1px solid $border;
+  z-index: 10;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.ant-layout-sider-trigger {
+  background: rgba(8,8,8,.97) !important;
+  border-top: 1px solid $border;
+  color: $text-muted !important;
 }
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
+
+.ant-menu-dark,
+.ant-menu.ant-menu-dark {
+  background: transparent !important;
 }
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+
+.ant-menu-dark .ant-menu-item {
+  color: $text-muted !important;
+  transition: all .2s;
+  border-radius: 6px;
+  margin: 2px 8px !important;
+  width: calc(100% - 16px) !important;
+
+  &:hover {
+    color: $text !important;
+    background: rgba(255,255,255,.06) !important;
+  }
 }
+
+.ant-menu-dark .ant-menu-item-selected,
+.ant-menu-dark .ant-menu-item.ant-menu-item-selected {
+  background: rgba(255,255,255,.1) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 10px rgba(255,255,255,.05);
+
+  &::after {
+    display: none;
+  }
+}
+
+.ant-layout-header {
+  background: rgba(5,5,5,.9) !important;
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid $border;
+  z-index: 9;
+}
+
+.ant-card {
+  background: $surface !important;
+  border: 1px solid $border !important;
+  border-radius: 10px !important;
+  box-shadow: $glow !important;
+  color: $text !important;
+  transition: border-color .25s, box-shadow .25s !important;
+
+  &:hover {
+    border-color: $border-hover !important;
+    box-shadow: $glow-hover !important;
+  }
+}
+
+.ant-card-head {
+  background: transparent !important;
+  border-bottom: 1px solid $border !important;
+  color: $text !important;
+}
+
+.ant-card-head-title {
+  color: $text !important;
+}
+
+.ant-card-body {
+  color: $text !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper {
+  background: $surface-2 !important;
+  border-color: $border !important;
+  color: $text !important;
+  border-radius: 6px !important;
+
+  &:hover { border-color: rgba(255,255,255,.25) !important; }
+  &:focus,
+  &.ant-input-affix-wrapper-focused {
+    border-color: rgba(255,255,255,.5) !important;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.08) !important;
+  }
+}
+
+.ant-input::placeholder { color: #444 !important; }
+
+.ant-input-prefix { color: $text-muted !important; }
+
+.ant-select-selector {
+  background: $surface-2 !important;
+  border-color: $border !important;
+  color: $text !important;
+  border-radius: 6px !important;
+
+  &:hover { border-color: rgba(255,255,255,.25) !important; }
+}
+
+.ant-select-focused .ant-select-selector {
+  border-color: rgba(255,255,255,.5) !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.08) !important;
+}
+
+.ant-select-dropdown {
+  background: $surface-2 !important;
+  border: 1px solid $border !important;
+  border-radius: 8px !important;
+}
+
+.ant-select-item {
+  color: $text !important;
+  background: transparent !important;
+
+  &:hover, &.ant-select-item-option-active {
+    background: rgba(255,255,255,.06) !important;
+  }
+
+  &.ant-select-item-option-selected {
+    background: rgba(255,255,255,.1) !important;
+    color: #fff !important;
+  }
+}
+
+.ant-select-arrow { color: $text-muted !important; }
+.ant-select-selection-placeholder { color: #444 !important; }
+
+.ant-btn {
+  background: transparent !important;
+  border: 1px solid $border !important;
+  color: $text !important;
+  border-radius: 6px !important;
+  transition: all .2s !important;
+
+  &:hover {
+    border-color: rgba(255,255,255,.5) !important;
+    color: #fff !important;
+    box-shadow: 0 0 14px rgba(255,255,255,.12) !important;
+  }
+}
+
+.ant-btn-primary {
+  background: #fff !important;
+  border-color: #fff !important;
+  color: $bg !important;
+
+  &:hover {
+    background: rgba(255,255,255,.88) !important;
+    border-color: rgba(255,255,255,.88) !important;
+    box-shadow: 0 0 20px rgba(255,255,255,.25) !important;
+  }
+
+  &[disabled] {
+    background: rgba(255,255,255,.15) !important;
+    border-color: transparent !important;
+    color: $text-muted !important;
+  }
+}
+
+.ant-btn-dangerous {
+  border-color: rgba(255,90,90,.4) !important;
+  color: rgba(255,100,100,.8) !important;
+
+  &:hover {
+    border-color: rgba(255,90,90,.7) !important;
+    color: #ff5a5a !important;
+    box-shadow: 0 0 14px rgba(255,90,90,.15) !important;
+  }
+}
+
+.ant-form-item-label > label {
+  color: $text-muted !important;
+}
+
+.ant-form-item-explain-error { color: #ff5a5a !important; }
+
+.ant-tag {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: $text !important;
+  border-radius: 4px !important;
+}
+
+.ant-tag-blue    { background: rgba(24,144,255,.15)  !important; border-color: rgba(24,144,255,.3)  !important; color: rgba(150,200,255,.9) !important; }
+.ant-tag-green   { background: rgba(82,196,26,.15)   !important; border-color: rgba(82,196,26,.3)   !important; color: rgba(130,220,90,.9)  !important; }
+.ant-tag-orange  { background: rgba(250,173,20,.15)  !important; border-color: rgba(250,173,20,.3)  !important; color: rgba(255,200,80,.9)  !important; }
+.ant-tag-red     { background: rgba(255,77,79,.15)   !important; border-color: rgba(255,77,79,.3)   !important; color: rgba(255,120,120,.9) !important; }
+.ant-tag-purple  { background: rgba(114,46,209,.15)  !important; border-color: rgba(114,46,209,.3)  !important; color: rgba(190,140,255,.9) !important; }
+.ant-tag-default { background: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.12) !important; color: rgba(255,255,255,.5)  !important; }
+
+.ant-divider {
+  border-color: $border !important;
+}
+
+.ant-divider-inner-text { color: $text-muted !important; }
+
+.ant-statistic-title { color: $text-muted !important; }
+.ant-statistic-content { color: $text !important; }
+
+.ant-modal-content {
+  background: $surface !important;
+  border: 1px solid $border !important;
+  border-radius: 12px !important;
+  box-shadow: $glow, 0 24px 64px rgba(0,0,0,.9) !important;
+}
+
+.ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid $border !important;
+}
+
+.ant-modal-title { color: $text !important; }
+
+.ant-modal-close {
+  color: $text-muted !important;
+  &:hover { color: $text !important; }
+}
+
+.ant-modal-footer { border-top: 1px solid $border !important; }
+
+.ant-spin-dot-item { background: rgba(255,255,255,.6) !important; }
+
+.ant-empty-description { color: $text-muted !important; }
+
+.ant-message-notice-content {
+  background: $surface-2 !important;
+  border: 1px solid $border !important;
+  color: $text !important;
+  border-radius: 8px !important;
+}
+
+.ant-avatar {
+  background: rgba(255,255,255,.12) !important;
+  color: $text !important;
+}
+
+.ant-dropdown-menu {
+  background: $surface-2 !important;
+  border: 1px solid $border !important;
+  border-radius: 8px !important;
+}
+
+.ant-dropdown-menu-item {
+  color: $text !important;
+  &:hover { background: rgba(255,255,255,.06) !important; }
+}
+
+.ant-timeline-item-tail { border-color: $border !important; }
+.ant-timeline-item-head { background: $surface !important; border-color: rgba(255,255,255,.3) !important; }
+.ant-timeline-item-content { color: $text !important; }
+
+.ant-progress-text { color: $text !important; }
+.ant-progress-bg { background: rgba(255,255,255,.7) !important; }
+.ant-progress-inner { background: rgba(255,255,255,.08) !important; }
+
+.ant-tabs-tab { color: $text-muted !important; }
+.ant-tabs-tab-active .ant-tabs-tab-btn { color: #fff !important; }
+.ant-tabs-ink-bar { background: #fff !important; }
+.ant-tabs-nav::before { border-color: $border !important; }
+
+.ant-tooltip-inner {
+  background: $surface-2 !important;
+  border: 1px solid $border !important;
+  color: $text !important;
+}
+
+a {
+  color: rgba(255,255,255,.7);
+  &:hover { color: #fff; }
+}
+
+.ant-drawer-content {
+  background: $surface !important;
+  border-left: 1px solid $border !important;
+}
+
+.ant-drawer-header {
+  background: $surface !important;
+  border-bottom: 1px solid $border !important;
+}
+
+.ant-drawer-title {
+  color: #fff !important;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ant-drawer-close {
+  color: $text-muted !important;
+  &:hover { color: #fff !important; }
+}
+
+.email-modal .ant-modal-body { padding: 0; }
+
+.email-modal .ant-modal-content { overflow: hidden; }
