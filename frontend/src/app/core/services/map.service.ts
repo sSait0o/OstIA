@@ -11,6 +11,15 @@ export interface MapApplication {
   resolvedLocation: string | null;
   lat: number | null;
   lon: number | null;
+  source: string | null;
+  emailSubject: string | null;
+  emailBody: string | null;
+  emailId: string | null;
+  salary: string | null;
+  notes: string | null;
+  jobUrl: string | null;
+  appliedAt: string | null;
+  createdAt: string;
 }
 
 export interface GeocodeResult {
@@ -44,5 +53,9 @@ export class MapService {
       lon,
       resolvedLocation,
     });
+  }
+
+  resetCoordinates() {
+    return this.http.delete<{ reset: number }>(`${this.appsBase}/coordinates/reset`);
   }
 }

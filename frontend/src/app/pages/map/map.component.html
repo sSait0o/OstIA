@@ -1,63 +1,94 @@
 <div class="map-page">
+
   <div class="map-header">
-    <h2>Carte des candidatures</h2>
-    <p class="subtitle">Localisation géographique de vos candidatures — l'IA devine les villes inconnues.</p>
+    <div>
+      <h2>Localisation</h2>
+      <p class="subtitle">Cliquez sur un marqueur pour voir le détail.</p>
+    </div>
+    <div class="map-header-right">
+      @if (geocoding()) {
+        <nz-spin nzSize="small"></nz-spin>
+        <span class="geocoding-label">Géocodage en cours...</span>
+      }
+      <span class="map-count">
+        <strong>{{ locatedApps().length }}</strong> / {{ allApps().length }} localisées
+      </span>
+    </div>
   </div>
 
   <nz-tabset>
+
     <nz-tab nzTitle="Carte">
-      <div class="map-toolbar">
-        <nz-tag nzColor="default">⬤ Envoyée</nz-tag>
-        <nz-tag nzColor="blue">⬤ Reçue</nz-tag>
-        <nz-tag nzColor="orange">⬤ Entretien</nz-tag>
-        <nz-tag nzColor="purple">⬤ Test tech</nz-tag>
-        <nz-tag nzColor="green">⬤ Offre</nz-tag>
-        <nz-tag nzColor="red">⬤ Refusé</nz-tag>
-        <span class="map-count">{{ locatedApps().length }} / {{ allApps().length }} localisées</span>
-        @if (geocoding()) {
-          <nz-spin nzSize="small"></nz-spin>
-          <span class="geocoding-label">Géocodage IA en cours...</span>
-        }
+      <div class="map-wrapper">
+        <div #mapContainer class="ol-map"></div>
+
+        <div class="map-panel" [class.map-panel--open]="drawerVisible">
+          <div class="map-panel-header">
+            <span class="map-panel-city">{{ drawerCity }}</span>
+            <button class="map-panel-close" (click)="drawerVisible = false">
+              <span nz-icon nzType="close"></span>
+            </button>
+          </div>
+          <div class="map-panel-body">
+            @for (app of drawerApps; track app.id) {
+              <div class="panel-item panel-item--clickable" (click)="openEmail(app)">
+                <div class="panel-item-top">
+                  <span class="panel-company">{{ app.company }}</span>
+                  <nz-tag [nzColor]="getStatusTag(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+                </div>
+                <div class="panel-job">{{ app.jobTitle }}</div>
+                @if (app.resolvedLocation) {
+                  <div class="panel-location">
+                    <span nz-icon nzType="environment"></span> {{ app.resolvedLocation }}
+                  </div>
+                }
+                @if (app.emailBody) {
+                  <div class="panel-email-hint">
+                    <span nz-icon nzType="mail"></span> Voir l'email
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
       </div>
-      <div #mapContainer class="ol-map"></div>
     </nz-tab>
 
     <nz-tab [nzTitle]="unlocatedTitle">
       <ng-template #unlocatedTitle>
         À localiser
         @if (unlocatedApps().length > 0) {
-          <nz-badge [nzCount]="unlocatedApps().length" [nzStyle]="{ backgroundColor: '#faad14' }"></nz-badge>
+          <nz-badge [nzCount]="unlocatedApps().length"
+            [nzStyle]="{ backgroundColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', boxShadow: 'none' }">
+          </nz-badge>
         }
       </ng-template>
 
       @if (unlocatedApps().length === 0) {
-        <nz-empty nzNotFoundContent="Toutes les candidatures sont localisées 🎉"></nz-empty>
+        <div class="all-located">
+          <span nz-icon nzType="check-circle" nzTheme="outline"></span>
+          Toutes les candidatures sont localisées
+        </div>
       } @else {
         <div class="unlocated-list">
           @for (app of unlocatedApps(); track app.id) {
-            <nz-card [nzBodyStyle]="{ padding: '16px' }" class="unlocated-card">
+            <nz-card [nzBodyStyle]="{ padding: '14px 16px' }" class="unlocated-card">
               <div class="unlocated-header">
-                <div>
+                <div class="unlocated-info">
                   <span class="unlocated-company">{{ app.company }}</span>
                   <span class="unlocated-job">{{ app.jobTitle }}</span>
                 </div>
-                <nz-tag [nzColor]="getStatusColor(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+                <nz-tag [nzColor]="getStatusTag(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
               </div>
               <div class="unlocated-form">
-                <input
-                  nz-input
-                  placeholder="Ville, Pays (ex: Paris, France)"
+                <input nz-input placeholder="Ex: Paris, Lyon, Bordeaux..."
                   [(ngModel)]="manualLocations[app.id]"
-                  class="location-input"
-                />
-                <button
-                  nz-button
-                  nzType="primary"
-                  nzSize="small"
+                  (keyup.enter)="saveManualLocation(app)"
+                  class="location-input" />
+                <button nz-button nzType="primary" nzSize="small"
                   (click)="saveManualLocation(app)"
-                  [disabled]="!manualLocations[app.id]"
-                >
-                  <span nz-icon nzType="environment"></span> Localiser
+                  [disabled]="!manualLocations[app.id]">
+                  <span nz-icon nzType="environment"></span>
                 </button>
               </div>
             </nz-card>
@@ -65,5 +96,82 @@
         </div>
       }
     </nz-tab>
+
   </nz-tabset>
+
 </div>
+
+<nz-modal
+  [(nzVisible)]="emailModalVisible"
+  [nzFooter]="null"
+  nzWidth="720px"
+  nzClassName="email-modal"
+  (nzOnCancel)="emailModalVisible = false"
+>
+  <ng-container *nzModalContent>
+    @if (emailApp) {
+      <div class="email-viewer">
+        <div class="email-header">
+          <div class="email-subject">{{ emailApp.emailSubject || emailApp.jobTitle }}</div>
+          <div class="email-meta-line">
+            <span class="email-from">{{ emailApp.company }}</span>
+            <nz-tag [nzColor]="getStatusTag(emailApp.status)">{{ getStatusLabel(emailApp.status) }}</nz-tag>
+          </div>
+        </div>
+
+        <div class="email-meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Poste</span>
+            <span class="meta-value">{{ emailApp.jobTitle }}</span>
+          </div>
+          @if (emailApp.resolvedLocation || emailApp.location) {
+            <div class="meta-item">
+              <span class="meta-label">Lieu</span>
+              <span class="meta-value">{{ emailApp.resolvedLocation || emailApp.location }}</span>
+            </div>
+          }
+          @if (emailApp.appliedAt) {
+            <div class="meta-item">
+              <span class="meta-label">Date de candidature</span>
+              <span class="meta-value">{{ emailApp.appliedAt | date:'dd/MM/yyyy' }}</span>
+            </div>
+          }
+          @if (emailApp.salary) {
+            <div class="meta-item">
+              <span class="meta-label">Salaire</span>
+              <span class="meta-value">{{ emailApp.salary }}</span>
+            </div>
+          }
+          @if (emailApp.jobUrl) {
+            <div class="meta-item">
+              <span class="meta-label">Offre</span>
+              <a class="meta-link" [href]="emailApp.jobUrl" target="_blank" rel="noopener">
+                <span nz-icon nzType="link"></span> Voir l'offre
+              </a>
+            </div>
+          }
+          @if (emailApp.notes) {
+            <div class="meta-item meta-item--full">
+              <span class="meta-label">Notes</span>
+              <span class="meta-value meta-value--notes">{{ emailApp.notes }}</span>
+            </div>
+          }
+        </div>
+
+        @if (emailApp.emailBody) {
+          <div class="email-body-block"
+               [class.email-body-block--plain]="!isHtml(emailApp.emailBody)"
+               [innerHTML]="safeEmailHtml"></div>
+        } @else if (emailApp.source === 'EMAIL' && emailApp.emailId) {
+          <div class="email-no-body">
+            <a class="gmail-link"
+               [href]="'https://mail.google.com/mail/u/3/#inbox/' + emailApp.emailId"
+               target="_blank" rel="noopener">
+              <span nz-icon nzType="mail"></span> Ouvrir dans Gmail
+            </a>
+          </div>
+        }
+      </div>
+    }
+  </ng-container>
+</nz-modal>
