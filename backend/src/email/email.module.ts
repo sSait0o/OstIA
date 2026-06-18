@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailService } from './email.service';
-import { EmailController } from './email.controller';
+import { EmailController, EmailCallbackController } from './email.controller';
 import { EmailConnection } from './entities/email-connection.entity';
 import { AiModule } from '../ai/ai.module';
 import { ApplicationsModule } from '../applications/applications.module';
@@ -13,7 +13,7 @@ import { ApplicationsModule } from '../applications/applications.module';
     ApplicationsModule,
   ],
   providers: [EmailService],
-  controllers: [EmailController],
+  controllers: [EmailController, EmailCallbackController],
   exports: [EmailService],
 })
 export class EmailModule {}

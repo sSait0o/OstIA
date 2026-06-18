@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Redirect } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailService } from './email.service';
@@ -22,24 +22,10 @@ export class EmailController {
     return { url: this.emailService.getGoogleAuthUrl(req.user.id) };
   }
 
-  @Get('google/callback')
-  @ApiOperation({ summary: 'Callback OAuth2 Google' })
-  async googleCallback(@Query('code') code: string, @Query('state') userId: string) {
-    await this.emailService.handleGoogleCallback(code, userId);
-    return { message: 'Compte Gmail connecté avec succès' };
-  }
-
   @Get('microsoft/auth')
   @ApiOperation({ summary: "Démarrer l'authentification Outlook" })
   microsoftAuth(@Request() req: { user: any }) {
     return { url: this.emailService.getMicrosoftAuthUrl(req.user.id) };
-  }
-
-  @Get('microsoft/callback')
-  @ApiOperation({ summary: 'Callback OAuth2 Microsoft' })
-  async microsoftCallback(@Query('code') code: string, @Query('state') userId: string) {
-    await this.emailService.handleMicrosoftCallback(code, userId);
-    return { message: 'Compte Outlook connecté avec succès' };
   }
 
   @Post('sync/gmail')
@@ -58,5 +44,27 @@ export class EmailController {
   @ApiOperation({ summary: 'Déconnecter un compte email' })
   disconnect(@Request() req: { user: any }, @Param('id') id: string) {
     return this.emailService.disconnect(req.user.id, id);
+  }
+}
+
+@ApiTags('Email Callbacks')
+@Controller('email')
+export class EmailCallbackController {
+  constructor(private readonly emailService: EmailService) {}
+
+  @Get('google/callback')
+  @Redirect()
+  @ApiOperation({ summary: 'Callback OAuth2 Google (public)' })
+  async googleCallback(@Query('code') code: string, @Query('state') userId: string) {
+    await this.emailService.handleGoogleCallback(code, userId);
+    return { url: 'http://localhost:4200/dashboard?gmail=connected' };
+  }
+
+  @Get('microsoft/callback')
+  @Redirect()
+  @ApiOperation({ summary: 'Callback OAuth2 Microsoft (public)' })
+  async microsoftCallback(@Query('code') code: string, @Query('state') userId: string) {
+    await this.emailService.handleMicrosoftCallback(code, userId);
+    return { url: 'http://localhost:4200/dashboard?outlook=connected' };
   }
 }

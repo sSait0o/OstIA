@@ -30,8 +30,6 @@ export class EmailService {
     );
   }
 
-  // ─── Google ────────────────────────────────────────────────────────────────
-
   getGoogleAuthUrl(userId: string): string {
     return this.googleOAuth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -65,7 +63,7 @@ export class EmailService {
     return this.connectionRepo.save(connection);
   }
 
-  async syncGmailEmails(userId: string): Promise<{ synced: number; created: number }> {
+  async syncGmailEmails(userId: string): Promise<{ synced: number; created: number; skipped: number }> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
     });
@@ -83,7 +81,7 @@ export class EmailService {
       (l) => l.name?.toLowerCase() === OSTIA_LABEL.toLowerCase(),
     );
 
-    if (!ostiaLabel?.id) return { synced: 0, created: 0 };
+    if (!ostiaLabel?.id) return { synced: 0, created: 0, skipped: 0 };
 
     const messages = await gmail.users.messages.list({
       userId: 'me',
@@ -91,9 +89,10 @@ export class EmailService {
       maxResults: 50,
     });
 
-    if (!messages.data.messages) return { synced: 0, created: 0 };
+    if (!messages.data.messages) return { synced: 0, created: 0, skipped: 0 };
 
     let created = 0;
+    let skipped = 0;
     const user = { id: userId } as User;
 
     for (const msg of messages.data.messages) {
@@ -102,34 +101,72 @@ export class EmailService {
       const headers: Array<{ name?: string; value?: string }> = full.data?.payload?.headers ?? [];
       const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
       const body = this.extractGmailBody(full.data?.payload);
-
-      const parsed = await this.aiService.parseEmailForApplication(subject, body, msg.id);
+      const plainBody = this.stripHtml(body);
+      const parsed = await this.aiService.parseEmailForApplication(subject, plainBody, msg.id);
       if (parsed) {
+        const duplicate = await this.applicationsService.findDuplicate(
+          userId, msg.id, parsed.company, parsed.jobTitle,
+        );
+
+        if (duplicate) {
+          if (!duplicate.emailBody && body) {
+            await this.applicationsService.update(userId, duplicate.id, {
+              emailSubject: subject,
+              emailBody: body.slice(0, 50000),
+            } as any);
+          }
+          skipped++;
+          continue;
+        }
+
         try {
-          await this.applicationsService.create(user, { ...parsed, source: ApplicationSource.EMAIL });
+          await this.applicationsService.create(user, {
+            ...parsed,
+            source: ApplicationSource.EMAIL,
+            emailSubject: subject,
+            emailBody: body.slice(0, 50000),
+          } as any);
           created++;
         } catch {
         }
       }
     }
 
-    return { synced: messages.data.messages.length, created };
+    return { synced: messages.data.messages.length, created, skipped };
+  }
+
+  private stripHtml(html: string): string {
+    return html
+      .replace(/<style[^>]*>.*?<\/style>/gis, ' ')
+      .replace(/<script[^>]*>.*?<\/script>/gis, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&[a-z]+;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private extractGmailBody(payload: any): string {
     if (!payload) return '';
     if (payload.body?.data) return Buffer.from(payload.body.data, 'base64').toString('utf-8');
     if (payload.parts) {
+      let plainText = '';
       for (const part of payload.parts) {
-        if (part.mimeType === 'text/plain' && part.body?.data) {
+        if (part.mimeType === 'text/html' && part.body?.data) {
           return Buffer.from(part.body.data, 'base64').toString('utf-8');
         }
+        if (part.mimeType === 'text/plain' && part.body?.data) {
+          plainText = Buffer.from(part.body.data, 'base64').toString('utf-8');
+        }
+        if (part.parts) {
+          const nested = this.extractGmailBody(part);
+          if (nested) return nested;
+        }
       }
+      return plainText;
     }
     return '';
   }
-
-  // ─── Microsoft ─────────────────────────────────────────────────────────────
 
   getMicrosoftAuthUrl(userId: string): string {
     const clientId = this.configService.get('MICROSOFT_CLIENT_ID');
@@ -189,7 +226,7 @@ export class EmailService {
     return this.connectionRepo.save(connection);
   }
 
-  async syncOutlookEmails(userId: string): Promise<{ synced: number; created: number }> {
+  async syncOutlookEmails(userId: string): Promise<{ synced: number; created: number; skipped: number }> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.OUTLOOK },
     });
@@ -206,7 +243,7 @@ export class EmailService {
       (f: any) => f.displayName?.toLowerCase() === OSTIA_LABEL.toLowerCase(),
     );
 
-    if (!ostiaFolder) return { synced: 0, created: 0 };
+    if (!ostiaFolder) return { synced: 0, created: 0, skipped: 0 };
 
     const messagesRes = await axios.get(
       `https://graph.microsoft.com/v1.0/me/mailFolders/${ostiaFolder.id}/messages` +
@@ -216,24 +253,44 @@ export class EmailService {
 
     const messages: any[] = messagesRes.data.value ?? [];
     let created = 0;
+    let skipped = 0;
     const user = { id: userId } as User;
 
     for (const msg of messages) {
       const subject: string = msg.subject ?? '';
       const body: string = msg.body?.content ?? '';
       const msgId: string = msg.internetMessageId ?? msg.id;
-
-      const parsed = await this.aiService.parseEmailForApplication(subject, body, msgId);
+      const parsed = await this.aiService.parseEmailForApplication(subject, this.stripHtml(body), msgId);
       if (parsed) {
+        const duplicate = await this.applicationsService.findDuplicate(
+          userId, msgId, parsed.company, parsed.jobTitle,
+        );
+
+        if (duplicate) {
+          if (!duplicate.emailBody && body) {
+            await this.applicationsService.update(userId, duplicate.id, {
+              emailSubject: subject,
+              emailBody: body.slice(0, 50000),
+            } as any);
+          }
+          skipped++;
+          continue;
+        }
+
         try {
-          await this.applicationsService.create(user, { ...parsed, source: ApplicationSource.EMAIL });
+          await this.applicationsService.create(user, {
+            ...parsed,
+            source: ApplicationSource.EMAIL,
+            emailSubject: subject,
+            emailBody: body.slice(0, 50000),
+          } as any);
           created++;
         } catch {
         }
       }
     }
 
-    return { synced: messages.length, created };
+    return { synced: messages.length, created, skipped };
   }
 
   private async refreshMicrosoftTokenIfNeeded(connection: EmailConnection): Promise<string> {
@@ -263,8 +320,6 @@ export class EmailService {
 
     return connection.accessToken;
   }
-
-  // ─── Commun ────────────────────────────────────────────────────────────────
 
   async getConnections(userId: string): Promise<EmailConnection[]> {
     return this.connectionRepo.find({ where: { user: { id: userId } } });
