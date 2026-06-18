@@ -41,5 +41,15 @@ coverage/
 # NestJS
 backend/dist/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
 # Docker volumes (local)
 postgres_data/
+
+# Local task file (not versioned)
+TASKS.local.md
