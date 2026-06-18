@@ -65,7 +65,62 @@ export class ApplicationsService {
       resolvedLocation: a.resolvedLocation,
       lat: a.lat ?? null,
       lon: a.lon ?? null,
+      source: a.source ?? null,
+      emailSubject: a.emailSubject ?? null,
+      emailBody: a.emailBody ?? null,
+      emailId: a.emailId ?? null,
+      salary: a.salary ?? null,
+      notes: a.notes ?? null,
+      jobUrl: a.jobUrl ?? null,
+      appliedAt: a.appliedAt ?? null,
+      createdAt: a.createdAt,
     }));
+  }
+
+  async resetAllCoordinates(userId: string): Promise<{ reset: number }> {
+    const apps = await this.findAllByUser(userId);
+    await Promise.all(
+      apps.map((a) => {
+        a.lat = null as any;
+        a.lon = null as any;
+        a.resolvedLocation = null as any;
+        return this.appRepo.save(a);
+      }),
+    );
+    return { reset: apps.length };
+  }
+
+  async findDuplicate(
+    userId: string,
+    emailId?: string,
+    company?: string,
+    jobTitle?: string,
+  ): Promise<Application | null> {
+    if (emailId) {
+      const byEmail = await this.appRepo.findOne({
+        where: { user: { id: userId }, emailId },
+      });
+      if (byEmail) return byEmail;
+    }
+
+    if (company && jobTitle) {
+      const existing = await this.findAllByUser(userId);
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const nc = norm(company);
+      const nj = norm(jobTitle);
+
+      return (
+        existing.find((a) => {
+          const ec = norm(a.company);
+          const ej = norm(a.jobTitle);
+          const companySimilar = ec === nc || ec.includes(nc) || nc.includes(ec);
+          const titleSimilar = ej === nj || ej.includes(nj) || nj.includes(ej);
+          return companySimilar && titleSimilar;
+        }) ?? null
+      );
+    }
+
+    return null;
   }
 
   async getStats(userId: string) {

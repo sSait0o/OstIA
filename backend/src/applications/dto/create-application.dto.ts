@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsUrl, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsUrl, IsDateString, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ApplicationStatus, ApplicationSource } from '../entities/application.entity';
 
@@ -47,4 +47,29 @@ export class CreateApplicationDto {
   @IsDateString()
   @IsOptional()
   appliedAt?: string;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  lat?: number;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  lon?: number;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  resolvedLocation?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  emailSubject?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  emailBody?: string;
 }

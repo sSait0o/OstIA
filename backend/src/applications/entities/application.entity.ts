@@ -57,6 +57,12 @@ export class Application {
   @Column({ nullable: true })
   emailId: string;
 
+  @Column({ nullable: true, length: 500 })
+  emailSubject: string;
+
+  @Column({ nullable: true, type: 'text' })
+  emailBody: string;
+
   @Column({ nullable: true })
   jobUrl: string;
 

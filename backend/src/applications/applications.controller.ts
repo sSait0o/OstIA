@@ -52,6 +52,12 @@ export class ApplicationsController {
     return this.applicationsService.findForMap(req.user.id);
   }
 
+  @Delete('coordinates/reset')
+  @ApiOperation({ summary: 'Réinitialiser les coordonnées de toutes les candidatures' })
+  resetCoordinates(@Request() req: { user: any }) {
+    return this.applicationsService.resetAllCoordinates(req.user.id);
+  }
+
   @Patch(':id/coordinates')
   @ApiOperation({ summary: 'Enregistrer les coordonnées géocodées' })
   saveCoordinates(

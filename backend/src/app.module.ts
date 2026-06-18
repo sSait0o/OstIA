@@ -26,7 +26,7 @@ import { AiModule } from './ai/ai.module';
                 port: configService.get<number>('DB_PORT', 5432),
                 username: configService.get('DB_USER', 'ostia_user'),
                 password: configService.get('DB_PASSWORD', 'ostia_secret'),
-                database: configService.get('DB_NAME', 'ostia'),
+                database: configService.get('DB_NAME', 'ostia') as string,
               }),
           ssl: isProd ? { rejectUnauthorized: false } : false,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
