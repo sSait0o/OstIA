@@ -7,18 +7,26 @@ _client = Groq(api_key=settings.groq_api_key)
 _MODEL = "llama-3.3-70b-versatile"
 
 
-def complete(prompt: str, max_tokens: int = 1024) -> str:
+def complete(prompt: str, max_tokens: int = 1024, system: str | None = None) -> str:
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
     response = _client.chat.completions.create(
         model=_MODEL,
         max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
+        messages=messages,
+        temperature=0.1,
     )
     return response.choices[0].message.content or ""
 
 
-def complete_json(prompt: str, max_tokens: int = 1024) -> dict:
-    text = complete(prompt, max_tokens)
+def complete_json(prompt: str, max_tokens: int = 1024, system: str | None = None) -> dict:
+    text = complete(prompt, max_tokens, system)
     match = re.search(r"\{[\s\S]*\}", text)
     if not match:
         return {}
-    return json.loads(match.group())
+    try:
+        return json.loads(match.group())
+    except json.JSONDecodeError:
+        return {}
