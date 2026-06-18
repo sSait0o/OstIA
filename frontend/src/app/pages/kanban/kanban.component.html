@@ -26,9 +26,11 @@
                 </div>
               }
               @if (app.source === 'EMAIL') {
-                <nz-tag nzColor="blue" class="card-tag">
-                  <span nz-icon nzType="mail"></span> Email
-                </nz-tag>
+                <div class="card-email-row">
+                  <nz-tag nzColor="blue" class="card-tag">
+                    <span nz-icon nzType="mail"></span> Email
+                  </nz-tag>
+                </div>
               }
             </nz-card>
           } @empty {
@@ -39,6 +41,38 @@
     }
   </div>
 }
+
+<nz-modal
+  [(nzVisible)]="emailModalVisible"
+  [nzFooter]="null"
+  nzWidth="700px"
+  nzClassName="email-modal"
+  (nzOnCancel)="emailModalVisible = false"
+>
+  <ng-container *nzModalContent>
+    @if (emailApp(); as app) {
+      <div class="email-viewer">
+        <div class="email-header">
+          <div class="email-subject">{{ app.emailSubject || '(Sans objet)' }}</div>
+          <div class="email-meta-line">
+            <span class="email-from">{{ app.company }}</span>
+            <nz-tag [nzColor]="getStatusColor(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+          </div>
+        </div>
+        @if (app.emailBody) {
+          <div class="email-body-block"
+               [class.email-body-block--plain]="!isHtml(app.emailBody)"
+               [innerHTML]="safeEmailHtml"></div>
+        } @else {
+          <div class="email-no-body">
+            <span nz-icon nzType="inbox" nzTheme="outline"></span>
+            Corps du mail non disponible — re-synchronise Gmail pour le récupérer
+          </div>
+        }
+      </div>
+    }
+  </ng-container>
+</nz-modal>
 
 <nz-modal
   [(nzVisible)]="modalVisible"

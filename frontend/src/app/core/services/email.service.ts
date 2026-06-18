@@ -29,11 +29,11 @@ export class EmailService {
   }
 
   syncGmail() {
-    return this.http.post<{ synced: number; created: number }>(`${this.base}/sync/gmail`, {});
+    return this.http.post<{ synced: number; created: number; skipped: number }>(`${this.base}/sync/gmail`, {});
   }
 
   syncOutlook() {
-    return this.http.post<{ synced: number; created: number }>(`${this.base}/sync/outlook`, {});
+    return this.http.post<{ synced: number; created: number; skipped: number }>(`${this.base}/sync/outlook`, {});
   }
 
   disconnect(id: string) {

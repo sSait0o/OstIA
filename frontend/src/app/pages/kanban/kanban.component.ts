@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -7,6 +8,7 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
@@ -25,7 +27,7 @@ interface Column {
   standalone: true,
   imports: [
     NzCardModule, NzTagModule, NzButtonModule, NzIconModule, NzModalModule,
-    NzFormModule, NzInputModule, NzSelectModule, NzSpinModule, NzEmptyModule, FormsModule,
+    NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzSpinModule, NzEmptyModule, FormsModule,
   ],
   templateUrl: './kanban.component.html',
   styleUrl: './kanban.component.scss',
@@ -33,26 +35,25 @@ interface Column {
 export class KanbanComponent implements OnInit {
   private readonly appsService = inject(ApplicationsService);
   private readonly message = inject(NzMessageService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   loading = signal(true);
   saving = signal(false);
   modalVisible = false;
+  emailModalVisible = false;
   selectedApp = signal<Application | null>(null);
+  emailApp = signal<Application | null>(null);
 
   columns = signal<Column[]>([
     { key: 'APPLIED', label: 'Envoyée', color: 'default', items: [] },
-    { key: 'ACKNOWLEDGED', label: 'Reçue', color: 'blue', items: [] },
     { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
-    { key: 'TECHNICAL', label: 'Test technique', color: 'purple', items: [] },
     { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
     { key: 'REJECTED', label: 'Refusé', color: 'red', items: [] },
   ]);
 
   statusOptions = [
     { value: 'APPLIED', label: 'Envoyée' },
-    { value: 'ACKNOWLEDGED', label: 'Reçue' },
     { value: 'INTERVIEW', label: 'Entretien' },
-    { value: 'TECHNICAL', label: 'Test technique' },
     { value: 'OFFER', label: 'Offre' },
     { value: 'REJECTED', label: 'Refusé' },
     { value: 'WITHDRAWN', label: 'Retirée' },
@@ -94,10 +95,39 @@ export class KanbanComponent implements OnInit {
     this.modalVisible = true;
   }
 
+  get safeEmailHtml(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.emailApp()?.emailBody ?? '');
+  }
+
+  isHtml(body: string | null): boolean {
+    return !!body && /<[a-z][\s\S]*>/i.test(body);
+  }
+
   selectApp(app: Application) {
+    if (app.source === 'EMAIL') {
+      this.openEmailView(app);
+      return;
+    }
     this.selectedApp.set(app);
     this.form = { company: app.company, jobTitle: app.jobTitle, status: app.status, location: app.location, salary: app.salary, jobUrl: app.jobUrl, notes: app.notes };
     this.modalVisible = true;
+  }
+
+  openEmailView(app: Application, event?: MouseEvent) {
+    event?.stopPropagation();
+    this.emailApp.set(app);
+    this.emailModalVisible = true;
+  }
+
+  getStatusLabel(status: string): string {
+    return this.statusOptions.find((s) => s.value === status)?.label ?? status;
+  }
+
+  getStatusColor(status: string): string {
+    const map: Record<string, string> = {
+      APPLIED: 'default', INTERVIEW: 'orange', OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
+    };
+    return map[status] ?? 'default';
   }
 
   closeModal() {
@@ -113,9 +143,13 @@ export class KanbanComponent implements OnInit {
     this.saving.set(true);
     const existing = this.selectedApp();
 
+    const payload = Object.fromEntries(
+      Object.entries(this.form).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+    ) as unknown as CreateApplicationDto;
+
     const obs = existing
-      ? this.appsService.update(existing.id, this.form)
-      : this.appsService.create(this.form as CreateApplicationDto);
+      ? this.appsService.update(existing.id, payload)
+      : this.appsService.create(payload);
 
     obs.subscribe({
       next: () => {

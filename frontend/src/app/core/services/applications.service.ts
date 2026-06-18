@@ -22,6 +22,8 @@ export interface Application {
   salary?: string;
   notes?: string;
   appliedAt?: string;
+  emailSubject?: string;
+  emailBody?: string;
   createdAt: string;
   updatedAt: string;
 }
