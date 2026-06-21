@@ -1,8 +1,18 @@
 <div class="kanban-header">
   <h2>Mes candidatures</h2>
-  <button nz-button nzType="primary" (click)="openModal()">
-    <span nz-icon nzType="plus"></span> Ajouter
-  </button>
+  <div class="kanban-header-actions">
+    <button nz-button nzType="default" nzDanger
+            nz-popconfirm
+            nzPopconfirmTitle="Supprimer tous les doublons (même entreprise + poste) ?"
+            nzPopconfirmPlacement="bottomRight"
+            (nzOnConfirm)="deduplicate()"
+            [nzLoading]="deduplicating()">
+      <span nz-icon nzType="delete"></span> Doublons
+    </button>
+    <button nz-button nzType="primary" (click)="openModal()">
+      <span nz-icon nzType="plus"></span> Ajouter
+    </button>
+  </div>
 </div>
 
 @if (loading()) {
@@ -65,7 +75,7 @@
                [innerHTML]="safeEmailHtml"></div>
         } @else {
           <div class="email-no-body">
-            <span nz-icon nzType="inbox" nzTheme="outline"></span>
+            <span nz-icon nzType="inbox"></span>
             Corps du mail non disponible — re-synchronise Gmail pour le récupérer
           </div>
         }

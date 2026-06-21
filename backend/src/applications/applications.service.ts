@@ -77,6 +77,32 @@ export class ApplicationsService {
     }));
   }
 
+  async deduplicateApplications(userId: string): Promise<{ removed: number }> {
+    const apps = await this.findAllByUser(userId);
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const groups = new Map<string, typeof apps>();
+
+    for (const app of apps) {
+      const key = `${norm(app.company)}__${norm(app.jobTitle)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(app);
+    }
+
+    let removed = 0;
+    for (const group of groups.values()) {
+      if (group.length <= 1) continue;
+      group.sort((a, b) => {
+        const score = (x: typeof a) =>
+          (x.emailBody ? 4 : 0) + (x.emailId ? 2 : 0) + (x.resolvedLocation ? 1 : 0);
+        return score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime();
+      });
+      const [, ...toDelete] = group;
+      await Promise.all(toDelete.map((a) => this.appRepo.remove(a)));
+      removed += toDelete.length;
+    }
+    return { removed };
+  }
+
   async resetAllCoordinates(userId: string): Promise<{ reset: number }> {
     const apps = await this.findAllByUser(userId);
     await Promise.all(

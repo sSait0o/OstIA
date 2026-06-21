@@ -258,15 +258,17 @@
   max-height: 520px;
   overflow-y: auto;
   padding: 24px;
-  background: #ffffff;
-  color: #111;
+  background: #fff;
   word-break: break-word;
+  filter: invert(0.9) hue-rotate(180deg);
+  border-radius: 4px;
 
   * { max-width: 100%; }
-  img { height: auto; }
-  a { color: #1a73e8; }
+  img { height: auto; filter: invert(1) hue-rotate(180deg); }
+  a { color: #4fa3e8; }
 
   &--plain {
+    filter: none;
     background: #1a1a1a;
     color: rgba(255,255,255,.8);
     font-size: 14px;

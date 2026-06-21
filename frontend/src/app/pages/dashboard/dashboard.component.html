@@ -77,10 +77,18 @@
             <span nz-icon nzType="mail"></span>
             {{ hasGmail() ? 'Gmail connecté' : 'Connecter Gmail' }}
           </button>
-          <button nz-button nzSize="small" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail()">
+          <button nz-button nzSize="small" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail() || syncingGmail()">
             <span nz-icon nzType="sync"></span> Synchroniser
           </button>
         </div>
+        @if (syncingGmail()) {
+          <nz-progress
+            [nzPercent]="gmailSyncPercent()"
+            nzSize="small"
+            [nzStatus]="gmailSyncPercent() === 100 ? 'success' : 'active'"
+            class="sync-progress"
+          ></nz-progress>
+        }
 
         <nz-divider nzText="Outlook"></nz-divider>
         <div class="email-actions">

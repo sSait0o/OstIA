@@ -1,6 +1,12 @@
 $col-border: rgba(255,255,255,.07);
 $card-bg: rgba(15,15,15,.9);
 
+.kanban-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .kanban-header {
   display: flex;
   justify-content: space-between;

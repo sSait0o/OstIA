@@ -9,6 +9,7 @@ import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
@@ -27,7 +28,7 @@ interface Column {
   standalone: true,
   imports: [
     NzCardModule, NzTagModule, NzButtonModule, NzIconModule, NzModalModule,
-    NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzSpinModule, NzEmptyModule, FormsModule,
+    NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, FormsModule,
   ],
   templateUrl: './kanban.component.html',
   styleUrl: './kanban.component.scss',
@@ -39,6 +40,7 @@ export class KanbanComponent implements OnInit {
 
   loading = signal(true);
   saving = signal(false);
+  deduplicating = signal(false);
   modalVisible = false;
   emailModalVisible = false;
   selectedApp = signal<Application | null>(null);
@@ -133,6 +135,21 @@ export class KanbanComponent implements OnInit {
   closeModal() {
     this.modalVisible = false;
     this.selectedApp.set(null);
+  }
+
+  deduplicate() {
+    this.deduplicating.set(true);
+    this.appsService.deduplicateApplications().subscribe({
+      next: ({ removed }) => {
+        this.message.success(removed > 0 ? `${removed} doublon(s) supprimé(s)` : 'Aucun doublon trouvé');
+        if (removed > 0) this.loadKanban();
+        this.deduplicating.set(false);
+      },
+      error: () => {
+        this.message.error('Erreur lors de la déduplication');
+        this.deduplicating.set(false);
+      },
+    });
   }
 
   saveApp() {

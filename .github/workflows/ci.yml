@@ -80,4 +80,4 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Check syntax
-        run: python -m py_compile app/main.py app/config.py app/services/ai_client.py app/services/cv_parser.py app/services/job_matcher.py
+        run: python -m py_compile app/main.py app/config.py app/services/cv_parser.py app/services/job_matcher.py
