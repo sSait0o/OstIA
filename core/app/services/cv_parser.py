@@ -19,58 +19,50 @@ def _strip_html(text: str) -> str:
 def parse_email(subject: str, body: str, email_id: str) -> dict | None:
     clean_body = _strip_html(body)[:4000]
 
-    # Étape 1 : raisonnement libre pour comprendre l'email
-    analysis_prompt = f"""Analyse cet email lié à une candidature professionnelle.
+    prompt = f"""Analyse cet email lié à une candidature d'emploi et retourne un JSON structuré.
 
 SUJET: {subject}
 CONTENU: {clean_body}
 
-Réponds en français en expliquant :
-1. Est-ce un email de candidature/recrutement ? (oui/non et pourquoi)
-2. Quelle entreprise a envoyé ou est concernée ?
-3. Quel poste/intitulé est mentionné ?
-4. Quel est le statut : envoi confirmé, accusé de réception, invitation entretien, test technique, offre d'emploi, ou refus ?
-5. Y a-t-il une ville ou localisation mentionnée (ex: Paris, Lyon, télétravail, remote) ?
-6. Y a-t-il une date mentionnée ?
-7. Points importants à retenir ?"""
+Règle 1 — Détermine si c'est un email de recrutement/candidature :
+- OUI : confirmation de candidature, accusé de réception RH, invitation entretien, test technique, offre d'embauche, refus
+- NON : newsletter, réinitialisation mot de passe, facture, publicité, email personnel → retourne {{"not_recruitment": true}}
 
-    analysis = complete(analysis_prompt, max_tokens=600, system=_SYSTEM_EMAIL)
-
-    if not analysis:
-        return None
-
-    # Étape 2 : extraction JSON basée sur l'analyse
-    extract_prompt = f"""Sur la base de cette analyse d'email de recrutement :
-
-{analysis}
-
-Retourne UNIQUEMENT un objet JSON valide (ou null si ce n'est pas un email de candidature) :
+Règle 2 — Si OUI, retourne exactement ce JSON (sans texte autour) :
 {{
-  "company": "nom exact de l'entreprise (null si inconnu)",
-  "jobTitle": "intitulé précis du poste (null si inconnu)",
-  "status": "APPLIED|INTERVIEW|OFFER|REJECTED",
-  "location": "ville ou région du poste (ex: Paris, Lyon, Remote, Île-de-France) ou null",
-  "appliedAt": "date ISO 8601 si mentionnée ou null",
-  "notes": "résumé factuel en 1 phrase de l'email"
+  "company": "nom exact de l'entreprise (jamais null)",
+  "jobTitle": "intitulé exact du poste (jamais null)",
+  "status": "APPLIED|ACKNOWLEDGED|INTERVIEW|TECHNICAL|OFFER|REJECTED",
+  "location": "ville/pays ou null",
+  "appliedAt": "date ISO 8601 ou null",
+  "notes": "résumé factuel en 1 phrase"
 }}
 
-Règles de statut :
-- APPLIED : confirmation d'envoi OU accusé de réception de la candidature (les deux sont le même stade)
+Statuts — choisis le plus précis :
+- APPLIED : tu as envoyé une candidature, confirmation d'envoi sur une plateforme (LinkedIn, Indeed, Welcometothejungle...)
+- ACKNOWLEDGED : accusé de réception automatique de l'entreprise ("nous avons bien reçu votre candidature")
 - INTERVIEW : invitation à un entretien (téléphonique, visio, présentiel)
-- OFFER : offre d'embauche reçue
+- TECHNICAL : invitation à un test technique, cas pratique, assessment
+- OFFER : offre d'embauche, proposition de contrat
 - REJECTED : refus explicite de la candidature
 
-Si ce n'est pas un email de recrutement, retourne null."""
+Exemples de company : "BNP Paribas", "Thales", "Capgemini" (pas "RH de BNP", pas "l'équipe recrutement")
+Exemples de jobTitle : "Développeur Full Stack", "Data Analyst", "Alternance Chef de Projet IT" """
 
-    result = complete_json(extract_prompt, max_tokens=400, system=_SYSTEM_EMAIL)
+    result = complete_json(prompt, max_tokens=400, system=_SYSTEM_EMAIL)
 
-    if not result or not result.get("company") or not result.get("jobTitle"):
+    if not result or result.get("not_recruitment") or not result.get("company") or not result.get("jobTitle"):
         return None
+
+    valid_statuses = {"APPLIED", "ACKNOWLEDGED", "INTERVIEW", "TECHNICAL", "OFFER", "REJECTED"}
+    status = result.get("status", "APPLIED")
+    if status not in valid_statuses:
+        status = "APPLIED"
 
     return {
         "company": result.get("company"),
         "jobTitle": result.get("jobTitle"),
-        "status": result.get("status", "ACKNOWLEDGED"),
+        "status": status,
         "location": result.get("location"),
         "appliedAt": result.get("appliedAt"),
         "notes": result.get("notes"),

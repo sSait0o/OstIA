@@ -3,14 +3,34 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { google } from 'googleapis';
+import { Observable } from 'rxjs';
 import axios from 'axios';
 import { EmailConnection, EmailProvider } from './entities/email-connection.entity';
 import { User } from '../users/entities/user.entity';
 import { AiService } from '../ai/ai.service';
 import { ApplicationsService } from '../applications/applications.service';
-import { ApplicationSource } from '../applications/entities/application.entity';
+import { ApplicationSource, ApplicationStatus } from '../applications/entities/application.entity';
 
-const OSTIA_LABEL = 'Ostia';
+export interface SyncProgress {
+  percent: number;
+  done?: boolean;
+  synced?: number;
+  created?: number;
+  skipped?: number;
+}
+
+const OSTIA_LABEL = 'OstIA';
+const OSTIA_SUBLABELS = ['Accepté', 'Archivé', 'Autre', 'Entretien', 'Envoyé', 'Refus'];
+
+const STATUS_TO_SUBLABEL: Record<ApplicationStatus, string> = {
+  [ApplicationStatus.APPLIED]: 'Envoyé',
+  [ApplicationStatus.ACKNOWLEDGED]: 'Archivé',
+  [ApplicationStatus.INTERVIEW]: 'Entretien',
+  [ApplicationStatus.TECHNICAL]: 'Autre',
+  [ApplicationStatus.OFFER]: 'Accepté',
+  [ApplicationStatus.REJECTED]: 'Refus',
+  [ApplicationStatus.WITHDRAWN]: 'Archivé',
+};
 
 @Injectable()
 export class EmailService {
@@ -33,7 +53,8 @@ export class EmailService {
   getGoogleAuthUrl(userId: string): string {
     return this.googleOAuth2Client.generateAuthUrl({
       access_type: 'offline',
-      scope: ['https://www.googleapis.com/auth/gmail.readonly'],
+      prompt: 'consent',
+      scope: ['https://www.googleapis.com/auth/gmail.modify'],
       state: userId,
     });
   }
@@ -44,6 +65,8 @@ export class EmailService {
 
     const gmail = google.gmail({ version: 'v1', auth: this.googleOAuth2Client });
     const profile = await gmail.users.getProfile({ userId: 'me' });
+
+    await this.ensureOstiaLabels(gmail);
 
     const existing = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
@@ -64,6 +87,27 @@ export class EmailService {
   }
 
   async syncGmailEmails(userId: string): Promise<{ synced: number; created: number; skipped: number }> {
+    return this.doGmailSync(userId, () => {});
+  }
+
+  syncGmailStream(userId: string): Observable<MessageEvent> {
+    return new Observable((subscriber) => {
+      const emit = (data: SyncProgress) =>
+        subscriber.next({ data } as unknown as MessageEvent);
+
+      this.doGmailSync(userId, emit)
+        .then((result) => {
+          emit({ percent: 100, done: true, ...result });
+          subscriber.complete();
+        })
+        .catch((err) => subscriber.error(err));
+    });
+  }
+
+  private async doGmailSync(
+    userId: string,
+    onProgress: (p: SyncProgress) => void,
+  ): Promise<{ synced: number; created: number; skipped: number }> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
     });
@@ -75,64 +119,157 @@ export class EmailService {
     });
 
     const gmail = google.gmail({ version: 'v1', auth: this.googleOAuth2Client });
+    const labelMap = await this.ensureOstiaLabels(gmail);
+    const ostiaLabelId = labelMap.get(OSTIA_LABEL);
 
-    const labels = await gmail.users.labels.list({ userId: 'me' });
-    const ostiaLabel = labels.data.labels?.find(
-      (l) => l.name?.toLowerCase() === OSTIA_LABEL.toLowerCase(),
-    );
-
-    if (!ostiaLabel?.id) return { synced: 0, created: 0, skipped: 0 };
+    if (!ostiaLabelId) return { synced: 0, created: 0, skipped: 0 };
 
     const messages = await gmail.users.messages.list({
       userId: 'me',
-      labelIds: [ostiaLabel.id],
+      labelIds: [ostiaLabelId],
       maxResults: 50,
     });
 
     if (!messages.data.messages) return { synced: 0, created: 0, skipped: 0 };
 
+    const msgList = messages.data.messages.filter((m) => !!m.id);
+    const total = msgList.length;
     let created = 0;
     let skipped = 0;
     const user = { id: userId } as User;
 
-    for (const msg of messages.data.messages) {
-      if (!msg.id) continue;
-      const full: any = await gmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
-      const headers: Array<{ name?: string; value?: string }> = full.data?.payload?.headers ?? [];
-      const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
-      const body = this.extractGmailBody(full.data?.payload);
-      const plainBody = this.stripHtml(body);
-      const parsed = await this.aiService.parseEmailForApplication(subject, plainBody, msg.id);
-      if (parsed) {
-        const duplicate = await this.applicationsService.findDuplicate(
-          userId, msg.id, parsed.company, parsed.jobTitle,
-        );
+    // Phase 1 : fetch les contenus en parallèle (rapide)
+    onProgress({ percent: 5 });
+    const fetched = await Promise.all(
+      msgList.map(async (msg) => {
+        const full: any = await gmail.users.messages.get({ userId: 'me', id: msg.id!, format: 'full' });
+        const headers: Array<{ name?: string; value?: string }> = full.data?.payload?.headers ?? [];
+        const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
+        const body = this.extractGmailBody(full.data?.payload);
+        return { msgId: msg.id!, subject, body };
+      }),
+    );
+    onProgress({ percent: 15 });
 
-        if (duplicate) {
-          if (!duplicate.emailBody && body) {
-            await this.applicationsService.update(userId, duplicate.id, {
-              emailSubject: subject,
-              emailBody: body.slice(0, 50000),
-            } as any);
-          }
-          skipped++;
-          continue;
-        }
+    // Phase 2 : parsing IA séquentiel avec progression
+    for (let i = 0; i < fetched.length; i++) {
+      const { msgId, subject, body } = fetched[i];
 
-        try {
-          await this.applicationsService.create(user, {
-            ...parsed,
-            source: ApplicationSource.EMAIL,
+      const percent = 15 + Math.round(((i + 1) / total) * 70);
+      onProgress({ percent });
+
+      // Vérifier doublon par emailId avant d'appeler l'IA
+      const existing = await this.applicationsService.findDuplicate(userId, msgId);
+      if (existing) {
+        if (!existing.emailBody && body) {
+          await this.applicationsService.update(userId, existing.id, {
             emailSubject: subject,
             emailBody: body.slice(0, 50000),
           } as any);
-          created++;
-        } catch {
         }
+        await this.applyGmailSublabel(gmail, msgId, existing.status as ApplicationStatus, labelMap);
+        skipped++;
+        continue;
+      }
+
+      const plainBody = this.stripHtml(body);
+      const parsed = await this.aiService.parseEmailForApplication(subject, plainBody, msgId);
+
+      if (!parsed || !parsed.company || !parsed.jobTitle) {
+        await this.applyGmailSublabel(gmail, msgId, ApplicationStatus.TECHNICAL, labelMap);
+        skipped++;
+        continue;
+      }
+
+      const duplicate = await this.applicationsService.findDuplicate(
+        userId, undefined, parsed.company, parsed.jobTitle,
+      );
+
+      if (duplicate) {
+        if (!duplicate.emailBody && body) {
+          await this.applicationsService.update(userId, duplicate.id, {
+            emailSubject: subject,
+            emailBody: body.slice(0, 50000),
+          } as any);
+        }
+        await this.applyGmailSublabel(gmail, msgId, duplicate.status as ApplicationStatus, labelMap);
+        skipped++;
+        continue;
+      }
+
+      try {
+        const app = await this.applicationsService.create(user, {
+          ...parsed,
+          source: ApplicationSource.EMAIL,
+          emailSubject: subject,
+          emailBody: body.slice(0, 50000),
+        } as any);
+        created++;
+        await this.applyGmailSublabel(gmail, msgId, app.status as ApplicationStatus, labelMap);
+      } catch {
       }
     }
 
-    return { synced: messages.data.messages.length, created, skipped };
+    return { synced: total, created, skipped };
+  }
+
+  private async applyGmailSublabel(
+    gmail: any,
+    msgId: string,
+    status: ApplicationStatus,
+    labelMap: Map<string, string>,
+  ): Promise<void> {
+    const targetSublabelName = `${OSTIA_LABEL}/${STATUS_TO_SUBLABEL[status]}`;
+    const targetSublabelId = labelMap.get(targetSublabelName);
+    if (!targetSublabelId) return;
+
+    const otherSublabelIds = OSTIA_SUBLABELS
+      .map((sub) => labelMap.get(`${OSTIA_LABEL}/${sub}`))
+      .filter((id): id is string => !!id && id !== targetSublabelId);
+
+    try {
+      await gmail.users.messages.modify({
+        userId: 'me',
+        id: msgId,
+        requestBody: {
+          addLabelIds: [targetSublabelId],
+          removeLabelIds: otherSublabelIds,
+        },
+      });
+    } catch (err: any) {
+      console.error('[Gmail] applyGmailSublabel error:', err?.response?.data ?? err?.message ?? err);
+    }
+  }
+
+  private async ensureOstiaLabels(gmail: any): Promise<Map<string, string>> {
+    const labelMap = new Map<string, string>();
+    const { data } = await gmail.users.labels.list({ userId: 'me' });
+    const existing: Array<{ id: string; name: string }> = data.labels ?? [];
+
+    let parentId = existing.find((l) => l.name === OSTIA_LABEL)?.id;
+    if (!parentId) {
+      const res = await gmail.users.labels.create({
+        userId: 'me',
+        requestBody: { name: OSTIA_LABEL },
+      });
+      parentId = res.data.id;
+    }
+    if (parentId) labelMap.set(OSTIA_LABEL, parentId);
+
+    for (const sub of OSTIA_SUBLABELS) {
+      const fullName = `${OSTIA_LABEL}/${sub}`;
+      let labelId = existing.find((l) => l.name === fullName)?.id;
+      if (!labelId) {
+        const res = await gmail.users.labels.create({
+          userId: 'me',
+          requestBody: { name: fullName },
+        });
+        labelId = res.data.id;
+      }
+      if (labelId) labelMap.set(fullName, labelId);
+    }
+
+    return labelMap;
   }
 
   private stripHtml(html: string): string {
@@ -319,6 +456,22 @@ export class EmailService {
     await this.connectionRepo.save(connection);
 
     return connection.accessToken;
+  }
+
+  async updateGmailLabelForEmail(userId: string, emailId: string, status: ApplicationStatus): Promise<void> {
+    const connection = await this.connectionRepo.findOne({
+      where: { user: { id: userId }, provider: EmailProvider.GMAIL },
+    });
+    if (!connection) return;
+
+    this.googleOAuth2Client.setCredentials({
+      access_token: connection.accessToken,
+      refresh_token: connection.refreshToken,
+    });
+
+    const gmail = google.gmail({ version: 'v1', auth: this.googleOAuth2Client });
+    const labelMap = await this.ensureOstiaLabels(gmail);
+    await this.applyGmailSublabel(gmail, emailId, status, labelMap);
   }
 
   async getConnections(userId: string): Promise<EmailConnection[]> {

@@ -22,11 +22,25 @@ def complete(prompt: str, max_tokens: int = 1024, system: str | None = None) -> 
 
 
 def complete_json(prompt: str, max_tokens: int = 1024, system: str | None = None) -> dict:
-    text = complete(prompt, max_tokens, system)
-    match = re.search(r"\{[\s\S]*\}", text)
-    if not match:
-        return {}
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+    response = _client.chat.completions.create(
+        model=_MODEL,
+        max_tokens=max_tokens,
+        messages=messages,
+        temperature=0.1,
+        response_format={"type": "json_object"},
+    )
+    text = response.choices[0].message.content or "{}"
     try:
-        return json.loads(match.group())
+        return json.loads(text)
     except json.JSONDecodeError:
-        return {}
+        match = re.search(r"\{[\s\S]*\}", text)
+        if not match:
+            return {}
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            return {}

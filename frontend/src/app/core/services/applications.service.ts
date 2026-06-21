@@ -84,4 +84,8 @@ export class ApplicationsService {
   delete(id: string) {
     return this.http.delete(`${this.base}/${id}`);
   }
+
+  deduplicateApplications() {
+    return this.http.delete<{ removed: number }>(`${this.base}/duplicates`);
+  }
 }

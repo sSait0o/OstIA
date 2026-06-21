@@ -1,14 +1,19 @@
-import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Redirect } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Redirect, Sse, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailService } from './email.service';
+import { Observable } from 'rxjs';
 
 @ApiTags('Email')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('email')
 export class EmailController {
-  constructor(private readonly emailService: EmailService) {}
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Get('connections')
   @ApiOperation({ summary: 'Lister les comptes email connectés' })
@@ -44,6 +49,26 @@ export class EmailController {
   @ApiOperation({ summary: 'Déconnecter un compte email' })
   disconnect(@Request() req: { user: any }, @Param('id') id: string) {
     return this.emailService.disconnect(req.user.id, id);
+  }
+}
+
+@ApiTags('Email')
+@Controller('email')
+export class EmailSseController {
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  @Sse('sync/gmail/stream')
+  @ApiOperation({ summary: 'Synchroniser Gmail avec progression SSE' })
+  syncGmailStream(@Query('token') token: string): Observable<MessageEvent> {
+    try {
+      const payload = this.jwtService.verify<{ sub: string }>(token);
+      return this.emailService.syncGmailStream(payload.sub);
+    } catch {
+      throw new UnauthorizedException();
+    }
   }
 }
 
