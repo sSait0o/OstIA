@@ -42,18 +42,22 @@ $card-bg: rgba(15,15,15,.9);
   gap: 14px;
   overflow-x: auto;
   padding-bottom: 16px;
-  min-height: 60vh;
+  height: calc(100vh - 168px);
   scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.08) transparent;
 }
 
 .kanban-column {
   min-width: 240px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
   background: rgba(255,255,255,.03);
   border: 1px solid $col-border;
   border-radius: 10px;
   padding: 14px;
   transition: border-color .2s;
+  overflow: hidden;
 
   &:hover {
     border-color: rgba(255,255,255,.13);
@@ -86,7 +90,22 @@ $card-bg: rgba(15,15,15,.9);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 80px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.1) transparent;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.12);
+    border-radius: 4px;
+  }
 }
 
 .kanban-card {
