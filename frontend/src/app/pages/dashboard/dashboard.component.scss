@@ -18,11 +18,18 @@
 
 .stat-card {
   text-align: center;
-  transition: transform .2s;
+  transition: transform .2s, box-shadow .2s;
+  border-top: 3px solid transparent;
 
   &:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   }
+
+  &--blue  { border-top-color: #4a9eff; }
+  &--teal  { border-top-color: #36cfc9; }
+  &--yellow{ border-top-color: #ffc53d; }
+  &--green { border-top-color: #52c41a; }
 }
 
 .stat-value {
