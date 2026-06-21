@@ -48,8 +48,13 @@ export class DashboardComponent implements OnInit {
   };
 
   private readonly STATUS_COLORS: Record<string, string> = {
-    APPLIED: 'rgba(255,255,255,0.3)', ACKNOWLEDGED: 'rgba(150,200,255,0.7)', INTERVIEW: 'rgba(255,200,80,0.7)',
-    TECHNICAL: 'rgba(190,140,255,0.7)', OFFER: 'rgba(130,220,90,0.7)', REJECTED: 'rgba(255,120,120,0.7)', WITHDRAWN: 'rgba(255,255,255,0.15)',
+    APPLIED: '#4a9eff',
+    ACKNOWLEDGED: '#36cfc9',
+    INTERVIEW: '#ffc53d',
+    TECHNICAL: '#b37feb',
+    OFFER: '#52c41a',
+    REJECTED: '#ff4d4f',
+    WITHDRAWN: '#8c8c8c',
   };
 
   ngOnInit() {
@@ -79,20 +84,35 @@ export class DashboardComponent implements OnInit {
       backgroundColor: 'transparent',
       tooltip: {
         trigger: 'item',
-        formatter: '{b}: {c} ({d}%)',
-        backgroundColor: 'rgba(10,10,10,0.9)',
-        borderColor: 'rgba(255,255,255,0.1)',
-        textStyle: { color: '#e8e8e8' },
+        formatter: '{b}: <b>{c}</b> ({d}%)',
+        backgroundColor: 'rgba(10,10,30,0.95)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        textStyle: { color: '#e8e8e8', fontSize: 13 },
       },
       legend: {
-        orient: 'vertical',
-        left: 'left',
-        textStyle: { color: 'rgba(255,255,255,0.5)' },
+        orient: 'horizontal',
+        bottom: 0,
+        textStyle: { color: 'rgba(255,255,255,0.55)', fontSize: 12 },
+        icon: 'circle',
+        itemWidth: 10,
+        itemHeight: 10,
       },
       series: [{
-        type: 'pie', radius: ['40%', '70%'], data,
-        label: { color: 'rgba(255,255,255,0.6)' },
-        emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.8)' } },
+        type: 'pie',
+        radius: ['42%', '68%'],
+        center: ['50%', '45%'],
+        data,
+        label: {
+          show: true,
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: 12,
+          formatter: '{d}%',
+        },
+        labelLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } },
+        emphasis: {
+          itemStyle: { shadowBlur: 16, shadowColor: 'rgba(0,0,0,0.6)' },
+          label: { fontSize: 14, fontWeight: 'bold' },
+        },
       }],
     });
   }
