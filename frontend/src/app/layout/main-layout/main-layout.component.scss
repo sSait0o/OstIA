@@ -58,6 +58,15 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+::ng-deep .ant-menu-item-group-title {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  color: rgba(255, 255, 255, 0.25) !important;
+  padding: 16px 16px 4px !important;
+}
+
 .main-content {
   margin: 20px;
   padding: 24px;

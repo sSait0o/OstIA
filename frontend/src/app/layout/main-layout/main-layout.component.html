@@ -7,25 +7,33 @@
       <span class="logo-text">OstIA</span>
     </div>
     <ul nz-menu nzTheme="dark" nzMode="inline">
-      <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="project" nzTheme="outline"></span>
-        <span>Candidatures</span>
+      <li nz-menu-group nzTitle="Organisation">
+        <ul>
+          <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="project" nzTheme="outline"></span>
+            <span>Candidatures</span>
+          </li>
+          <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
+            <span>Dashboard</span>
+          </li>
+          <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="global" nzTheme="outline"></span>
+            <span>Carte</span>
+          </li>
+        </ul>
       </li>
-      <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="search" nzTheme="outline"></span>
-        <span>Offres</span>
-      </li>
-      <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
-        <span>Dashboard</span>
-      </li>
-      <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="file-text" nzTheme="outline"></span>
-        <span>Mon CV</span>
-      </li>
-      <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="global" nzTheme="outline"></span>
-        <span>Carte</span>
+      <li nz-menu-group nzTitle="Recherche">
+        <ul>
+          <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="search" nzTheme="outline"></span>
+            <span>Offres</span>
+          </li>
+          <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="file-text" nzTheme="outline"></span>
+            <span>Mon CV</span>
+          </li>
+        </ul>
       </li>
     </ul>
   </nz-sider>
