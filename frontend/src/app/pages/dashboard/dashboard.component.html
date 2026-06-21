@@ -44,9 +44,19 @@
   </div>
 
   <div nz-row [nzGutter]="[16, 16]">
-    <div nz-col [nzXs]="24" [nzSm]="12">
+    <div nz-col [nzXs]="24" [nzSm]="8">
       <nz-card nzTitle="Répartition par statut">
         <div echarts [options]="pieOptions()" class="chart"></div>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="24" [nzSm]="8">
+      <nz-card nzTitle="Activité mensuelle">
+        <div echarts [options]="barOptions()" class="chart"></div>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="24" [nzSm]="8">
+      <nz-card nzTitle="Pipeline de conversion">
+        <div echarts [options]="funnelOptions()" class="chart"></div>
       </nz-card>
     </div>
     <div nz-col [nzXs]="24" [nzSm]="12">

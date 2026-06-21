@@ -38,6 +38,8 @@ export class DashboardComponent implements OnInit {
   stats = signal<ApplicationStats | null>(null);
   emailConnections = signal<EmailConnection[]>([]);
   pieOptions = signal<EChartsOption>({});
+  barOptions = signal<EChartsOption>({});
+  funnelOptions = signal<EChartsOption>({});
 
   hasGmail = computed(() => this.emailConnections().some((c) => c.provider === 'GMAIL'));
   hasOutlook = computed(() => this.emailConnections().some((c) => c.provider === 'OUTLOOK'));
@@ -59,7 +61,13 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit() {
     this.appsService.getStats().subscribe({
-      next: (s) => { this.stats.set(s); this.buildPieChart(s); this.loading.set(false); },
+      next: (s) => {
+        this.stats.set(s);
+        this.buildPieChart(s);
+        this.buildBarChart(s);
+        this.buildFunnelChart(s);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
     this.loadConnections();
@@ -113,6 +121,89 @@ export class DashboardComponent implements OnInit {
           itemStyle: { shadowBlur: 16, shadowColor: 'rgba(0,0,0,0.6)' },
           label: { fontSize: 14, fontWeight: 'bold' },
         },
+      }],
+    });
+  }
+
+  private buildBarChart(s: ApplicationStats) {
+    this.barOptions.set({
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(10,10,30,0.95)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        textStyle: { color: '#e8e8e8', fontSize: 13 },
+      },
+      xAxis: {
+        type: 'category',
+        data: s.byMonth?.map((m) => m.month) ?? [],
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+        axisTick: { show: false },
+        axisLabel: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
+      },
+      yAxis: {
+        type: 'value',
+        minInterval: 1,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+        axisLabel: { color: 'rgba(255,255,255,0.35)', fontSize: 11 },
+      },
+      series: [{
+        type: 'bar',
+        data: s.byMonth?.map((m) => m.count) ?? [],
+        itemStyle: { color: '#4a9eff', borderRadius: [4, 4, 0, 0] },
+        emphasis: { itemStyle: { color: '#74b8ff' } },
+        barMaxWidth: 40,
+      }],
+      grid: { left: '2%', right: '2%', bottom: '4%', top: '8%', containLabel: true },
+    });
+  }
+
+  private buildFunnelChart(s: ApplicationStats) {
+    const pipeline = [
+      { name: 'Envoyées',  value: s.byStatus['APPLIED'] ?? 0,     color: '#4a9eff' },
+      { name: 'Reçues',    value: s.byStatus['ACKNOWLEDGED'] ?? 0, color: '#36cfc9' },
+      { name: 'Entretiens',value: s.byStatus['INTERVIEW'] ?? 0,    color: '#ffc53d' },
+      { name: 'Tests',     value: s.byStatus['TECHNICAL'] ?? 0,    color: '#b37feb' },
+      { name: 'Offres',    value: s.byStatus['OFFER'] ?? 0,        color: '#52c41a' },
+    ];
+
+    this.funnelOptions.set({
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: <b>{c}</b>',
+        backgroundColor: 'rgba(10,10,30,0.95)',
+        borderColor: 'rgba(255,255,255,0.08)',
+        textStyle: { color: '#e8e8e8', fontSize: 13 },
+      },
+      series: [{
+        type: 'funnel',
+        left: '8%',
+        width: '84%',
+        top: '4%',
+        bottom: '4%',
+        min: 0,
+        max: Math.max(...pipeline.map((d) => d.value), 1),
+        minSize: '18%',
+        maxSize: '100%',
+        sort: 'none',
+        gap: 3,
+        data: pipeline.map((d) => ({
+          name: d.name,
+          value: d.value,
+          itemStyle: { color: d.color, opacity: 0.85 },
+        })),
+        label: {
+          position: 'inside',
+          color: '#fff',
+          fontWeight: '700',
+          fontSize: 13,
+          formatter: '{b}: {c}',
+        },
+        labelLine: { show: false },
+        emphasis: { label: { fontSize: 14 } },
       }],
     });
   }

@@ -152,15 +152,35 @@ export class ApplicationsService {
   async getStats(userId: string) {
     const apps = await this.findAllByUser(userId);
     const total = apps.length;
+
     const byStatus = Object.values(ApplicationStatus).reduce(
       (acc, s) => ({ ...acc, [s]: apps.filter((a) => a.status === s).length }),
-      {},
+      {} as Record<ApplicationStatus, number>,
     );
+
     const responseRate = total > 0
       ? Math.round(
           (apps.filter((a) => a.status !== ApplicationStatus.APPLIED).length / total) * 100,
         )
       : 0;
-    return { total, byStatus, responseRate };
+
+    const now = new Date();
+    const byMonth = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      const label = d.toLocaleString('fr-FR', { month: 'short', year: '2-digit' });
+      const count = apps.filter((a) => {
+        const date = new Date(a.createdAt);
+        return date.getFullYear() === d.getFullYear() && date.getMonth() === d.getMonth();
+      }).length;
+      return { month: label, count };
+    });
+
+    const bySource = {
+      EMAIL: apps.filter((a) => a.source === ApplicationSource.EMAIL).length,
+      MANUAL: apps.filter((a) => a.source === ApplicationSource.MANUAL).length,
+      JOB_BOARD: apps.filter((a) => a.source === ApplicationSource.JOB_BOARD).length,
+    };
+
+    return { total, byStatus, responseRate, byMonth, bySource };
   }
 }
