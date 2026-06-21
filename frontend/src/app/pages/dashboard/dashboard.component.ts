@@ -198,12 +198,12 @@ export class DashboardComponent implements OnInit {
         label: {
           position: 'inside',
           color: '#fff',
-          fontWeight: '700',
+          fontWeight: 700,
           fontSize: 13,
           formatter: '{b}: {c}',
         },
         labelLine: { show: false },
-        emphasis: { label: { fontSize: 14 } },
+        emphasis: { label: { fontSize: 14, fontWeight: 700 } },
       }],
     });
   }
