@@ -8,19 +8,25 @@ import {
   Param,
   UseGuards,
   Request,
+  Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
+import { EmailService } from '../email/email.service';
+import { ApplicationStatus } from './entities/application.entity';
 
 @ApiTags('Applications')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('applications')
 export class ApplicationsController {
-  constructor(private readonly applicationsService: ApplicationsService) {}
+  constructor(
+    private readonly applicationsService: ApplicationsService,
+    @Optional() private readonly emailService: EmailService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Créer une candidature' })
@@ -46,14 +52,48 @@ export class ApplicationsController {
     return this.applicationsService.getStats(req.user.id);
   }
 
+  @Get('map')
+  @ApiOperation({ summary: 'Candidatures avec coordonnées pour la carte' })
+  map(@Request() req: { user: any }) {
+    return this.applicationsService.findForMap(req.user.id);
+  }
+
+  @Delete('duplicates')
+  @ApiOperation({ summary: 'Supprimer les candidatures en double (même entreprise + poste)' })
+  deduplicate(@Request() req: { user: any }) {
+    return this.applicationsService.deduplicateApplications(req.user.id);
+  }
+
+  @Delete('coordinates/reset')
+  @ApiOperation({ summary: 'Réinitialiser les coordonnées de toutes les candidatures' })
+  resetCoordinates(@Request() req: { user: any }) {
+    return this.applicationsService.resetAllCoordinates(req.user.id);
+  }
+
+  @Patch(':id/coordinates')
+  @ApiOperation({ summary: 'Enregistrer les coordonnées géocodées' })
+  saveCoordinates(
+    @Request() req: { user: any },
+    @Param('id') id: string,
+    @Body() body: { lat: number; lon: number; resolvedLocation: string },
+  ) {
+    return this.applicationsService.update(req.user.id, id, body);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Mettre à jour une candidature' })
-  update(
+  async update(
     @Request() req: { user: any },
     @Param('id') id: string,
     @Body() dto: UpdateApplicationDto,
   ) {
-    return this.applicationsService.update(req.user.id, id, dto);
+    const app = await this.applicationsService.update(req.user.id, id, dto);
+    if (dto.status && app.emailId && this.emailService) {
+      this.emailService
+        .updateGmailLabelForEmail(req.user.id, app.emailId, app.status as ApplicationStatus)
+        .catch(() => {});
+    }
+    return app;
   }
 
   @Delete(':id')

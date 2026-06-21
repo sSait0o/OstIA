@@ -58,17 +58,16 @@ export class JobsService {
   async searchFranceTravail(params: JobSearchParams): Promise<any[]> {
     const token = await this.getFranceTravailToken();
 
+    const queryParams: Record<string, string> = {
+      motsCles: params.keywords || 'data engineer alternance',
+      typeContrat: params.contractType || 'CDI,CDD',
+      range: `${((params.page || 1) - 1) * 15}-${((params.page || 1) - 1) * 15 + 14}`,
+    };
+    if (params.location) queryParams['commune'] = params.location;
+
     const response = await axios.get(
       'https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search',
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          motsCles: params.keywords || 'data engineer alternance',
-          commune: params.location,
-          typeContrat: params.contractType || 'CDD,CDI',
-          range: `${((params.page || 1) - 1) * 15}-${((params.page || 1) - 1) * 15 + 14}`,
-        },
-      },
+      { headers: { Authorization: `Bearer ${token}` }, params: queryParams },
     );
 
     return (response.data.resultats || []).map((offer: any) => ({
@@ -90,18 +89,32 @@ export class JobsService {
     params: JobSearchParams,
     cvData: Record<string, any>,
   ): Promise<Job[]> {
-    const offers = await this.searchFranceTravail(params);
+    let offers: any[];
+    try {
+      offers = await this.searchFranceTravail(params);
+    } catch {
+      return [];
+    }
     const jobs: Job[] = [];
 
+    const hasCv = cvData && Object.keys(cvData).length > 0;
+
     for (const offer of offers.slice(0, 10)) {
-      const match = await this.aiService.matchCvToJob(cvData, offer.title, offer.description || '');
+      let match: { score: number | null; matchedSkills: string[]; summary: string };
+      try {
+        match = hasCv
+          ? await this.aiService.matchCvToJob(cvData, offer.title, offer.description || '')
+          : { score: null, matchedSkills: [], summary: 'Uploadez votre CV pour voir le score de matching' };
+      } catch {
+        match = { score: null, matchedSkills: [], summary: '' };
+      }
 
       const existing = await this.jobRepo.findOne({
         where: { externalId: offer.externalId, user: { id: userId } },
       });
 
       if (existing) {
-        existing.matchScore = match.score;
+        existing.matchScore = match.score ?? 0;
         existing.matchDetails = match;
         jobs.push(await this.jobRepo.save(existing));
         continue;
@@ -110,7 +123,7 @@ export class JobsService {
       const job = this.jobRepo.create({
         ...offer,
         user: { id: userId } as User,
-        matchScore: match.score,
+        matchScore: match.score ?? 0,
         matchDetails: match,
         publishedAt: offer.publishedAt ? new Date(offer.publishedAt) : undefined,
       });

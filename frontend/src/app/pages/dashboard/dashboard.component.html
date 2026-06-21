@@ -1,0 +1,106 @@
+<h2 class="page-title">Dashboard</h2>
+
+@if (loading()) {
+  <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+} @else {
+  <div nz-row [nzGutter]="[16, 16]" class="stats-row">
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Total candidatures"
+          [nzValue]="stats()?.total ?? 0"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Taux de réponse"
+          [nzValue]="stats()?.responseRate ?? 0"
+          nzSuffix="%"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Entretiens"
+          [nzValue]="stats()?.byStatus?.['INTERVIEW'] ?? 0"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="12" [nzSm]="6">
+      <nz-card>
+        <nz-statistic
+          nzTitle="Offres reçues"
+          [nzValue]="stats()?.byStatus?.['OFFER'] ?? 0"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
+        ></nz-statistic>
+      </nz-card>
+    </div>
+  </div>
+
+  <div nz-row [nzGutter]="[16, 16]">
+    <div nz-col [nzXs]="24" [nzSm]="12">
+      <nz-card nzTitle="Répartition par statut">
+        <div echarts [options]="pieOptions()" class="chart"></div>
+      </nz-card>
+    </div>
+    <div nz-col [nzXs]="24" [nzSm]="12">
+      <nz-card nzTitle="Connexions email">
+        <div class="email-list">
+          @for (conn of emailConnections(); track conn.id) {
+            <div class="email-item">
+              <div class="email-item-left">
+                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'"></span>
+                <span class="email-provider-label">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</span>
+                <span class="email-address">{{ conn.email }}</span>
+              </div>
+              <div class="email-item-right">
+                <nz-tag nzColor="green">Actif</nz-tag>
+                <button nz-button nzSize="small" nzDanger (click)="disconnect(conn.id)">
+                  <span nz-icon nzType="disconnect"></span>
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <div class="email-empty">Aucun compte email connecté</div>
+          }
+        </div>
+
+        <nz-divider nzText="Gmail"></nz-divider>
+        <div class="email-actions">
+          <button nz-button nzSize="small" (click)="connectGmail()" [disabled]="hasGmail()">
+            <span nz-icon nzType="mail"></span>
+            {{ hasGmail() ? 'Gmail connecté' : 'Connecter Gmail' }}
+          </button>
+          <button nz-button nzSize="small" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail() || syncingGmail()">
+            <span nz-icon nzType="sync"></span> Synchroniser
+          </button>
+        </div>
+        @if (syncingGmail()) {
+          <nz-progress
+            [nzPercent]="gmailSyncPercent()"
+            nzSize="small"
+            [nzStatus]="gmailSyncPercent() === 100 ? 'success' : 'active'"
+            class="sync-progress"
+          ></nz-progress>
+        }
+
+        <nz-divider nzText="Outlook"></nz-divider>
+        <div class="email-actions">
+          <button nz-button nzSize="small" (click)="connectOutlook()" [disabled]="hasOutlook()">
+            <span nz-icon nzType="laptop"></span>
+            {{ hasOutlook() ? 'Outlook connecté' : 'Connecter Outlook' }}
+          </button>
+          <button nz-button nzSize="small" (click)="syncOutlook()" [nzLoading]="syncingOutlook()" [disabled]="!hasOutlook()">
+            <span nz-icon nzType="sync"></span> Synchroniser
+          </button>
+        </div>
+      </nz-card>
+    </div>
+  </div>
+}

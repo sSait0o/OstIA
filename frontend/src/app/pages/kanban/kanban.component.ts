@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -7,6 +8,8 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
@@ -25,113 +28,34 @@ interface Column {
   standalone: true,
   imports: [
     NzCardModule, NzTagModule, NzButtonModule, NzIconModule, NzModalModule,
-    NzFormModule, NzInputModule, NzSelectModule, NzSpinModule, NzEmptyModule, FormsModule,
+    NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, FormsModule,
   ],
-  template: `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
-      <h2 style="margin:0">Mes candidatures</h2>
-      <button nz-button nzType="primary" (click)="openModal()">
-        <span nz-icon nzType="plus"></span> Ajouter
-      </button>
-    </div>
-
-    @if (loading()) {
-      <div style="text-align:center; padding:60px"><nz-spin nzSize="large"></nz-spin></div>
-    } @else {
-      <div class="kanban-board">
-        @for (col of columns(); track col.key) {
-          <div class="kanban-column">
-            <div class="column-header">
-              <span>{{ col.label }}</span>
-              <nz-tag [nzColor]="col.color">{{ col.items.length }}</nz-tag>
-            </div>
-            <div class="column-body">
-              @for (app of col.items; track app.id) {
-                <nz-card
-                  [nzBodyStyle]="{ padding: '12px' }"
-                  class="kanban-card"
-                  (click)="selectApp(app)"
-                >
-                  <div style="font-weight:600; font-size:14px">{{ app.company }}</div>
-                  <div style="color:#666; font-size:13px; margin-top:2px">{{ app.jobTitle }}</div>
-                  @if (app.location) {
-                    <div style="color:#999; font-size:12px; margin-top:4px">
-                      <span nz-icon nzType="environment"></span> {{ app.location }}
-                    </div>
-                  }
-                  @if (app.source === 'EMAIL') {
-                    <nz-tag nzColor="blue" style="margin-top:8px; font-size:11px">
-                      <span nz-icon nzType="mail"></span> Email
-                    </nz-tag>
-                  }
-                </nz-card>
-              } @empty {
-                <div style="color:#ccc; text-align:center; padding:20px; font-size:13px">Aucune</div>
-              }
-            </div>
-          </div>
-        }
-      </div>
-    }
-
-    <nz-modal
-      [(nzVisible)]="modalVisible"
-      [nzTitle]="selectedApp() ? 'Modifier la candidature' : 'Nouvelle candidature'"
-      (nzOnOk)="saveApp()"
-      (nzOnCancel)="closeModal()"
-      [nzOkLoading]="saving()"
-      nzOkText="Enregistrer"
-      nzCancelText="Annuler"
-    >
-      <ng-container *nzModalContent>
-        <div style="display:flex; flex-direction:column; gap:12px">
-          <input nz-input placeholder="Entreprise *" [(ngModel)]="form.company" />
-          <input nz-input placeholder="Poste *" [(ngModel)]="form.jobTitle" />
-          <nz-select [(ngModel)]="form.status" style="width:100%">
-            @for (s of statusOptions; track s.value) {
-              <nz-option [nzValue]="s.value" [nzLabel]="s.label"></nz-option>
-            }
-          </nz-select>
-          <input nz-input placeholder="Localisation" [(ngModel)]="form.location" />
-          <input nz-input placeholder="Salaire" [(ngModel)]="form.salary" />
-          <input nz-input placeholder="URL de l'offre" [(ngModel)]="form.jobUrl" />
-          <textarea nz-input placeholder="Notes" [(ngModel)]="form.notes" [nzAutosize]="{ minRows: 2 }"></textarea>
-        </div>
-      </ng-container>
-    </nz-modal>
-  `,
-  styles: [`
-    .kanban-board { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px; min-height: 60vh; }
-    .kanban-column { min-width: 240px; flex: 1; background: #f5f5f5; border-radius: 8px; padding: 12px; }
-    .column-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-bottom: 12px; }
-    .column-body { display: flex; flex-direction: column; gap: 8px; min-height: 100px; }
-    .kanban-card { cursor: pointer; border-radius: 6px; transition: box-shadow 0.2s; }
-    .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-  `],
+  templateUrl: './kanban.component.html',
+  styleUrl: './kanban.component.scss',
 })
 export class KanbanComponent implements OnInit {
   private readonly appsService = inject(ApplicationsService);
   private readonly message = inject(NzMessageService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   loading = signal(true);
   saving = signal(false);
+  deduplicating = signal(false);
   modalVisible = false;
+  emailModalVisible = false;
   selectedApp = signal<Application | null>(null);
+  emailApp = signal<Application | null>(null);
 
   columns = signal<Column[]>([
     { key: 'APPLIED', label: 'Envoyée', color: 'default', items: [] },
-    { key: 'ACKNOWLEDGED', label: 'Reçue', color: 'blue', items: [] },
     { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
-    { key: 'TECHNICAL', label: 'Test technique', color: 'purple', items: [] },
     { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
     { key: 'REJECTED', label: 'Refusé', color: 'red', items: [] },
   ]);
 
   statusOptions = [
     { value: 'APPLIED', label: 'Envoyée' },
-    { value: 'ACKNOWLEDGED', label: 'Reçue' },
     { value: 'INTERVIEW', label: 'Entretien' },
-    { value: 'TECHNICAL', label: 'Test technique' },
     { value: 'OFFER', label: 'Offre' },
     { value: 'REJECTED', label: 'Refusé' },
     { value: 'WITHDRAWN', label: 'Retirée' },
@@ -173,15 +97,59 @@ export class KanbanComponent implements OnInit {
     this.modalVisible = true;
   }
 
+  get safeEmailHtml(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.emailApp()?.emailBody ?? '');
+  }
+
+  isHtml(body: string | null): boolean {
+    return !!body && /<[a-z][\s\S]*>/i.test(body);
+  }
+
   selectApp(app: Application) {
+    if (app.source === 'EMAIL') {
+      this.openEmailView(app);
+      return;
+    }
     this.selectedApp.set(app);
     this.form = { company: app.company, jobTitle: app.jobTitle, status: app.status, location: app.location, salary: app.salary, jobUrl: app.jobUrl, notes: app.notes };
     this.modalVisible = true;
   }
 
+  openEmailView(app: Application, event?: MouseEvent) {
+    event?.stopPropagation();
+    this.emailApp.set(app);
+    this.emailModalVisible = true;
+  }
+
+  getStatusLabel(status: string): string {
+    return this.statusOptions.find((s) => s.value === status)?.label ?? status;
+  }
+
+  getStatusColor(status: string): string {
+    const map: Record<string, string> = {
+      APPLIED: 'default', INTERVIEW: 'orange', OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
+    };
+    return map[status] ?? 'default';
+  }
+
   closeModal() {
     this.modalVisible = false;
     this.selectedApp.set(null);
+  }
+
+  deduplicate() {
+    this.deduplicating.set(true);
+    this.appsService.deduplicateApplications().subscribe({
+      next: ({ removed }) => {
+        this.message.success(removed > 0 ? `${removed} doublon(s) supprimé(s)` : 'Aucun doublon trouvé');
+        if (removed > 0) this.loadKanban();
+        this.deduplicating.set(false);
+      },
+      error: () => {
+        this.message.error('Erreur lors de la déduplication');
+        this.deduplicating.set(false);
+      },
+    });
   }
 
   saveApp() {
@@ -192,9 +160,13 @@ export class KanbanComponent implements OnInit {
     this.saving.set(true);
     const existing = this.selectedApp();
 
+    const payload = Object.fromEntries(
+      Object.entries(this.form).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+    ) as unknown as CreateApplicationDto;
+
     const obs = existing
-      ? this.appsService.update(existing.id, this.form)
-      : this.appsService.create(this.form as CreateApplicationDto);
+      ? this.appsService.update(existing.id, payload)
+      : this.appsService.create(payload);
 
     obs.subscribe({
       next: () => {

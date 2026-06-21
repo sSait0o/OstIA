@@ -1,0 +1,364 @@
+.map-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .subtitle {
+    color: rgba(255,255,255,.35);
+    margin: 4px 0 0;
+    font-size: 13px;
+  }
+}
+
+.map-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.geocoding-label {
+  font-size: 12px;
+  color: rgba(255,255,255,.4);
+}
+
+.map-count {
+  font-size: 13px;
+  color: rgba(255,255,255,.35);
+
+  strong { color: #fff; }
+}
+
+.map-wrapper {
+  position: relative;
+  margin-top: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04), 0 24px 48px rgba(0,0,0,.8);
+}
+
+.ol-map {
+  width: 100%;
+  height: calc(100vh - 320px);
+  min-height: 420px;
+  display: block;
+}
+
+.map-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 300px;
+  background: rgba(8, 8, 8, 0.92);
+  backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(255,255,255,.1);
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+
+  &--open {
+    transform: translateX(0);
+  }
+}
+
+.map-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+
+.map-panel-city {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.map-panel-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.4);
+  cursor: pointer;
+  padding: 4px;
+  font-size: 14px;
+  line-height: 1;
+  transition: color .15s;
+
+  &:hover { color: #fff; }
+}
+
+.map-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-item {
+  padding: 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panel-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.panel-company {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.panel-job {
+  font-size: 11px;
+  color: rgba(255,255,255,.45);
+}
+
+.panel-location {
+  font-size: 11px;
+  color: rgba(255,255,255,.25);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.panel-item--clickable {
+  cursor: pointer;
+  &:hover { border-color: rgba(255,255,255,.2); }
+}
+
+.panel-email-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(150,200,255,.6);
+}
+
+.email-viewer {
+  display: flex;
+  flex-direction: column;
+}
+
+.email-header {
+  padding: 20px 24px 16px;
+  background: #111;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.email-subject {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.email-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.email-from {
+  font-size: 12px;
+  color: rgba(255,255,255,.4);
+}
+
+.email-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  background: #0e0e0e;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 16px 24px;
+  column-gap: 32px;
+  row-gap: 12px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  &--full {
+    grid-column: 1 / -1;
+  }
+}
+
+.meta-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.3);
+}
+
+.meta-value {
+  font-size: 13px;
+  color: rgba(255,255,255,.8);
+
+  &--notes {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    color: rgba(255,255,255,.55);
+    font-size: 12px;
+  }
+}
+
+.meta-link {
+  font-size: 13px;
+  color: #4fa3e8;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+
+  &:hover { color: #7bbdf5; text-decoration: underline; }
+}
+
+.email-body-block {
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 24px;
+  background: #fff;
+  word-break: break-word;
+  filter: invert(0.9) hue-rotate(180deg);
+  border-radius: 4px;
+
+  * { max-width: 100%; }
+  img { height: auto; filter: invert(1) hue-rotate(180deg); }
+  a { color: #4fa3e8; }
+
+  &--plain {
+    filter: none;
+    background: #1a1a1a;
+    color: rgba(255,255,255,.8);
+    font-size: 14px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+}
+
+.email-no-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 24px;
+  color: rgba(255,255,255,.25);
+  font-size: 13px;
+
+  span[nz-icon] { font-size: 20px; }
+}
+
+.gmail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #4fa3e8;
+  text-decoration: none;
+  font-size: 13px;
+
+  &:hover { color: #7bbdf5; text-decoration: underline; }
+}
+
+.unlocated-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.unlocated-card {
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 10px !important;
+  transition: border-color .2s;
+
+  &:hover {
+    border-color: rgba(255,255,255,.18) !important;
+  }
+}
+
+.unlocated-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.unlocated-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.unlocated-company {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,.85);
+}
+
+.unlocated-job {
+  font-size: 12px;
+  color: rgba(255,255,255,.35);
+}
+
+.unlocated-form {
+  display: flex;
+  gap: 6px;
+}
+
+.location-input { width: 100%; }
+
+.all-located {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 40px 0;
+  color: rgba(255,255,255,.25);
+  font-size: 13px;
+
+  span[nz-icon] { font-size: 20px; color: rgba(100,230,120,.5); }
+}

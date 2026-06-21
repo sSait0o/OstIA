@@ -54,6 +54,101 @@ export class ApplicationsService {
     await this.appRepo.remove(app);
   }
 
+  async findForMap(userId: string) {
+    const apps = await this.findAllByUser(userId);
+    return apps.map((a) => ({
+      id: a.id,
+      company: a.company,
+      jobTitle: a.jobTitle,
+      status: a.status,
+      location: a.location,
+      resolvedLocation: a.resolvedLocation,
+      lat: a.lat ?? null,
+      lon: a.lon ?? null,
+      source: a.source ?? null,
+      emailSubject: a.emailSubject ?? null,
+      emailBody: a.emailBody ?? null,
+      emailId: a.emailId ?? null,
+      salary: a.salary ?? null,
+      notes: a.notes ?? null,
+      jobUrl: a.jobUrl ?? null,
+      appliedAt: a.appliedAt ?? null,
+      createdAt: a.createdAt,
+    }));
+  }
+
+  async deduplicateApplications(userId: string): Promise<{ removed: number }> {
+    const apps = await this.findAllByUser(userId);
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const groups = new Map<string, typeof apps>();
+
+    for (const app of apps) {
+      const key = `${norm(app.company)}__${norm(app.jobTitle)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(app);
+    }
+
+    let removed = 0;
+    for (const group of groups.values()) {
+      if (group.length <= 1) continue;
+      group.sort((a, b) => {
+        const score = (x: typeof a) =>
+          (x.emailBody ? 4 : 0) + (x.emailId ? 2 : 0) + (x.resolvedLocation ? 1 : 0);
+        return score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime();
+      });
+      const [, ...toDelete] = group;
+      await Promise.all(toDelete.map((a) => this.appRepo.remove(a)));
+      removed += toDelete.length;
+    }
+    return { removed };
+  }
+
+  async resetAllCoordinates(userId: string): Promise<{ reset: number }> {
+    const apps = await this.findAllByUser(userId);
+    await Promise.all(
+      apps.map((a) => {
+        a.lat = null as any;
+        a.lon = null as any;
+        a.resolvedLocation = null as any;
+        return this.appRepo.save(a);
+      }),
+    );
+    return { reset: apps.length };
+  }
+
+  async findDuplicate(
+    userId: string,
+    emailId?: string,
+    company?: string,
+    jobTitle?: string,
+  ): Promise<Application | null> {
+    if (emailId) {
+      const byEmail = await this.appRepo.findOne({
+        where: { user: { id: userId }, emailId },
+      });
+      if (byEmail) return byEmail;
+    }
+
+    if (company && jobTitle) {
+      const existing = await this.findAllByUser(userId);
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const nc = norm(company);
+      const nj = norm(jobTitle);
+
+      return (
+        existing.find((a) => {
+          const ec = norm(a.company);
+          const ej = norm(a.jobTitle);
+          const companySimilar = ec === nc || ec.includes(nc) || nc.includes(ec);
+          const titleSimilar = ej === nj || ej.includes(nj) || nj.includes(ej);
+          return companySimilar && titleSimilar;
+        }) ?? null
+      );
+    }
+
+    return null;
+  }
+
   async getStats(userId: string) {
     const apps = await this.findAllByUser(userId);
     const total = apps.length;

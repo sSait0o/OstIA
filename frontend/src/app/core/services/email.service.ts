@@ -1,6 +1,15 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+
+export interface SyncProgress {
+  percent: number;
+  done?: boolean;
+  synced?: number;
+  created?: number;
+  skipped?: number;
+}
 
 export interface EmailConnection {
   id: string;
@@ -29,7 +38,24 @@ export class EmailService {
   }
 
   syncGmail() {
-    return this.http.post<{ synced: number; created: number }>(`${this.base}/sync/gmail`, {});
+    return this.http.post<{ synced: number; created: number; skipped: number }>(`${this.base}/sync/gmail`, {});
+  }
+
+  syncGmailStream(token: string): Observable<SyncProgress> {
+    return new Observable((subscriber) => {
+      const es = new EventSource(`${this.base}/sync/gmail/stream?token=${encodeURIComponent(token)}`);
+      es.onmessage = (e) => {
+        const data: SyncProgress = JSON.parse(e.data);
+        subscriber.next(data);
+        if (data.done) { es.close(); subscriber.complete(); }
+      };
+      es.onerror = () => { subscriber.error(new Error('Erreur SSE')); es.close(); };
+      return () => es.close();
+    });
+  }
+
+  syncOutlook() {
+    return this.http.post<{ synced: number; created: number; skipped: number }>(`${this.base}/sync/outlook`, {});
   }
 
   disconnect(id: string) {

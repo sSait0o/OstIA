@@ -12,52 +12,8 @@ import { AuthService } from '../../../core/services/auth.service';
   selector: 'app-register',
   standalone: true,
   imports: [ReactiveFormsModule, NzFormModule, NzInputModule, NzButtonModule, NzCardModule, RouterLink],
-  template: `
-    <div class="auth-container">
-      <nz-card style="width:420px">
-        <div class="auth-header">
-          <h1>Ostia</h1>
-          <p>Créer un compte</p>
-        </div>
-        <form nz-form [formGroup]="form" (ngSubmit)="onSubmit()">
-          <div style="display:flex; gap:8px">
-            <nz-form-item style="flex:1">
-              <nz-form-control nzErrorTip="Requis">
-                <input nz-input formControlName="firstName" placeholder="Prénom" />
-              </nz-form-control>
-            </nz-form-item>
-            <nz-form-item style="flex:1">
-              <nz-form-control nzErrorTip="Requis">
-                <input nz-input formControlName="lastName" placeholder="Nom" />
-              </nz-form-control>
-            </nz-form-item>
-          </div>
-          <nz-form-item>
-            <nz-form-control nzErrorTip="Email invalide">
-              <input nz-input formControlName="email" placeholder="Email" type="email" />
-            </nz-form-control>
-          </nz-form-item>
-          <nz-form-item>
-            <nz-form-control nzErrorTip="Min. 8 caractères">
-              <input nz-input formControlName="password" placeholder="Mot de passe" type="password" />
-            </nz-form-control>
-          </nz-form-item>
-          <button nz-button nzType="primary" nzBlock [nzLoading]="loading" type="submit">
-            Créer mon compte
-          </button>
-        </form>
-        <div style="text-align:center; margin-top:16px">
-          Déjà un compte ? <a routerLink="/auth/login">Se connecter</a>
-        </div>
-      </nz-card>
-    </div>
-  `,
-  styles: [`
-    .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f2f5; }
-    .auth-header { text-align: center; margin-bottom: 24px; }
-    .auth-header h1 { font-size: 32px; font-weight: bold; color: #1890ff; margin: 0; }
-    .auth-header p { color: #666; margin: 4px 0 0; }
-  `],
+  templateUrl: './register.component.html',
+  styleUrl: './register.component.scss',
 })
 export class RegisterComponent {
   private readonly fb = inject(FormBuilder);

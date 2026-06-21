@@ -1,14 +1,19 @@
-import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Redirect } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Redirect, Sse, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailService } from './email.service';
+import { Observable } from 'rxjs';
 
 @ApiTags('Email')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('email')
 export class EmailController {
-  constructor(private readonly emailService: EmailService) {}
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Get('connections')
   @ApiOperation({ summary: 'Lister les comptes email connectés' })
@@ -17,20 +22,13 @@ export class EmailController {
   }
 
   @Get('google/auth')
-  @ApiOperation({ summary: 'Démarrer l\'authentification Gmail' })
+  @ApiOperation({ summary: "Démarrer l'authentification Gmail" })
   googleAuth(@Request() req: { user: any }) {
     return { url: this.emailService.getGoogleAuthUrl(req.user.id) };
   }
 
-  @Get('google/callback')
-  @ApiOperation({ summary: 'Callback OAuth2 Google' })
-  async googleCallback(@Query('code') code: string, @Query('state') userId: string) {
-    await this.emailService.handleGoogleCallback(code, userId);
-    return { message: 'Compte Gmail connecté avec succès' };
-  }
-
   @Get('microsoft/auth')
-  @ApiOperation({ summary: 'Démarrer l\'authentification Outlook' })
+  @ApiOperation({ summary: "Démarrer l'authentification Outlook" })
   microsoftAuth(@Request() req: { user: any }) {
     return { url: this.emailService.getMicrosoftAuthUrl(req.user.id) };
   }
@@ -41,9 +39,57 @@ export class EmailController {
     return this.emailService.syncGmailEmails(req.user.id);
   }
 
+  @Post('sync/outlook')
+  @ApiOperation({ summary: 'Synchroniser les emails Outlook (dossier Ostia)' })
+  syncOutlook(@Request() req: { user: any }) {
+    return this.emailService.syncOutlookEmails(req.user.id);
+  }
+
   @Delete('connections/:id')
   @ApiOperation({ summary: 'Déconnecter un compte email' })
   disconnect(@Request() req: { user: any }, @Param('id') id: string) {
     return this.emailService.disconnect(req.user.id, id);
+  }
+}
+
+@ApiTags('Email')
+@Controller('email')
+export class EmailSseController {
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  @Sse('sync/gmail/stream')
+  @ApiOperation({ summary: 'Synchroniser Gmail avec progression SSE' })
+  syncGmailStream(@Query('token') token: string): Observable<MessageEvent> {
+    try {
+      const payload = this.jwtService.verify<{ sub: string }>(token);
+      return this.emailService.syncGmailStream(payload.sub);
+    } catch {
+      throw new UnauthorizedException();
+    }
+  }
+}
+
+@ApiTags('Email Callbacks')
+@Controller('email')
+export class EmailCallbackController {
+  constructor(private readonly emailService: EmailService) {}
+
+  @Get('google/callback')
+  @Redirect()
+  @ApiOperation({ summary: 'Callback OAuth2 Google (public)' })
+  async googleCallback(@Query('code') code: string, @Query('state') userId: string) {
+    await this.emailService.handleGoogleCallback(code, userId);
+    return { url: 'http://localhost:4200/dashboard?gmail=connected' };
+  }
+
+  @Get('microsoft/callback')
+  @Redirect()
+  @ApiOperation({ summary: 'Callback OAuth2 Microsoft (public)' })
+  async microsoftCallback(@Query('code') code: string, @Query('state') userId: string) {
+    await this.emailService.handleMicrosoftCallback(code, userId);
+    return { url: 'http://localhost:4200/dashboard?outlook=connected' };
   }
 }

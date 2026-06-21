@@ -12,40 +12,8 @@ import { AuthService } from '../../../core/services/auth.service';
   selector: 'app-login',
   standalone: true,
   imports: [ReactiveFormsModule, NzFormModule, NzInputModule, NzButtonModule, NzCardModule, RouterLink],
-  template: `
-    <div class="auth-container">
-      <nz-card style="width:400px">
-        <div class="auth-header">
-          <h1>Ostia</h1>
-          <p>Gérez vos candidatures intelligemment</p>
-        </div>
-        <form nz-form [formGroup]="form" (ngSubmit)="onSubmit()">
-          <nz-form-item>
-            <nz-form-control nzErrorTip="Email invalide">
-              <input nz-input formControlName="email" placeholder="Email" type="email" />
-            </nz-form-control>
-          </nz-form-item>
-          <nz-form-item>
-            <nz-form-control nzErrorTip="Mot de passe requis (min. 8 caractères)">
-              <input nz-input formControlName="password" placeholder="Mot de passe" type="password" />
-            </nz-form-control>
-          </nz-form-item>
-          <button nz-button nzType="primary" nzBlock [nzLoading]="loading" type="submit">
-            Se connecter
-          </button>
-        </form>
-        <div style="text-align:center; margin-top:16px">
-          Pas encore de compte ? <a routerLink="/auth/register">S'inscrire</a>
-        </div>
-      </nz-card>
-    </div>
-  `,
-  styles: [`
-    .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f2f5; }
-    .auth-header { text-align: center; margin-bottom: 24px; }
-    .auth-header h1 { font-size: 32px; font-weight: bold; color: #1890ff; margin: 0; }
-    .auth-header p { color: #666; margin: 4px 0 0; }
-  `],
+  templateUrl: './login.component.html',
+  styleUrl: './login.component.scss',
 })
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);

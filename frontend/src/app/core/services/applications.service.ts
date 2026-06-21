@@ -22,6 +22,8 @@ export interface Application {
   salary?: string;
   notes?: string;
   appliedAt?: string;
+  emailSubject?: string;
+  emailBody?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,5 +83,9 @@ export class ApplicationsService {
 
   delete(id: string) {
     return this.http.delete(`${this.base}/${id}`);
+  }
+
+  deduplicateApplications() {
+    return this.http.delete<{ removed: number }>(`${this.base}/duplicates`);
   }
 }

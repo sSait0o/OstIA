@@ -1,0 +1,150 @@
+.cv-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.cv-header {
+  margin-bottom: 28px;
+
+  h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .subtitle {
+    color: rgba(255,255,255,.35);
+    margin: 4px 0 0;
+    font-size: 13px;
+  }
+}
+
+.upload-zone {
+  border: 1.5px dashed rgba(255,255,255,.15);
+  border-radius: 14px;
+  padding: 52px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+  background: rgba(255,255,255,.02);
+  margin-bottom: 32px;
+
+  &:hover,
+  &.dragover {
+    border-color: rgba(255,255,255,.4);
+    background: rgba(255,255,255,.04);
+    box-shadow: 0 0 30px rgba(255,255,255,.06);
+  }
+}
+
+.upload-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: rgba(255,255,255,.2);
+}
+
+.upload-label {
+  font-size: 16px;
+  color: rgba(255,255,255,.6);
+  margin: 0;
+}
+
+.upload-link {
+  color: rgba(255,255,255,.8);
+  text-decoration: underline;
+  &:hover { color: #fff; }
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,.25);
+  margin: 0;
+}
+
+.cv-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cv-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 24px;
+  background: rgba(255,255,255,.03);
+  border-radius: 12px;
+  border-left: 2px solid rgba(255,255,255,.3);
+}
+
+.cv-avatar {
+  background: rgba(255,255,255,.1) !important;
+  flex-shrink: 0;
+}
+
+.cv-name {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cv-email {
+  color: rgba(255,255,255,.4);
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.cv-summary {
+  color: rgba(255,255,255,.5);
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.cv-sections {
+  margin-top: 0;
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.timeline-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+.timeline-company {
+  color: rgba(255,255,255,.5);
+  font-size: 13px;
+}
+
+.timeline-duration {
+  color: rgba(255,255,255,.3);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.timeline-desc {
+  color: rgba(255,255,255,.45);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.empty-text {
+  color: rgba(255,255,255,.2);
+  font-size: 13px;
+}

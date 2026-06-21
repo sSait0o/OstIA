@@ -1,0 +1,50 @@
+<canvas #bgCanvas class="bg-canvas"></canvas>
+
+<nz-layout class="main-layout">
+  <nz-sider nzTheme="dark">
+    <div class="logo">
+      <span nz-icon nzType="compass" nzTheme="outline"></span>
+      <span class="logo-text">OstIA</span>
+    </div>
+    <ul nz-menu nzTheme="dark" nzMode="inline">
+      <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
+        <span nz-icon nzType="project" nzTheme="outline"></span>
+        <span>Candidatures</span>
+      </li>
+      <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
+        <span nz-icon nzType="search" nzTheme="outline"></span>
+        <span>Offres</span>
+      </li>
+      <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
+        <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
+        <span>Dashboard</span>
+      </li>
+      <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
+        <span nz-icon nzType="file-text" nzTheme="outline"></span>
+        <span>Mon CV</span>
+      </li>
+      <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
+        <span nz-icon nzType="global" nzTheme="outline"></span>
+        <span>Carte</span>
+      </li>
+    </ul>
+  </nz-sider>
+  <nz-layout>
+    <nz-header class="main-header">
+      <span class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu">
+        <nz-avatar nzIcon="user" style="background: rgba(255,255,255,0.15)"></nz-avatar>
+        <span class="user-name">{{ auth.currentUser()?.firstName }}</span>
+      </span>
+      <nz-dropdown-menu #userMenu="nzDropdownMenu">
+        <ul nz-menu>
+          <li nz-menu-item (click)="auth.logout()">
+            <span nz-icon nzType="logout"></span> Déconnexion
+          </li>
+        </ul>
+      </nz-dropdown-menu>
+    </nz-header>
+    <nz-content class="main-content">
+      <router-outlet />
+    </nz-content>
+  </nz-layout>
+</nz-layout>
