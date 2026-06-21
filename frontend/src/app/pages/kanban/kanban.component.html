@@ -1,13 +1,15 @@
 <div class="kanban-header">
   <h2>Mes candidatures</h2>
   <div class="kanban-header-actions">
-    <button nz-button nzType="default" nzDanger
+    <button nz-button nzType="text"
+            nz-tooltip nzTooltipTitle="Supprimer les doublons"
             nz-popconfirm
             nzPopconfirmTitle="Supprimer tous les doublons (même entreprise + poste) ?"
             nzPopconfirmPlacement="bottomRight"
             (nzOnConfirm)="deduplicate()"
-            [nzLoading]="deduplicating()">
-      <span nz-icon nzType="delete"></span> Doublons
+            [nzLoading]="deduplicating()"
+            class="btn-deduplicate">
+      <span nz-icon nzType="delete"></span>
     </button>
     <button nz-button nzType="primary" (click)="openModal()">
       <span nz-icon nzType="plus"></span> Ajouter

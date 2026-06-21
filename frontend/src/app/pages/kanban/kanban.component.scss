@@ -7,6 +7,15 @@ $card-bg: rgba(15,15,15,.9);
   align-items: center;
 }
 
+.btn-deduplicate {
+  color: rgba(255,255,255,0.3);
+  transition: color .2s;
+
+  &:hover {
+    color: #ff4d4f !important;
+  }
+}
+
 .kanban-header {
   display: flex;
   justify-content: space-between;
