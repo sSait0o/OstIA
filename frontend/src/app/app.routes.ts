@@ -49,6 +49,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/map/map.component').then((m) => m.MapComponent),
       },
+      {
+        path: 'email',
+        loadComponent: () =>
+          import('./pages/email/email.component').then((m) => m.EmailComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

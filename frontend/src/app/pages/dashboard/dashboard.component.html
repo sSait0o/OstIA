@@ -5,39 +5,39 @@
 } @else {
   <div nz-row [nzGutter]="[16, 16]" class="stats-row">
     <div nz-col [nzXs]="12" [nzSm]="6">
-      <nz-card class="stat-card stat-card--blue">
+      <nz-card class="stat-card">
         <nz-statistic
           nzTitle="Total candidatures"
           [nzValue]="stats()?.total ?? 0"
-          [nzValueStyle]="{ color: '#4a9eff', fontWeight: '800' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
     <div nz-col [nzXs]="12" [nzSm]="6">
-      <nz-card class="stat-card stat-card--teal">
+      <nz-card class="stat-card">
         <nz-statistic
           nzTitle="Taux de réponse"
           [nzValue]="stats()?.responseRate ?? 0"
           nzSuffix="%"
-          [nzValueStyle]="{ color: '#36cfc9', fontWeight: '800' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
     <div nz-col [nzXs]="12" [nzSm]="6">
-      <nz-card class="stat-card stat-card--yellow">
+      <nz-card class="stat-card">
         <nz-statistic
           nzTitle="Entretiens"
           [nzValue]="stats()?.byStatus?.['INTERVIEW'] ?? 0"
-          [nzValueStyle]="{ color: '#ffc53d', fontWeight: '800' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
     <div nz-col [nzXs]="12" [nzSm]="6">
-      <nz-card class="stat-card stat-card--green">
+      <nz-card class="stat-card">
         <nz-statistic
           nzTitle="Offres reçues"
           [nzValue]="stats()?.byStatus?.['OFFER'] ?? 0"
-          [nzValueStyle]="{ color: '#52c41a', fontWeight: '800' }"
+          [nzValueStyle]="{ color: '#fff', fontWeight: '800' }"
         ></nz-statistic>
       </nz-card>
     </div>
@@ -60,54 +60,27 @@
       </nz-card>
     </div>
     <div nz-col [nzXs]="24" [nzSm]="12">
-      <nz-card nzTitle="Connexions email">
-        <div class="email-list">
-          @for (conn of emailConnections(); track conn.id) {
-            <div class="email-item">
-              <div class="email-item-left">
-                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'"></span>
-                <span class="email-provider-label">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</span>
-                <span class="email-address">{{ conn.email }}</span>
-              </div>
-              <div class="email-item-right">
+      <nz-card nzTitle="Emails synchronisés" class="email-summary-card">
+        @if (emailConnections().length === 0) {
+          <div class="email-empty">Aucun compte email connecté</div>
+        } @else {
+          <div class="email-list">
+            @for (conn of emailConnections(); track conn.id) {
+              <div class="email-item">
+                <div class="email-item-left">
+                  <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'"></span>
+                  <span class="email-provider-label">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</span>
+                  <span class="email-address">{{ conn.email }}</span>
+                </div>
                 <nz-tag nzColor="green">Actif</nz-tag>
-                <button nz-button nzSize="small" nzDanger (click)="disconnect(conn.id)">
-                  <span nz-icon nzType="disconnect"></span>
-                </button>
               </div>
-            </div>
-          } @empty {
-            <div class="email-empty">Aucun compte email connecté</div>
-          }
-        </div>
-
-        <nz-divider nzText="Gmail"></nz-divider>
-        <div class="email-actions">
-          <button nz-button [nzType]="hasGmail() ? 'default' : 'primary'" (click)="connectGmail()" [disabled]="hasGmail()">
-            <span nz-icon nzType="mail"></span>
-            {{ hasGmail() ? 'Gmail connecté' : 'Connecter Gmail' }}
-          </button>
-          <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail() || syncingGmail()" class="btn-sync">
-            <span nz-icon nzType="sync"></span> Synchroniser
-          </button>
-        </div>
-        @if (syncingGmail()) {
-          <nz-progress
-            [nzPercent]="gmailSyncPercent()"
-            nzSize="small"
-            [nzStatus]="gmailSyncPercent() === 100 ? 'success' : 'active'"
-            class="sync-progress"
-          ></nz-progress>
+            }
+          </div>
         }
-
-        <nz-divider nzText="Outlook"></nz-divider>
         <div class="email-actions">
-          <button nz-button [nzType]="hasOutlook() ? 'default' : 'primary'" (click)="connectOutlook()" [disabled]="hasOutlook()">
-            <span nz-icon nzType="laptop"></span>
-            {{ hasOutlook() ? 'Outlook connecté' : 'Connecter Outlook' }}
-          </button>
-          <button nz-button nzType="default" (click)="syncOutlook()" [nzLoading]="syncingOutlook()" [disabled]="!hasOutlook()" class="btn-sync">
-            <span nz-icon nzType="sync"></span> Synchroniser
+          <button nz-button nzType="primary" routerLink="/email">
+            <span nz-icon nzType="sync"></span>
+            Gérer la synchronisation
           </button>
         </div>
       </nz-card>

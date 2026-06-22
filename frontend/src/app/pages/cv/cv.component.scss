@@ -16,15 +16,15 @@
   }
 
   .subtitle {
-    color: rgba(255,255,255,.35);
+    color: rgba(255,255,255,.3);
     margin: 4px 0 0;
     font-size: 13px;
   }
 }
 
 .upload-zone {
-  border: 1.5px dashed rgba(255,255,255,.15);
-  border-radius: 14px;
+  border: 1.5px dashed rgba(255,255,255,.12);
+  border-radius: 20px;
   padding: 52px;
   text-align: center;
   cursor: pointer;
@@ -34,9 +34,9 @@
 
   &:hover,
   &.dragover {
-    border-color: rgba(255,255,255,.4);
+    border-color: rgba(255,255,255,.35);
     background: rgba(255,255,255,.04);
-    box-shadow: 0 0 30px rgba(255,255,255,.06);
+    box-shadow: 0 0 5px rgba(255,255,255,.06), 0 0 30px rgba(180,180,180,.03);
   }
 }
 
@@ -49,24 +49,24 @@
 
 .upload-icon {
   font-size: 48px;
-  color: rgba(255,255,255,.2);
+  color: rgba(255,255,255,.18);
 }
 
 .upload-label {
   font-size: 16px;
-  color: rgba(255,255,255,.6);
+  color: rgba(255,255,255,.5);
   margin: 0;
 }
 
 .upload-link {
-  color: rgba(255,255,255,.8);
+  color: rgba(255,255,255,.75);
   text-decoration: underline;
   &:hover { color: #fff; }
 }
 
 .upload-hint {
   font-size: 12px;
-  color: rgba(255,255,255,.25);
+  color: rgba(255,255,255,.22);
   margin: 0;
 }
 
@@ -82,8 +82,8 @@
   gap: 20px;
   padding: 24px;
   background: rgba(255,255,255,.03);
-  border-radius: 12px;
-  border-left: 2px solid rgba(255,255,255,.3);
+  border-radius: 16px;
+  border-left: 2px solid rgba(255,255,255,.25);
 }
 
 .cv-avatar {
@@ -105,15 +105,13 @@
 }
 
 .cv-summary {
-  color: rgba(255,255,255,.5);
+  color: rgba(255,255,255,.45);
   margin: 0;
   font-size: 14px;
   font-style: italic;
 }
 
-.cv-sections {
-  margin-top: 0;
-}
+.cv-sections { margin-top: 0; }
 
 .skills-list {
   display: flex;
@@ -128,23 +126,23 @@
 }
 
 .timeline-company {
-  color: rgba(255,255,255,.5);
+  color: rgba(255,255,255,.45);
   font-size: 13px;
 }
 
 .timeline-duration {
-  color: rgba(255,255,255,.3);
+  color: rgba(255,255,255,.28);
   font-size: 12px;
   margin-top: 2px;
 }
 
 .timeline-desc {
-  color: rgba(255,255,255,.45);
+  color: rgba(255,255,255,.4);
   font-size: 13px;
   margin-top: 4px;
 }
 
 .empty-text {
-  color: rgba(255,255,255,.2);
+  color: rgba(255,255,255,.18);
   font-size: 13px;
 }

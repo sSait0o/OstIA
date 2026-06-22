@@ -1,0 +1,90 @@
+<div class="email-page">
+  <div class="page-header">
+    <h2 class="page-title">Synchronisation email</h2>
+    <p class="subtitle">Connectez vos boîtes mail pour importer automatiquement vos candidatures</p>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+  } @else {
+
+    <!-- Comptes connectés -->
+    @if (emailConnections().length > 0) {
+      <nz-card class="section-card" nzTitle="Comptes connectés">
+        <div class="connections-list">
+          @for (conn of emailConnections(); track conn.id) {
+            <div class="connection-item">
+              <div class="connection-info">
+                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'" class="provider-icon"></span>
+                <div>
+                  <div class="provider-name">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</div>
+                  <div class="provider-email">{{ conn.email }}</div>
+                </div>
+              </div>
+              <div class="connection-actions">
+                <nz-tag nzColor="green">Actif</nz-tag>
+                <button nz-button nzSize="small" nzDanger (click)="disconnect(conn.id)">
+                  <span nz-icon nzType="disconnect"></span> Déconnecter
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </nz-card>
+    }
+
+    <!-- Gmail -->
+    <nz-card class="section-card provider-card">
+      <div class="provider-header">
+        <span nz-icon nzType="mail" class="provider-icon-lg"></span>
+        <div>
+          <div class="provider-title">Gmail</div>
+          <div class="provider-desc">Synchronisez vos emails Google pour détecter automatiquement vos candidatures</div>
+        </div>
+        <nz-tag [nzColor]="hasGmail() ? 'green' : 'default'">
+          {{ hasGmail() ? 'Connecté' : 'Non connecté' }}
+        </nz-tag>
+      </div>
+      <div class="provider-actions">
+        <button nz-button [nzType]="hasGmail() ? 'default' : 'primary'" (click)="connectGmail()" [disabled]="hasGmail()">
+          <span nz-icon nzType="mail"></span>
+          {{ hasGmail() ? 'Compte connecté' : 'Connecter Gmail' }}
+        </button>
+        <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail() || syncingGmail()">
+          <span nz-icon nzType="sync"></span> Synchroniser
+        </button>
+      </div>
+      @if (syncingGmail()) {
+        <nz-progress
+          [nzPercent]="gmailSyncPercent()"
+          [nzStatus]="gmailSyncPercent() === 100 ? 'success' : 'active'"
+          class="sync-progress"
+        ></nz-progress>
+      }
+    </nz-card>
+
+    <!-- Outlook -->
+    <nz-card class="section-card provider-card">
+      <div class="provider-header">
+        <span nz-icon nzType="laptop" class="provider-icon-lg"></span>
+        <div>
+          <div class="provider-title">Outlook</div>
+          <div class="provider-desc">Synchronisez vos emails Microsoft pour détecter automatiquement vos candidatures</div>
+        </div>
+        <nz-tag [nzColor]="hasOutlook() ? 'green' : 'default'">
+          {{ hasOutlook() ? 'Connecté' : 'Non connecté' }}
+        </nz-tag>
+      </div>
+      <div class="provider-actions">
+        <button nz-button [nzType]="hasOutlook() ? 'default' : 'primary'" (click)="connectOutlook()" [disabled]="hasOutlook()">
+          <span nz-icon nzType="laptop"></span>
+          {{ hasOutlook() ? 'Compte connecté' : 'Connecter Outlook' }}
+        </button>
+        <button nz-button nzType="default" (click)="syncOutlook()" [nzLoading]="syncingOutlook()" [disabled]="!hasOutlook()">
+          <span nz-icon nzType="sync"></span> Synchroniser
+        </button>
+      </div>
+    </nz-card>
+
+  }
+</div>

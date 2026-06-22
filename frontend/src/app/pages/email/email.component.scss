@@ -1,0 +1,118 @@
+.email-page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 32px;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0 0 6px;
+}
+
+.subtitle {
+  color: rgba(255,255,255,.35);
+  font-size: 13px;
+  margin: 0;
+}
+
+.loading-center {
+  text-align: center;
+  padding: 80px;
+}
+
+.section-card {
+  margin-bottom: 20px;
+}
+
+/* Comptes connectés */
+.connections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connection-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+
+  &:last-child { border-bottom: none; }
+}
+
+.connection-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.connection-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Provider cards */
+.provider-card {
+  .ant-card-body { padding: 24px !important; }
+}
+
+.provider-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.provider-icon {
+  font-size: 20px;
+  color: rgba(255,255,255,.5);
+}
+
+.provider-icon-lg {
+  font-size: 28px;
+  color: rgba(255,255,255,.6);
+  flex-shrink: 0;
+}
+
+.provider-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 3px;
+}
+
+.provider-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,.35);
+}
+
+.provider-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: rgba(255,255,255,.8);
+}
+
+.provider-email {
+  font-size: 12px;
+  color: rgba(255,255,255,.35);
+  margin-top: 2px;
+}
+
+.provider-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sync-progress {
+  margin-top: 16px;
+  display: block;
+}
