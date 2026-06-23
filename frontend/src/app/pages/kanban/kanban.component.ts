@@ -15,6 +15,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
 import { FormsModule } from '@angular/forms';
 import { ApplicationsService, Application, ApplicationStatus, CreateApplicationDto } from '../../core/services/applications.service';
 import { MapService } from '../../core/services/map.service';
@@ -32,7 +33,7 @@ interface Column {
   imports: [
     RouterLink,
     NzCardModule, NzTagModule, NzButtonModule, NzIconModule, NzModalModule,
-    NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, NzToolTipModule, FormsModule,
+    NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, NzToolTipModule, NzDatePickerModule, FormsModule,
   ],
   templateUrl: './kanban.component.html',
   styleUrl: './kanban.component.scss',
@@ -82,6 +83,8 @@ export class KanbanComponent implements OnInit {
     notes: '',
   };
 
+  appliedAtDate: Date | null = null;
+
   ngOnInit() {
     this.loadKanban();
   }
@@ -105,6 +108,7 @@ export class KanbanComponent implements OnInit {
   openModal() {
     this.selectedApp.set(null);
     this.form = { company: '', jobTitle: '', status: 'APPLIED', location: '', salary: '', jobUrl: '', notes: '' };
+    this.appliedAtDate = null;
     this.modalVisible = true;
   }
 
@@ -123,6 +127,7 @@ export class KanbanComponent implements OnInit {
     }
     this.selectedApp.set(app);
     this.form = { company: app.company, jobTitle: app.jobTitle, status: app.status, location: app.location, salary: app.salary, jobUrl: app.jobUrl, notes: app.notes };
+    this.appliedAtDate = app.appliedAt ? new Date(app.appliedAt) : null;
     this.modalVisible = true;
   }
 
@@ -221,6 +226,7 @@ export class KanbanComponent implements OnInit {
     const payload = Object.fromEntries(
       Object.entries(this.form).filter(([, v]) => v !== '' && v !== null && v !== undefined),
     ) as unknown as CreateApplicationDto;
+    if (this.appliedAtDate) payload.appliedAt = this.appliedAtDate.toISOString();
 
     const obs = existing
       ? this.appsService.update(existing.id, payload)

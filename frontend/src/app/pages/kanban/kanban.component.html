@@ -147,6 +147,7 @@
       <input nz-input placeholder="Localisation" [(ngModel)]="form.location" />
       <input nz-input placeholder="Salaire" [(ngModel)]="form.salary" />
       <input nz-input placeholder="URL de l'offre" [(ngModel)]="form.jobUrl" />
+      <nz-date-picker [(ngModel)]="appliedAtDate" nzPlaceHolder="Date de candidature" style="width: 100%"></nz-date-picker>
       <textarea nz-input placeholder="Notes" [(ngModel)]="form.notes" [nzAutosize]="{ minRows: 2 }"></textarea>
     </div>
   </ng-container>
