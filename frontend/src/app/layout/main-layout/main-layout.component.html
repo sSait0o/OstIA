@@ -4,6 +4,15 @@
   }
 </div>
 
+<div class="stickmen-bg" aria-hidden="true">
+  <img src="stick.png" class="stick stick--1" />
+  <img src="stick.png" class="stick stick--2" />
+  <img src="stick.png" class="stick stick--3" />
+  <img src="stick.png" class="stick stick--4" />
+  <img src="stick.png" class="stick stick--5" />
+  <img src="stick.png" class="stick stick--6" />
+</div>
+
 <nz-layout class="main-layout">
   <nz-sider nzTheme="dark">
     <div class="logo">
@@ -24,6 +33,9 @@
           <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
             <span nz-icon nzType="global" nzTheme="outline"></span>
             <span>Carte</span>
+            @if (mapService.unlocatedCount() > 0) {
+              <span class="nav-badge">{{ mapService.unlocatedCount() }}</span>
+            }
           </li>
         </ul>
       </li>
@@ -36,10 +48,6 @@
           <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
             <span nz-icon nzType="file-text" nzTheme="outline"></span>
             <span>Mon CV</span>
-          </li>
-          <li nz-menu-item routerLink="/email" routerLinkActive="ant-menu-item-selected">
-            <span nz-icon nzType="sync" nzTheme="outline"></span>
-            <span>Sync email</span>
           </li>
         </ul>
       </li>
