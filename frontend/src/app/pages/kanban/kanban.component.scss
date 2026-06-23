@@ -7,6 +7,19 @@ $card-bg: rgba(13,13,13,.95);
   align-items: center;
 }
 
+.search-input {
+  width: 220px;
+
+  input {
+    background: rgba(255,255,255,.05) !important;
+    border-color: rgba(255,255,255,.1) !important;
+    color: rgba(255,255,255,.85) !important;
+
+    &::placeholder { color: rgba(255,255,255,.3) !important; }
+    &:focus { border-color: rgba(255,255,255,.3) !important; }
+  }
+}
+
 .btn-deduplicate {
   color: rgba(255,255,255,0.3);
   font-size: 12px;

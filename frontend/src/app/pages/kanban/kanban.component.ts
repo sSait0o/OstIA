@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NzCardModule } from 'ng-zorro-antd/card';
@@ -48,6 +48,21 @@ export class KanbanComponent implements OnInit {
   saving = signal(false);
   deleting = signal(false);
   deduplicating = signal(false);
+  searchQuery = '';
+  private readonly searchTerm = signal('');
+
+  filteredColumns = computed(() => {
+    const q = this.searchTerm().toLowerCase().trim();
+    if (!q) return this.columns();
+    return this.columns().map((col) => ({
+      ...col,
+      items: col.items.filter(
+        (app) =>
+          app.company.toLowerCase().includes(q) ||
+          app.jobTitle.toLowerCase().includes(q),
+      ),
+    }));
+  });
   modalVisible = false;
   emailModalVisible = false;
   selectedApp = signal<Application | null>(null);
@@ -87,6 +102,10 @@ export class KanbanComponent implements OnInit {
 
   ngOnInit() {
     this.loadKanban();
+  }
+
+  onSearch() {
+    this.searchTerm.set(this.searchQuery);
   }
 
   loadKanban() {

@@ -1,6 +1,10 @@
 <div class="kanban-header">
   <h2>Mes candidatures</h2>
   <div class="kanban-header-actions">
+    <nz-input-group [nzPrefix]="searchIcon" class="search-input">
+      <input nz-input placeholder="Rechercher…" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
     <button nz-button nzType="text"
             nz-popconfirm
             nzPopconfirmTitle="Supprimer tous les doublons (même entreprise + poste) ?"
@@ -20,7 +24,7 @@
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
 } @else {
   <div class="kanban-board">
-    @for (col of columns(); track col.key) {
+    @for (col of filteredColumns(); track col.key) {
       <div class="kanban-column">
         <div class="column-header">
           <span>{{ col.label }}</span>
