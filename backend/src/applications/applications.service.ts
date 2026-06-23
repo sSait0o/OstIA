@@ -158,10 +158,12 @@ export class ApplicationsService {
       {} as Record<ApplicationStatus, number>,
     );
 
-    const responseRate = total > 0
-      ? Math.round(
-          (apps.filter((a) => a.status !== ApplicationStatus.APPLIED).length / total) * 100,
-        )
+    const activeApps = apps.filter((a) => a.status !== ApplicationStatus.WITHDRAWN);
+    const responded = activeApps.filter((a) =>
+      a.status !== ApplicationStatus.APPLIED,
+    ).length;
+    const responseRate = activeApps.length > 0
+      ? Math.round((responded / activeApps.length) * 100)
       : 0;
 
     const now = new Date();
