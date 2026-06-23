@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTagModule } from 'ng-zorro-antd/tag';
@@ -16,6 +17,7 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { FormsModule } from '@angular/forms';
 import { ApplicationsService, Application, ApplicationStatus, CreateApplicationDto } from '../../core/services/applications.service';
+import { MapService } from '../../core/services/map.service';
 
 interface Column {
   key: ApplicationStatus;
@@ -28,6 +30,7 @@ interface Column {
   selector: 'app-kanban',
   standalone: true,
   imports: [
+    RouterLink,
     NzCardModule, NzTagModule, NzButtonModule, NzIconModule, NzModalModule,
     NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, NzToolTipModule, FormsModule,
   ],
@@ -38,6 +41,7 @@ export class KanbanComponent implements OnInit {
   private readonly appsService = inject(ApplicationsService);
   private readonly message = inject(NzMessageService);
   private readonly sanitizer = inject(DomSanitizer);
+  readonly mapService = inject(MapService);
 
   loading = signal(true);
   saving = signal(false);
@@ -49,14 +53,19 @@ export class KanbanComponent implements OnInit {
 
   columns = signal<Column[]>([
     { key: 'APPLIED', label: 'Envoyée', color: 'default', items: [] },
+    { key: 'ACKNOWLEDGED', label: 'Accusé réception', color: 'cyan', items: [] },
     { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
+    { key: 'TECHNICAL', label: 'Test technique', color: 'purple', items: [] },
     { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
     { key: 'REJECTED', label: 'Refusé', color: 'red', items: [] },
+    { key: 'WITHDRAWN', label: 'Retirée', color: 'default', items: [] },
   ]);
 
   statusOptions = [
     { value: 'APPLIED', label: 'Envoyée' },
+    { value: 'ACKNOWLEDGED', label: 'Accusé réception' },
     { value: 'INTERVIEW', label: 'Entretien' },
+    { value: 'TECHNICAL', label: 'Test technique' },
     { value: 'OFFER', label: 'Offre' },
     { value: 'REJECTED', label: 'Refusé' },
     { value: 'WITHDRAWN', label: 'Retirée' },
@@ -128,7 +137,7 @@ export class KanbanComponent implements OnInit {
 
   getStatusColor(status: string): string {
     const map: Record<string, string> = {
-      APPLIED: 'default', INTERVIEW: 'orange', OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
+      APPLIED: 'default', ACKNOWLEDGED: 'cyan', INTERVIEW: 'orange', TECHNICAL: 'purple', OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
     };
     return map[status] ?? 'default';
   }
