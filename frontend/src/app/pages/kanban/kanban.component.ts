@@ -45,6 +45,7 @@ export class KanbanComponent implements OnInit {
 
   loading = signal(true);
   saving = signal(false);
+  deleting = signal(false);
   deduplicating = signal(false);
   modalVisible = false;
   emailModalVisible = false;
@@ -145,6 +146,24 @@ export class KanbanComponent implements OnInit {
   closeModal() {
     this.modalVisible = false;
     this.selectedApp.set(null);
+  }
+
+  deleteApp() {
+    const app = this.selectedApp();
+    if (!app) return;
+    this.deleting.set(true);
+    this.appsService.delete(app.id).subscribe({
+      next: () => {
+        this.message.success('Candidature supprimée');
+        this.closeModal();
+        this.loadKanban();
+        this.deleting.set(false);
+      },
+      error: () => {
+        this.message.error('Erreur lors de la suppression');
+        this.deleting.set(false);
+      },
+    });
   }
 
   deduplicate() {

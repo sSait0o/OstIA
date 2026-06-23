@@ -9,11 +9,56 @@ $card-bg: rgba(13,13,13,.95);
 
 .btn-deduplicate {
   color: rgba(255,255,255,0.3);
+  font-size: 12px;
   transition: color .2s;
 
   &:hover {
     color: #ff4d4f !important;
   }
+}
+
+.location-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  background: rgba(255, 160, 60, 0.08);
+  border: 1px solid rgba(255, 160, 60, 0.25);
+  border-radius: 10px;
+  font-size: 13px;
+  color: rgba(255, 200, 100, 0.85);
+  text-decoration: none;
+  transition: background .2s, border-color .2s;
+
+  span[nz-icon] { font-size: 15px; flex-shrink: 0; }
+
+  strong { color: #ffcb6b; }
+
+  &:hover {
+    background: rgba(255, 160, 60, 0.14);
+    border-color: rgba(255, 160, 60, 0.45);
+  }
+}
+
+.location-alert-cta {
+  margin-left: auto;
+  font-weight: 600;
+  color: #ffcb6b;
+  white-space: nowrap;
+}
+
+.page-stick {
+  position: fixed;
+  bottom: 0;
+  right: 2vw;
+  width: 14vw;
+  max-width: 200px;
+  min-width: 100px;
+  filter: brightness(0) invert(1);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .kanban-header {
@@ -192,23 +237,32 @@ $card-bg: rgba(13,13,13,.95);
   border-bottom: 1px solid rgba(255,255,255,.07);
 }
 
-.email-subject {
-  font-size: 17px;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.4;
-  margin-bottom: 8px;
-}
-
-.email-meta-line {
+.email-header-top {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-bottom: 6px;
 }
 
-.email-from {
-  font-size: 12px;
-  color: rgba(255,255,255,.4);
+.email-company {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.email-subject {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255,255,255,.75);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.email-raw-subject {
+  font-size: 11px;
+  color: rgba(255,255,255,.25);
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 .email-body-block {
@@ -242,4 +296,17 @@ $card-bg: rgba(13,13,13,.95);
   font-size: 13px;
 
   span[nz-icon] { font-size: 20px; }
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  .modal-footer-right {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
 }

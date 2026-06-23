@@ -2,14 +2,13 @@
   <h2>Mes candidatures</h2>
   <div class="kanban-header-actions">
     <button nz-button nzType="text"
-            nz-tooltip nzTooltipTitle="Supprimer les doublons"
             nz-popconfirm
             nzPopconfirmTitle="Supprimer tous les doublons (même entreprise + poste) ?"
             nzPopconfirmPlacement="bottomRight"
             (nzOnConfirm)="deduplicate()"
             [nzLoading]="deduplicating()"
             class="btn-deduplicate">
-      <span nz-icon nzType="delete"></span>
+      <span nz-icon nzType="delete"></span> Doublons
     </button>
     <button nz-button nzType="primary" (click)="openModal()">
       <span nz-icon nzType="plus"></span> Ajouter
@@ -54,6 +53,8 @@
   </div>
 }
 
+<img src="stick.png" alt="" class="page-stick" />
+
 <nz-modal
   [(nzVisible)]="emailModalVisible"
   [nzFooter]="null"
@@ -65,11 +66,14 @@
     @if (emailApp(); as app) {
       <div class="email-viewer">
         <div class="email-header">
-          <div class="email-subject">{{ app.emailSubject || '(Sans objet)' }}</div>
-          <div class="email-meta-line">
-            <span class="email-from">{{ app.company }}</span>
+          <div class="email-header-top">
+            <span class="email-company">{{ app.company }}</span>
             <nz-tag [nzColor]="getStatusColor(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
           </div>
+          <div class="email-subject">{{ app.jobTitle }}</div>
+          @if (app.emailSubject && app.emailSubject !== app.jobTitle) {
+            <div class="email-raw-subject">{{ app.emailSubject }}</div>
+          }
         </div>
         @if (app.emailBody) {
           <div class="email-body-block"
@@ -89,12 +93,27 @@
 <nz-modal
   [(nzVisible)]="modalVisible"
   [nzTitle]="selectedApp() ? 'Modifier la candidature' : 'Nouvelle candidature'"
-  (nzOnOk)="saveApp()"
   (nzOnCancel)="closeModal()"
-  [nzOkLoading]="saving()"
-  nzOkText="Enregistrer"
-  nzCancelText="Annuler"
+  [nzFooter]="modalFooter"
 >
+<ng-template #modalFooter>
+  <div class="modal-footer">
+    @if (selectedApp()) {
+      <button nz-button nzType="default" nzDanger
+              nz-popconfirm
+              nzPopconfirmTitle="Supprimer cette candidature ?"
+              nzPopconfirmPlacement="top"
+              (nzOnConfirm)="deleteApp()"
+              [nzLoading]="deleting()">
+        <span nz-icon nzType="delete"></span> Supprimer
+      </button>
+    }
+    <div class="modal-footer-right">
+      <button nz-button nzType="default" (click)="closeModal()">Annuler</button>
+      <button nz-button nzType="primary" (click)="saveApp()" [nzLoading]="saving()">Enregistrer</button>
+    </div>
+  </div>
+</ng-template>
   <ng-container *nzModalContent>
     <div class="modal-form">
       <input nz-input placeholder="Entreprise *" [(ngModel)]="form.company" />
