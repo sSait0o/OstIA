@@ -166,6 +166,35 @@ export class KanbanComponent implements OnInit {
     });
   }
 
+  updateEmailAppStatus(app: Application, status: ApplicationStatus) {
+    this.appsService.update(app.id, { status }).subscribe({
+      next: (updated) => {
+        this.emailApp.set({ ...app, status: updated.status });
+        this.loadKanban();
+      },
+      error: () => this.message.error('Erreur lors de la mise à jour du statut'),
+    });
+  }
+
+  deleteEmailApp() {
+    const app = this.emailApp();
+    if (!app) return;
+    this.deleting.set(true);
+    this.appsService.delete(app.id).subscribe({
+      next: () => {
+        this.message.success('Candidature supprimée');
+        this.emailModalVisible = false;
+        this.emailApp.set(null);
+        this.loadKanban();
+        this.deleting.set(false);
+      },
+      error: () => {
+        this.message.error('Erreur lors de la suppression');
+        this.deleting.set(false);
+      },
+    });
+  }
+
   deduplicate() {
     this.deduplicating.set(true);
     this.appsService.deduplicateApplications().subscribe({

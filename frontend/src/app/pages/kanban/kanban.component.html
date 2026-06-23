@@ -57,7 +57,7 @@
 
 <nz-modal
   [(nzVisible)]="emailModalVisible"
-  [nzFooter]="null"
+  [nzFooter]="emailModalFooter"
   nzWidth="700px"
   nzClassName="email-modal"
   (nzOnCancel)="emailModalVisible = false"
@@ -68,7 +68,12 @@
         <div class="email-header">
           <div class="email-header-top">
             <span class="email-company">{{ app.company }}</span>
-            <nz-tag [nzColor]="getStatusColor(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+            <nz-select [ngModel]="app.status" (ngModelChange)="updateEmailAppStatus(app, $event)"
+                       style="width: 160px" nzSize="small">
+              @for (s of statusOptions; track s.value) {
+                <nz-option [nzValue]="s.value" [nzLabel]="s.label"></nz-option>
+              }
+            </nz-select>
           </div>
           <div class="email-subject">{{ app.jobTitle }}</div>
           @if (app.emailSubject && app.emailSubject !== app.jobTitle) {
@@ -89,6 +94,22 @@
     }
   </ng-container>
 </nz-modal>
+
+<ng-template #emailModalFooter>
+  <div class="modal-footer">
+    <button nz-button nzType="default" nzDanger
+            nz-popconfirm
+            nzPopconfirmTitle="Supprimer cette candidature ?"
+            nzPopconfirmPlacement="top"
+            (nzOnConfirm)="deleteEmailApp()"
+            [nzLoading]="deleting()">
+      <span nz-icon nzType="delete"></span> Supprimer
+    </button>
+    <div class="modal-footer-right">
+      <button nz-button nzType="default" (click)="emailModalVisible = false">Fermer</button>
+    </div>
+  </div>
+</ng-template>
 
 <nz-modal
   [(nzVisible)]="modalVisible"
