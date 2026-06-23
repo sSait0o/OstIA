@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -31,7 +31,7 @@ interface Column {
   selector: 'app-kanban',
   standalone: true,
   imports: [
-    RouterLink,
+    DragDropModule,
     NzCardModule, NzTagModule, NzButtonModule, NzIconModule, NzModalModule,
     NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, NzToolTipModule, NzDatePickerModule, FormsModule,
   ],
@@ -54,6 +54,7 @@ export class KanbanComponent implements OnInit {
   filteredColumns = computed(() => {
     const q = this.searchTerm().toLowerCase().trim();
     if (!q) return this.columns();
+    // For search: return shallow copies with filtered items (read-only display, drag disabled during search)
     return this.columns().map((col) => ({
       ...col,
       items: col.items.filter(
@@ -63,6 +64,10 @@ export class KanbanComponent implements OnInit {
       ),
     }));
   });
+
+  get isDraggable(): boolean {
+    return !this.searchTerm();
+  }
   modalVisible = false;
   emailModalVisible = false;
   selectedApp = signal<Application | null>(null);
@@ -70,7 +75,6 @@ export class KanbanComponent implements OnInit {
 
   columns = signal<Column[]>([
     { key: 'APPLIED', label: 'Envoyée', color: 'default', items: [] },
-    { key: 'ACKNOWLEDGED', label: 'Accusé réception', color: 'cyan', items: [] },
     { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
     { key: 'TECHNICAL', label: 'Test technique', color: 'purple', items: [] },
     { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
@@ -80,7 +84,6 @@ export class KanbanComponent implements OnInit {
 
   statusOptions = [
     { value: 'APPLIED', label: 'Envoyée' },
-    { value: 'ACKNOWLEDGED', label: 'Accusé réception' },
     { value: 'INTERVIEW', label: 'Entretien' },
     { value: 'TECHNICAL', label: 'Test technique' },
     { value: 'OFFER', label: 'Offre' },
@@ -112,8 +115,14 @@ export class KanbanComponent implements OnInit {
     this.loading.set(true);
     this.appsService.getKanban().subscribe({
       next: (board) => {
+        const acknowledged = board['ACKNOWLEDGED'] || [];
         this.columns.update((cols) =>
-          cols.map((col) => ({ ...col, items: board[col.key] || [] })),
+          cols.map((col) => ({
+            ...col,
+            items: col.key === 'APPLIED'
+              ? [...(board['APPLIED'] || []), ...acknowledged]
+              : board[col.key] || [],
+          })),
         );
         this.loading.set(false);
       },
@@ -129,6 +138,36 @@ export class KanbanComponent implements OnInit {
     this.form = { company: '', jobTitle: '', status: 'APPLIED', location: '', salary: '', jobUrl: '', notes: '' };
     this.appliedAtDate = null;
     this.modalVisible = true;
+  }
+
+  get columnIds(): string[] {
+    return this.columns().map((c) => 'col-' + c.key);
+  }
+
+  formatDate(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  }
+
+  drop(event: CdkDragDrop<Application[]>, targetColKey: ApplicationStatus) {
+    if (event.previousContainer === event.container) {
+      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+      this.columns.update((cols) => [...cols]);
+      return;
+    }
+
+    const app = event.previousContainer.data[event.previousIndex];
+    transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, event.currentIndex);
+    this.columns.update((cols) => [...cols]);
+
+    this.appsService.update(app.id, { status: targetColKey }).subscribe({
+      error: () => {
+        transferArrayItem(event.container.data, event.previousContainer.data, event.currentIndex, event.previousIndex);
+        this.columns.update((cols) => [...cols]);
+        this.message.error('Erreur lors du changement de statut');
+      },
+    });
   }
 
   get safeEmailHtml(): SafeHtml {
@@ -162,7 +201,7 @@ export class KanbanComponent implements OnInit {
 
   getStatusColor(status: string): string {
     const map: Record<string, string> = {
-      APPLIED: 'default', ACKNOWLEDGED: 'cyan', INTERVIEW: 'orange', TECHNICAL: 'purple', OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
+      APPLIED: 'default', ACKNOWLEDGED: 'default', INTERVIEW: 'orange', TECHNICAL: 'purple', OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
     };
     return map[status] ?? 'default';
   }

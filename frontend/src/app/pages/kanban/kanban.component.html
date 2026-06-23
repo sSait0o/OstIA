@@ -30,16 +30,26 @@
           <span>{{ col.label }}</span>
           <nz-tag [nzColor]="col.color">{{ col.items.length }}</nz-tag>
         </div>
-        <div class="column-body">
+        <div class="column-body"
+             cdkDropList
+             [id]="'col-' + col.key"
+             [cdkDropListData]="col.items"
+             [cdkDropListConnectedTo]="columnIds"
+             (cdkDropListDropped)="drop($event, col.key)">
           @for (app of col.items; track app.id) {
-            <nz-card [nzBodyStyle]="{ padding: '12px' }" class="kanban-card" (click)="selectApp(app)">
+            <nz-card [nzBodyStyle]="{ padding: '12px' }" class="kanban-card" [cdkDragDisabled]="!isDraggable" cdkDrag (click)="selectApp(app)">
               <div class="card-company">{{ app.company }}</div>
               <div class="card-title">{{ app.jobTitle }}</div>
-              @if (app.location) {
-                <div class="card-location">
-                  <span nz-icon nzType="environment"></span> {{ app.location }}
-                </div>
-              }
+              <div class="card-meta-row">
+                @if (app.location) {
+                  <span class="card-location">
+                    <span nz-icon nzType="environment"></span> {{ app.location }}
+                  </span>
+                }
+                @if (app.appliedAt) {
+                  <span class="card-date">{{ formatDate(app.appliedAt) }}</span>
+                }
+              </div>
               @if (app.source === 'EMAIL') {
                 <div class="card-email-row">
                   <nz-tag nzColor="blue" class="card-tag">
@@ -47,6 +57,7 @@
                   </nz-tag>
                 </div>
               }
+              <div class="cdk-drag-placeholder" *cdkDragPlaceholder></div>
             </nz-card>
           } @empty {
             <div class="empty-column">Aucune</div>
@@ -56,7 +67,6 @@
     }
   </div>
 }
-
 
 <nz-modal
   [(nzVisible)]="emailModalVisible"
