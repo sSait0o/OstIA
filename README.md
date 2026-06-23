@@ -1,4 +1,4 @@
-# Ostia
+# OstIA
 
 Plateforme intelligente de gestion de candidatures et de recherche d'emploi, propulsée par l'IA.
 
