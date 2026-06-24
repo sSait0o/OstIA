@@ -1,15 +1,18 @@
 <div class="kanban-header">
   <h2>Mes candidatures</h2>
   <div class="kanban-header-actions">
+    <nz-input-group [nzPrefix]="searchIcon" class="search-input">
+      <input nz-input placeholder="Rechercher…" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
     <button nz-button nzType="text"
-            nz-tooltip nzTooltipTitle="Supprimer les doublons"
             nz-popconfirm
             nzPopconfirmTitle="Supprimer tous les doublons (même entreprise + poste) ?"
             nzPopconfirmPlacement="bottomRight"
             (nzOnConfirm)="deduplicate()"
             [nzLoading]="deduplicating()"
             class="btn-deduplicate">
-      <span nz-icon nzType="delete"></span>
+      <span nz-icon nzType="delete"></span> Doublons
     </button>
     <button nz-button nzType="primary" (click)="openModal()">
       <span nz-icon nzType="plus"></span> Ajouter
@@ -21,22 +24,32 @@
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
 } @else {
   <div class="kanban-board">
-    @for (col of columns(); track col.key) {
+    @for (col of filteredColumns(); track col.key) {
       <div class="kanban-column">
         <div class="column-header">
           <span>{{ col.label }}</span>
           <nz-tag [nzColor]="col.color">{{ col.items.length }}</nz-tag>
         </div>
-        <div class="column-body">
+        <div class="column-body"
+             cdkDropList
+             [id]="'col-' + col.key"
+             [cdkDropListData]="col.items"
+             [cdkDropListConnectedTo]="columnIds"
+             (cdkDropListDropped)="drop($event, col.key)">
           @for (app of col.items; track app.id) {
-            <nz-card [nzBodyStyle]="{ padding: '12px' }" class="kanban-card" (click)="selectApp(app)">
+            <nz-card [nzBodyStyle]="{ padding: '12px' }" class="kanban-card" [cdkDragDisabled]="!isDraggable" cdkDrag (click)="selectApp(app)">
               <div class="card-company">{{ app.company }}</div>
               <div class="card-title">{{ app.jobTitle }}</div>
-              @if (app.location) {
-                <div class="card-location">
-                  <span nz-icon nzType="environment"></span> {{ app.location }}
-                </div>
-              }
+              <div class="card-meta-row">
+                @if (app.location) {
+                  <span class="card-location">
+                    <span nz-icon nzType="environment"></span> {{ app.location }}
+                  </span>
+                }
+                @if (app.appliedAt) {
+                  <span class="card-date">{{ formatDate(app.appliedAt) }}</span>
+                }
+              </div>
               @if (app.source === 'EMAIL') {
                 <div class="card-email-row">
                   <nz-tag nzColor="blue" class="card-tag">
@@ -44,6 +57,7 @@
                   </nz-tag>
                 </div>
               }
+              <div class="cdk-drag-placeholder" *cdkDragPlaceholder></div>
             </nz-card>
           } @empty {
             <div class="empty-column">Aucune</div>
@@ -56,7 +70,7 @@
 
 <nz-modal
   [(nzVisible)]="emailModalVisible"
-  [nzFooter]="null"
+  [nzFooter]="emailModalFooter"
   nzWidth="700px"
   nzClassName="email-modal"
   (nzOnCancel)="emailModalVisible = false"
@@ -65,11 +79,19 @@
     @if (emailApp(); as app) {
       <div class="email-viewer">
         <div class="email-header">
-          <div class="email-subject">{{ app.emailSubject || '(Sans objet)' }}</div>
-          <div class="email-meta-line">
-            <span class="email-from">{{ app.company }}</span>
-            <nz-tag [nzColor]="getStatusColor(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+          <div class="email-header-top">
+            <span class="email-company">{{ app.company }}</span>
+            <nz-select [ngModel]="app.status" (ngModelChange)="updateEmailAppStatus(app, $event)"
+                       style="width: 160px" nzSize="small">
+              @for (s of statusOptions; track s.value) {
+                <nz-option [nzValue]="s.value" [nzLabel]="s.label"></nz-option>
+              }
+            </nz-select>
           </div>
+          <div class="email-subject">{{ app.jobTitle }}</div>
+          @if (app.emailSubject && app.emailSubject !== app.jobTitle) {
+            <div class="email-raw-subject">{{ app.emailSubject }}</div>
+          }
         </div>
         @if (app.emailBody) {
           <div class="email-body-block"
@@ -86,15 +108,46 @@
   </ng-container>
 </nz-modal>
 
+<ng-template #emailModalFooter>
+  <div class="modal-footer">
+    <button nz-button nzType="default" nzDanger
+            nz-popconfirm
+            nzPopconfirmTitle="Supprimer cette candidature ?"
+            nzPopconfirmPlacement="top"
+            (nzOnConfirm)="deleteEmailApp()"
+            [nzLoading]="deleting()">
+      <span nz-icon nzType="delete"></span> Supprimer
+    </button>
+    <div class="modal-footer-right">
+      <button nz-button nzType="default" (click)="emailModalVisible = false">Fermer</button>
+    </div>
+  </div>
+</ng-template>
+
 <nz-modal
   [(nzVisible)]="modalVisible"
   [nzTitle]="selectedApp() ? 'Modifier la candidature' : 'Nouvelle candidature'"
-  (nzOnOk)="saveApp()"
   (nzOnCancel)="closeModal()"
-  [nzOkLoading]="saving()"
-  nzOkText="Enregistrer"
-  nzCancelText="Annuler"
+  [nzFooter]="modalFooter"
 >
+<ng-template #modalFooter>
+  <div class="modal-footer">
+    @if (selectedApp()) {
+      <button nz-button nzType="default" nzDanger
+              nz-popconfirm
+              nzPopconfirmTitle="Supprimer cette candidature ?"
+              nzPopconfirmPlacement="top"
+              (nzOnConfirm)="deleteApp()"
+              [nzLoading]="deleting()">
+        <span nz-icon nzType="delete"></span> Supprimer
+      </button>
+    }
+    <div class="modal-footer-right">
+      <button nz-button nzType="default" (click)="closeModal()">Annuler</button>
+      <button nz-button nzType="primary" (click)="saveApp()" [nzLoading]="saving()">Enregistrer</button>
+    </div>
+  </div>
+</ng-template>
   <ng-container *nzModalContent>
     <div class="modal-form">
       <input nz-input placeholder="Entreprise *" [(ngModel)]="form.company" />
@@ -107,6 +160,7 @@
       <input nz-input placeholder="Localisation" [(ngModel)]="form.location" />
       <input nz-input placeholder="Salaire" [(ngModel)]="form.salary" />
       <input nz-input placeholder="URL de l'offre" [(ngModel)]="form.jobUrl" />
+      <nz-date-picker [(ngModel)]="appliedAtDate" nzPlaceHolder="Date de candidature" style="width: 100%"></nz-date-picker>
       <textarea nz-input placeholder="Notes" [(ngModel)]="form.notes" [nzAutosize]="{ minRows: 2 }"></textarea>
     </div>
   </ng-container>

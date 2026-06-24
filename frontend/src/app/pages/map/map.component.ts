@@ -125,6 +125,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mapService.getMapApplications().subscribe({
       next: (apps) => {
         this.allApps.set(apps);
+        this.mapService.unlocatedCount.set(this.unlocatedApps().length);
         this.updateMarkers();
         this.geocodeMissing(apps.filter((a) => a.lat === null));
       },
@@ -266,6 +267,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             ),
           );
           this.updateMarkers();
+          this.mapService.unlocatedCount.set(this.unlocatedApps().length);
           delete this.manualLocations[app.id];
           this.message.success(`${app.company} localisé`);
         } else {

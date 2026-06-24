@@ -18,18 +18,11 @@
 
 .stat-card {
   text-align: center;
-  transition: transform .2s, box-shadow .2s;
-  border-top: 3px solid transparent;
+  transition: transform .25s, box-shadow .3s;
 
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    transform: translateY(-4px);
   }
-
-  &--blue  { border-top-color: #4a9eff; }
-  &--teal  { border-top-color: #36cfc9; }
-  &--yellow{ border-top-color: #ffc53d; }
-  &--green { border-top-color: #52c41a; }
 }
 
 .stat-value {
@@ -42,7 +35,7 @@
 
 .stat-label {
   font-size: 11px;
-  color: rgba(255,255,255,.4);
+  color: rgba(255,255,255,.35);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -60,7 +53,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid rgba(255,255,255,.05);
 
   &:last-child { border-bottom: none; }
 }
@@ -85,7 +78,7 @@
 
 .email-address {
   font-size: 12px;
-  color: rgba(255,255,255,.35);
+  color: rgba(255,255,255,.3);
 }
 
 .email-empty {
@@ -107,7 +100,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255,255,255,.4);
+  color: rgba(255,255,255,.35);
   margin-bottom: 16px;
 }
 

@@ -8,7 +8,7 @@
 }
 
 .subtitle {
-  color: rgba(255,255,255,.35);
+  color: rgba(255,255,255,.3);
   font-size: 13px;
   margin-bottom: 24px;
 }
@@ -28,12 +28,12 @@
 }
 
 .job-card {
-  border-radius: 10px !important;
-  margin-bottom: 12px;
-  transition: transform .15s, border-color .2s, box-shadow .2s !important;
+  border-radius: 20px !important;
+  margin-bottom: 16px;
+  transition: transform .25s, box-shadow .3s !important;
 
   &:hover {
-    transform: translateY(-1px);
+    transform: translateY(-3px);
   }
 }
 
@@ -58,7 +58,7 @@
 }
 
 .job-company {
-  color: rgba(255,255,255,.45);
+  color: rgba(255,255,255,.4);
   font-size: 12px;
   margin-top: 2px;
 }
@@ -93,7 +93,7 @@
 .matched-skills {
   margin-top: 10px;
   font-size: 12px;
-  color: rgba(255,255,255,.6);
+  color: rgba(255,255,255,.5);
 }
 
 .match-summary {
@@ -105,7 +105,7 @@
 
 .job-divider {
   margin: 12px 0 !important;
-  border-color: rgba(255,255,255,.06) !important;
+  border-color: rgba(255,255,255,.05) !important;
 }
 
 .job-actions {

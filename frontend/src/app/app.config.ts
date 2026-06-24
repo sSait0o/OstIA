@@ -10,6 +10,7 @@ import { provideEchartsCore } from 'ngx-echarts';
 import { IconDefinition } from '@ant-design/icons-angular';
 import {
   CompassOutline,
+  DownOutline,
   ProjectOutline,
   SearchOutline,
   BarChartOutline,
@@ -42,6 +43,7 @@ registerLocaleData(fr);
 
 const icons: IconDefinition[] = [
   CompassOutline,
+  DownOutline,
   ProjectOutline,
   SearchOutline,
   BarChartOutline,

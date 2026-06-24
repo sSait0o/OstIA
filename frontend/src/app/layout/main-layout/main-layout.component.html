@@ -1,4 +1,8 @@
-<canvas #bgCanvas class="bg-canvas"></canvas>
+<div class="dot-bg">
+  @for (_ of dots; track $index) {
+    <span></span>
+  }
+</div>
 
 <nz-layout class="main-layout">
   <nz-sider nzTheme="dark">
@@ -7,42 +11,66 @@
       <span class="logo-text">OstIA</span>
     </div>
     <ul nz-menu nzTheme="dark" nzMode="inline">
-      <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="project" nzTheme="outline"></span>
-        <span>Candidatures</span>
+      <li nz-menu-group nzTitle="Organisation">
+        <ul>
+          <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="project" nzTheme="outline"></span>
+            <span>Candidatures</span>
+          </li>
+          <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
+            <span>Dashboard</span>
+          </li>
+          <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="global" nzTheme="outline"></span>
+            <span>Carte</span>
+            @if (mapService.unlocatedCount() > 0) {
+              <span class="nav-badge">{{ mapService.unlocatedCount() }}</span>
+            }
+          </li>
+        </ul>
       </li>
-      <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="search" nzTheme="outline"></span>
-        <span>Offres</span>
-      </li>
-      <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
-        <span>Dashboard</span>
-      </li>
-      <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="file-text" nzTheme="outline"></span>
-        <span>Mon CV</span>
-      </li>
-      <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
-        <span nz-icon nzType="global" nzTheme="outline"></span>
-        <span>Carte</span>
+      <li nz-menu-group nzTitle="Recherche">
+        <ul>
+          <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="search" nzTheme="outline"></span>
+            <span>Offres</span>
+          </li>
+          <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="file-text" nzTheme="outline"></span>
+            <span>Mon CV</span>
+          </li>
+        </ul>
       </li>
     </ul>
   </nz-sider>
   <nz-layout>
-    <nz-header class="main-header">
-      <span class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu">
-        <nz-avatar nzIcon="user" style="background: rgba(255,255,255,0.15)"></nz-avatar>
+    <div class="main-header">
+      <div class="header-left">
+        <a routerLink="/email" class="sync-btn">
+          <span nz-icon nzType="sync" nzTheme="outline"></span>
+          Sync email
+        </a>
+      </div>
+      <div class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight">
+        <nz-avatar nzIcon="user" class="user-avatar"></nz-avatar>
         <span class="user-name">{{ auth.currentUser()?.firstName }}</span>
-      </span>
+        <span nz-icon nzType="down" class="user-chevron"></span>
+      </div>
       <nz-dropdown-menu #userMenu="nzDropdownMenu">
-        <ul nz-menu>
-          <li nz-menu-item (click)="auth.logout()">
-            <span nz-icon nzType="logout"></span> Déconnexion
-          </li>
-        </ul>
+        <div class="user-dropdown">
+          <div class="user-dropdown-header">
+            <div class="user-dropdown-name">{{ auth.currentUser()?.firstName }} {{ auth.currentUser()?.lastName }}</div>
+            <div class="user-dropdown-email">{{ auth.currentUser()?.email }}</div>
+          </div>
+          <div class="user-dropdown-divider"></div>
+          <div class="user-dropdown-item" (click)="auth.logout()">
+            <span nz-icon nzType="logout"></span>
+            Déconnexion
+          </div>
+        </div>
       </nz-dropdown-menu>
-    </nz-header>
+    </div>
     <nz-content class="main-content">
       <router-outlet />
     </nz-content>
