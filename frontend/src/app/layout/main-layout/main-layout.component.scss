@@ -80,8 +80,8 @@
 }
 
 .user-avatar {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
   flex-shrink: 0;
 }
 
@@ -96,7 +96,6 @@
   color: rgba(255, 255, 255, 0.3);
 }
 
-/* Dropdown custom */
 .user-dropdown {
   min-width: 200px;
   background: #0d0d0d;
@@ -145,8 +144,8 @@
 }
 
 ::ng-deep .ant-menu-item .ant-menu-title-content {
-  display: flex !important;
-  align-items: center !important;
+  display: flex;
+  align-items: center;
   width: 100%;
 }
 
@@ -165,12 +164,12 @@
 }
 
 ::ng-deep .ant-menu-item-group-title {
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.14em !important;
-  text-transform: uppercase !important;
-  color: rgba(255, 255, 255, 0.2) !important;
-  padding: 16px 16px 4px !important;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.2);
+  padding: 16px 16px 4px;
 }
 
 .main-content {
