@@ -37,13 +37,13 @@ export class DashboardComponent implements OnInit {
   funnelOptions = signal<EChartsOption>({});
 
   private readonly STATUS_LABELS: Record<string, string> = {
-    APPLIED: 'Envoyée', ACKNOWLEDGED: 'Reçue', INTERVIEW: 'Entretien',
+    APPLIED: 'Envoyée', ACKNOWLEDGED: 'Envoyée', INTERVIEW: 'Entretien',
     TECHNICAL: 'Test technique', OFFER: 'Offre', REJECTED: 'Refusé', WITHDRAWN: 'Retirée',
   };
 
   private readonly STATUS_COLORS: Record<string, string> = {
     APPLIED: '#4a9eff',
-    ACKNOWLEDGED: '#36cfc9',
+    ACKNOWLEDGED: '#4a9eff',
     INTERVIEW: '#ffc53d',
     TECHNICAL: '#b37feb',
     OFFER: '#52c41a',
@@ -154,11 +154,10 @@ export class DashboardComponent implements OnInit {
 
   private buildFunnelChart(s: ApplicationStats) {
     const pipeline = [
-      { name: 'Envoyées',  value: s.byStatus['APPLIED'] ?? 0,     color: '#4a9eff' },
-      { name: 'Reçues',    value: s.byStatus['ACKNOWLEDGED'] ?? 0, color: '#36cfc9' },
-      { name: 'Entretiens',value: s.byStatus['INTERVIEW'] ?? 0,    color: '#ffc53d' },
-      { name: 'Tests',     value: s.byStatus['TECHNICAL'] ?? 0,    color: '#b37feb' },
-      { name: 'Offres',    value: s.byStatus['OFFER'] ?? 0,        color: '#52c41a' },
+      { name: 'Envoyées',   value: (s.byStatus['APPLIED'] ?? 0) + (s.byStatus['ACKNOWLEDGED'] ?? 0), color: '#4a9eff' },
+      { name: 'Entretiens', value: s.byStatus['INTERVIEW'] ?? 0,  color: '#ffc53d' },
+      { name: 'Tests',      value: s.byStatus['TECHNICAL'] ?? 0,  color: '#b37feb' },
+      { name: 'Offres',     value: s.byStatus['OFFER'] ?? 0,      color: '#52c41a' },
     ];
 
     this.funnelOptions.set({
