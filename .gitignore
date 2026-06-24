@@ -53,3 +53,5 @@ postgres_data/
 
 # Local task file (not versioned)
 TASKS.local.md
+
+.claude
