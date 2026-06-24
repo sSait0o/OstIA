@@ -112,11 +112,14 @@
     @if (emailApp) {
       <div class="email-viewer">
         <div class="email-header">
-          <div class="email-subject">{{ emailApp.emailSubject || emailApp.jobTitle }}</div>
-          <div class="email-meta-line">
-            <span class="email-from">{{ emailApp.company }}</span>
+          <div class="email-header-top">
+            <span class="email-company">{{ emailApp.company }}</span>
             <nz-tag [nzColor]="getStatusTag(emailApp.status)">{{ getStatusLabel(emailApp.status) }}</nz-tag>
           </div>
+          <div class="email-subject">{{ emailApp.jobTitle }}</div>
+          @if (emailApp.emailSubject && emailApp.emailSubject !== emailApp.jobTitle) {
+            <div class="email-raw-subject">{{ emailApp.emailSubject }}</div>
+          }
         </div>
 
         <div class="email-meta-grid">

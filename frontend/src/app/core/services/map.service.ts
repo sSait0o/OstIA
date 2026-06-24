@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
@@ -34,6 +34,21 @@ export class MapService {
   private readonly http = inject(HttpClient);
   private readonly appsBase = `${environment.apiUrl}/applications`;
   private readonly coreBase = `${environment.coreUrl}/analytics`;
+
+  unlocatedCount = signal(0);
+
+  private inFrance(lat: number, lon: number): boolean {
+    return lat >= 41.3 && lat <= 51.1 && lon >= -5.1 && lon <= 9.6;
+  }
+
+  loadUnlocatedCount() {
+    this.getMapApplications().subscribe((apps) => {
+      const count = apps.filter(
+        (a) => a.lat === null || a.lon === null || !this.inFrance(a.lat!, a.lon!),
+      ).length;
+      this.unlocatedCount.set(count);
+    });
+  }
 
   getMapApplications() {
     return this.http.get<MapApplication[]>(`${this.appsBase}/map`);
