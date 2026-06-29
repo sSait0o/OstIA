@@ -13,7 +13,7 @@ router = APIRouter()
 
 _NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 _NOMINATIM_HEADERS = {"User-Agent": "Ostia-App/1.0"}
-_GEOCODE_TIMEOUT = 5
+_http_client = httpx.AsyncClient(timeout=5, headers=_NOMINATIM_HEADERS)
 
 
 class Application(BaseModel):
@@ -81,16 +81,14 @@ def compute_stats(req: AnalyticsRequest):
 
 async def _nominatim_search(query: str) -> dict | None:
     try:
-        async with httpx.AsyncClient(timeout=_GEOCODE_TIMEOUT) as client:
-            res = await client.get(
-                _NOMINATIM_URL,
-                params={"q": query, "format": "json", "limit": 1},
-                headers=_NOMINATIM_HEADERS,
-            )
-            res.raise_for_status()
-            data = res.json()
-            if data:
-                return data[0]
+        res = await _http_client.get(
+            _NOMINATIM_URL,
+            params={"q": query, "format": "json", "limit": 1},
+        )
+        res.raise_for_status()
+        data = res.json()
+        if data:
+            return data[0]
     except httpx.TimeoutException:
         logger.warning("Nominatim timeout for query: %s", query)
     except httpx.HTTPStatusError as e:
