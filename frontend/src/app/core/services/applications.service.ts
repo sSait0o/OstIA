@@ -5,8 +5,8 @@ import { environment } from '../../../environments/environment';
 export type ApplicationStatus =
   | 'APPLIED'
   | 'ACKNOWLEDGED'
-  | 'INTERVIEW'
   | 'TECHNICAL'
+  | 'INTERVIEW'
   | 'OFFER'
   | 'REJECTED'
   | 'WITHDRAWN';
@@ -31,8 +31,8 @@ export interface Application {
 export interface KanbanBoard {
   APPLIED: Application[];
   ACKNOWLEDGED: Application[];
-  INTERVIEW: Application[];
   TECHNICAL: Application[];
+  INTERVIEW: Application[];
   OFFER: Application[];
   REJECTED: Application[];
   WITHDRAWN: Application[];
@@ -50,6 +50,7 @@ export interface CreateApplicationDto {
   company: string;
   jobTitle: string;
   status?: ApplicationStatus;
+  source?: 'EMAIL' | 'MANUAL' | 'JOB_BOARD';
   jobUrl?: string;
   location?: string;
   salary?: string;

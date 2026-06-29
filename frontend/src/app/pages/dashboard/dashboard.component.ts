@@ -8,9 +8,11 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { ApplicationsService, ApplicationStats } from '../../core/services/applications.service';
 import { EmailService, EmailConnection } from '../../core/services/email.service';
+import { JobsService, Job } from '../../core/services/jobs.service';
 import type { EChartsOption } from 'echarts';
 
 @Component({
@@ -19,7 +21,7 @@ import type { EChartsOption } from 'echarts';
   imports: [
     RouterLink,
     NgxEchartsModule, NzCardModule, NzStatisticModule, NzGridModule,
-    NzSpinModule, NzTagModule, NzButtonModule, NzIconModule,
+    NzSpinModule, NzTagModule, NzButtonModule, NzIconModule, NzProgressModule,
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -27,11 +29,13 @@ import type { EChartsOption } from 'echarts';
 export class DashboardComponent implements OnInit {
   private readonly appsService = inject(ApplicationsService);
   private readonly emailService = inject(EmailService);
+  private readonly jobsService = inject(JobsService);
   private readonly message = inject(NzMessageService);
 
   loading = signal(true);
   stats = signal<ApplicationStats | null>(null);
   emailConnections = signal<EmailConnection[]>([]);
+  topJobs = signal<Job[]>([]);
   pieOptions = signal<EChartsOption>({});
   barOptions = signal<EChartsOption>({});
   funnelOptions = signal<EChartsOption>({});
@@ -63,12 +67,33 @@ export class DashboardComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.loadConnections();
+    this.loadTopJobs();
   }
 
   private loadConnections() {
     this.emailService.getConnections().subscribe({
       next: (conns) => this.emailConnections.set(conns),
     });
+  }
+
+  private loadTopJobs() {
+    this.jobsService.getSaved().subscribe({
+      next: (jobs) => {
+        const withScore = jobs
+          .filter((j) => j.matchScore != null && j.matchScore > 0)
+          .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+          .slice(0, 4);
+        this.topJobs.set(withScore);
+      },
+    });
+  }
+
+  scoreFormat = (p: number) => `${p}%`;
+
+  getScoreColor(score: number): string {
+    if (score >= 70) return '#52c41a';
+    if (score >= 40) return '#ffc53d';
+    return '#ff4d4f';
   }
 
   private buildPieChart(s: ApplicationStats) {
@@ -155,8 +180,8 @@ export class DashboardComponent implements OnInit {
   private buildFunnelChart(s: ApplicationStats) {
     const pipeline = [
       { name: 'Envoyées',   value: (s.byStatus['APPLIED'] ?? 0) + (s.byStatus['ACKNOWLEDGED'] ?? 0), color: '#4a9eff' },
-      { name: 'Entretiens', value: s.byStatus['INTERVIEW'] ?? 0,  color: '#ffc53d' },
       { name: 'Tests',      value: s.byStatus['TECHNICAL'] ?? 0,  color: '#b37feb' },
+      { name: 'Entretiens', value: s.byStatus['INTERVIEW'] ?? 0,  color: '#ffc53d' },
       { name: 'Offres',     value: s.byStatus['OFFER'] ?? 0,      color: '#52c41a' },
     ];
 
