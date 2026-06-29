@@ -41,6 +41,10 @@
             <span nz-icon nzType="search" nzTheme="outline"></span>
             <span>Offres</span>
           </li>
+          <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="heart" nzTheme="outline"></span>
+            <span>Favoris</span>
+          </li>
           <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
             <span nz-icon nzType="file-text" nzTheme="outline"></span>
             <span>Mon CV</span>
@@ -59,6 +63,16 @@
           <span nz-icon nzType="sync" nzTheme="outline"></span>
           <span class="sync-label">Sync email</span>
         </a>
+        @if (emailConnections().length > 0) {
+          <span class="sync-accounts">
+            @for (conn of emailConnections(); track conn.id) {
+              <span class="sync-account-item">
+                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'"></span>
+                {{ conn.email }}
+              </span>
+            }
+          </span>
+        }
       </div>
       <div class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight">
         <nz-avatar nzIcon="user" class="user-avatar"></nz-avatar>
