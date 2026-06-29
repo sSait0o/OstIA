@@ -59,32 +59,6 @@
         <div echarts [options]="funnelOptions()" class="chart"></div>
       </nz-card>
     </div>
-    <div nz-col [nzXs]="24" [nzSm]="12">
-      <nz-card nzTitle="Emails synchronisés" class="email-summary-card">
-        @if (emailConnections().length === 0) {
-          <div class="email-empty">Aucun compte email connecté</div>
-        } @else {
-          <div class="email-list">
-            @for (conn of emailConnections(); track conn.id) {
-              <div class="email-item">
-                <div class="email-item-left">
-                  <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'"></span>
-                  <span class="email-provider-label">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</span>
-                  <span class="email-address">{{ conn.email }}</span>
-                </div>
-                <nz-tag nzColor="green">Actif</nz-tag>
-              </div>
-            }
-          </div>
-        }
-        <div class="email-actions">
-          <button nz-button nzType="primary" routerLink="/email">
-            <span nz-icon nzType="sync"></span>
-            Gérer la synchronisation
-          </button>
-        </div>
-      </nz-card>
-    </div>
 
     @if (topJobs().length > 0) {
       <div nz-col [nzXs]="24">
