@@ -115,6 +115,17 @@
   gap: 10px;
 }
 
+.ant-btn-default[disabled] {
+  color: rgba(255, 255, 255, 0.45) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: transparent !important;
+}
+
+.connected-btn.ant-btn-default[disabled] {
+  color: rgba(255, 255, 255, 0.65) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
 .sync-progress {
   margin-top: 16px;
   display: block;
