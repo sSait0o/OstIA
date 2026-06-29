@@ -3,14 +3,12 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import Map from 'ol/Map';
@@ -29,29 +27,29 @@ import { MapService, MapApplication } from '../../core/services/map.service';
 const STATUS_COLORS: Record<string, string> = {
   APPLIED: 'rgba(200,200,200,0.9)',
   ACKNOWLEDGED: 'rgba(100,180,255,0.9)',
+  TECHNICAL: 'rgba(179,127,235,0.9)',
   INTERVIEW: 'rgba(255,210,80,0.9)',
   OFFER: 'rgba(100,230,120,0.9)',
   REJECTED: 'rgba(255,100,100,0.9)',
-  WITHDRAWN: 'rgba(100,100,100,0.6)',
 };
 
 const STATUS_TAG: Record<string, string> = {
-  APPLIED: 'default', ACKNOWLEDGED: 'blue', INTERVIEW: 'orange',
-  OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
+  APPLIED: 'default', ACKNOWLEDGED: 'blue', TECHNICAL: 'purple', INTERVIEW: 'orange',
+  OFFER: 'green', REJECTED: 'red',
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  APPLIED: 'Envoyée', ACKNOWLEDGED: 'Reçue', INTERVIEW: 'Entretien',
-  OFFER: 'Offre', REJECTED: 'Refusé', WITHDRAWN: 'Retirée',
+  APPLIED: 'Envoyée', ACKNOWLEDGED: 'Reçue', TECHNICAL: 'Test technique', INTERVIEW: 'Entretien',
+  OFFER: 'Offre', REJECTED: 'Refusé',
 };
 
 @Component({
   selector: 'app-map',
   standalone: true,
   imports: [
-    DatePipe, FormsModule, NzTabsModule, NzModalModule,
+    DatePipe, FormsModule, NzModalModule,
     NzCardModule, NzTagModule, NzButtonModule, NzInputModule,
-    NzIconModule, NzSpinModule, NzEmptyModule, NzBadgeModule,
+    NzIconModule, NzSpinModule, NzEmptyModule,
   ],
   templateUrl: './map.component.html',
   styleUrl: './map.component.scss',
@@ -70,6 +68,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   allApps = signal<MapApplication[]>([]);
   geocoding = signal(false);
+  activeTab = signal<'map' | 'unlocated'>('map');
   manualLocations: Record<string, string> = {};
   drawerVisible = false;
   drawerCity = '';
@@ -143,9 +142,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   private initMap() {
     this.tooltipEl = document.createElement('div');
     this.tooltipEl.style.cssText =
-      'background:#0d0d0d;border:1px solid rgba(255,255,255,0.15);padding:8px 12px;border-radius:8px;' +
-      'font-size:12px;color:#e8e8e8;pointer-events:none;white-space:nowrap;display:none;' +
-      'box-shadow:0 0 16px rgba(0,0,0,0.8);';
+      'background:#fff;border:1px solid rgba(0,0,0,0.1);padding:8px 12px;border-radius:8px;' +
+      'font-size:12px;color:#1a1a1a;pointer-events:none;white-space:nowrap;display:none;' +
+      'box-shadow:0 4px 16px rgba(0,0,0,0.15);';
     this.tooltip = new Overlay({ element: this.tooltipEl, offset: [12, 0], positioning: 'center-left' });
 
     this.olMap = new Map({
@@ -154,7 +153,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       layers: [
         new TileLayer({
           source: new XYZ({
-            url: 'https://{a-d}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            url: 'https://{a-d}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
             attributions: '© CARTO © OpenStreetMap',
           }),
         }),
@@ -190,8 +189,8 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         const app = (feature as Feature).get('app') as MapApplication;
         const label = STATUS_LABELS[app.status] ?? app.status;
         this.tooltipEl.innerHTML =
-          `<strong style="color:#fff">${app.company}</strong><br>` +
-          `<span style="color:rgba(255,255,255,0.5)">${app.jobTitle}</span><br>` +
+          `<strong style="color:#1a1a1a">${app.company}</strong><br>` +
+          `<span style="color:rgba(0,0,0,0.45)">${app.jobTitle}</span><br>` +
           `<span style="color:${STATUS_COLORS[app.status]};font-size:11px">● ${label}</span>`;
         this.tooltipEl.style.display = 'block';
         this.tooltip!.setPosition(evt.coordinate);

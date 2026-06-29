@@ -1,5 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map, startWith } from 'rxjs/operators';
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzAvatarModule } from 'ng-zorro-antd/avatar';
@@ -21,9 +23,25 @@ import { MapService } from '../../core/services/map.service';
 export class MainLayoutComponent implements OnInit {
   auth = inject(AuthService);
   mapService = inject(MapService);
+  private router = inject(Router);
   readonly dots = Array(24);
+  isCollapsed = signal(false);
+
+  private currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map((e) => (e as NavigationEnd).urlAfterRedirects),
+      startWith(this.router.url),
+    ),
+  );
+
+  isMapRoute = computed(() => this.currentUrl() === '/map');
 
   ngOnInit() {
     this.mapService.loadUnlocatedCount();
+  }
+
+  toggleSidebar() {
+    this.isCollapsed.set(!this.isCollapsed());
   }
 }

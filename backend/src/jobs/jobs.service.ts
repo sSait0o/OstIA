@@ -59,7 +59,7 @@ export class JobsService {
     const token = await this.getFranceTravailToken();
 
     const queryParams: Record<string, string> = {
-      motsCles: params.keywords || 'data engineer alternance',
+      motsCles: params.keywords || '',
       typeContrat: params.contractType || 'CDI,CDD',
       range: `${((params.page || 1) - 1) * 15}-${((params.page || 1) - 1) * 15 + 14}`,
     };

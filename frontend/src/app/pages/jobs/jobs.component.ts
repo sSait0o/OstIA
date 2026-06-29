@@ -39,7 +39,7 @@ export class JobsComponent implements OnInit {
 
   loading = signal(false);
   jobs = signal<Job[]>([]);
-  keywords = 'data engineer alternance';
+  keywords = '';
   location = '';
   searched = false;
   scoreFilter = signal<ScoreFilter>('all');

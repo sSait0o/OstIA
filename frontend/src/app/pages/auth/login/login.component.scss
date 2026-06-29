@@ -8,7 +8,7 @@
 }
 
 .auth-card {
-  width: 420px;
+  width: min(420px, calc(100vw - 32px));
   position: relative;
   z-index: 2;
 
@@ -27,7 +27,7 @@
   margin-bottom: 32px;
 
   h1 {
-    font-size: 40px;
+    font-size: clamp(28px, 6vw, 40px);
     font-weight: 800;
     color: #fff;
     margin: 0 0 8px;
@@ -40,6 +40,17 @@
     margin: 0;
     font-size: 13px;
     letter-spacing: 0.05em;
+  }
+}
+
+:host ::ng-deep .ant-form-item-has-error input.ant-input {
+  background: transparent !important;
+  color: inherit !important;
+  border-color: #ff4d4f !important;
+  box-shadow: none !important;
+
+  &:focus {
+    box-shadow: none !important;
   }
 }
 

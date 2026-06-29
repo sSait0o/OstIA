@@ -38,6 +38,10 @@
     background: rgba(255,255,255,.04);
     box-shadow: 0 0 5px rgba(255,255,255,.06), 0 0 30px rgba(180,180,180,.03);
   }
+
+  @media (max-width: 575px) {
+    padding: 32px 20px;
+  }
 }
 
 .upload-state {
@@ -84,6 +88,15 @@
   background: rgba(255,255,255,.03);
   border-radius: 16px;
   border-left: 2px solid rgba(255,255,255,.25);
+
+  @media (max-width: 575px) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 16px;
+    border-left: none;
+    border-top: 2px solid rgba(255,255,255,.25);
+  }
 }
 
 .cv-avatar {
