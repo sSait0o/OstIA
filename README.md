@@ -65,6 +65,8 @@ L'app est disponible sur [http://localhost:4200](http://localhost:4200).
 | `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` | Azure OAuth (Outlook) |
 | `CORE_API_URL` | URL du service core (défaut: `http://localhost:8001`) |
 | `FRANCE_TRAVAIL_CLIENT_ID/SECRET` | API France Travail |
+| `ADZUNA_APP_ID` | Adzuna App ID (offres d'emploi) |
+| `ADZUNA_APP_KEY` | Adzuna App Key |
 
 ### Core (`core/.env`)
 

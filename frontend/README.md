@@ -1,59 +1,64 @@
-# Frontend
+# OstIA — Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.27.
+Application web construite avec **Angular 19** (standalone components) + **NG-Zorro** (Ant Design).
 
-## Development server
+## Architecture
 
-To start a local development server, run:
-
-```bash
-ng serve
+```
+src/app/
+├── app.config.ts         # Configuration Angular (providers, router, HTTP, i18n)
+├── app.routes.ts         # Routes lazy-loaded — chaque page est un chunk séparé
+│
+├── core/                 # Services singleton injectés une seule fois au niveau de l'app
+│   ├── services/         # Appels API backend (auth, applications, cv, email, jobs, map)
+│   ├── guards/           # Protection des routes (AuthGuard)
+│   └── interceptors/     # Injection automatique du JWT dans les requêtes HTTP
+│
+├── shared/               # Code réutilisable entre plusieurs pages
+│   ├── components/       # Composants réutilisables (ex: JobCardComponent)
+│   └── utils/            # Fonctions utilitaires pures (ex: score.utils.ts)
+│
+├── layout/               # Structure visuelle de l'application
+│   └── main-layout/      # Sidebar + zone de contenu principale
+│
+└── pages/                # Une page = un dossier (composant + template + styles)
+    ├── auth/             # Login & Register
+    ├── kanban/           # Tableau des candidatures (drag & drop)
+    ├── jobs/             # Recherche d'offres
+    ├── saved-jobs/       # Offres sauvegardées
+    ├── dashboard/        # Statistiques (ECharts)
+    ├── cv/               # Upload et analyse du CV
+    ├── map/              # Carte géographique (OpenLayers)
+    └── email/            # Connexion boîte mail
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+**Convention de nommage :** chaque composant Angular respecte la structure `nom.component.ts / .html / .scss`.
 
-## Code scaffolding
+## Prérequis
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- Node.js 22+
+- Le backend doit tourner sur `http://localhost:3000` (voir `backend/README.md`)
 
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Démarrage
 
 ```bash
-ng generate --help
+npm install
+npx ng serve   # Démarre sur http://localhost:4200
 ```
 
-## Building
+## Environnements
 
-To build the project run:
+| Fichier | Usage |
+|---------|-------|
+| `src/environments/environment.ts` | Développement local |
+| `src/environments/environment.prod.ts` | Production (build `ng build`) |
 
-```bash
-ng build
-```
+## Scripts utiles
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+| Commande | Description |
+|----------|-------------|
+| `npx ng serve` | Serveur de développement (hot-reload) |
+| `npx ng build` | Build de production dans `dist/` |
+| `npx ng test` | Tests unitaires (Karma) |
+| `npx ng lint` | Vérification ESLint |
+| `npx ng generate component pages/ma-page` | Générer un nouveau composant de page |

@@ -1,41 +1,36 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
-import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { JobsService, Job, JobSearchParams } from '../../core/services/jobs.service';
-import { ApplicationsService } from '../../core/services/applications.service';
+import { JobCardComponent } from '../../shared/components/job-card/job-card.component';
 
 @Component({
   selector: 'app-jobs',
   standalone: true,
   imports: [
     FormsModule, RouterLink,
-    NzCardModule, NzTagModule, NzButtonModule, NzIconModule,
-    NzInputModule, NzInputNumberModule, NzProgressModule, NzSpinModule,
-    NzDividerModule, NzEmptyModule, NzGridModule,
-    NzAlertModule, NzToolTipModule, NzPaginationModule, NzSelectModule,
+    NzButtonModule, NzIconModule,
+    NzInputModule, NzInputNumberModule, NzSpinModule,
+    NzEmptyModule, NzGridModule,
+    NzAlertModule, NzPaginationModule, NzSelectModule,
+    JobCardComponent,
   ],
   templateUrl: './jobs.component.html',
   styleUrl: './jobs.component.scss',
 })
 export class JobsComponent implements OnInit {
   private readonly jobsService = inject(JobsService);
-  private readonly appsService = inject(ApplicationsService);
   private readonly message = inject(NzMessageService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -45,7 +40,6 @@ export class JobsComponent implements OnInit {
   total = signal(0);
   currentPage = signal(1);
   searched = false;
-  applyingIds = signal<Set<string>>(new Set());
 
   keywords = '';
   location = '';
@@ -102,8 +96,6 @@ export class JobsComponent implements OnInit {
     [...this.jobs()].sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
   );
 
-  scoreFormat = (percent: number) => `${percent}%`;
-
   ngOnInit() {
     const qp = this.route.snapshot.queryParams;
     this.keywords = qp['keywords'] ?? '';
@@ -147,10 +139,22 @@ export class JobsComponent implements OnInit {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  getScoreColor(score: number): string {
-    if (score >= 70) return '#52c41a';
-    if (score >= 40) return '#ffc53d';
-    return '#ff4d4f';
+  onJobApplied(jobId: string) {
+    this.jobs.update((list) => list.map((j) => (j.id === jobId ? { ...j, isApplied: true } : j)));
+    this.jobsService.cachedState.update((s) =>
+      s ? { ...s, jobs: s.jobs.map((j) => (j.id === jobId ? { ...j, isApplied: true } : j)) } : s
+    );
+  }
+
+  toggleSave(job: Job) {
+    this.jobsService.toggleSave(job.id).subscribe({
+      next: (updated) => {
+        this.jobs.update((list) => list.map((j) => (j.id === updated.id ? updated : j)));
+        this.jobsService.cachedState.update((s) =>
+          s ? { ...s, jobs: s.jobs.map((j) => (j.id === updated.id ? updated : j)) } : s
+        );
+      },
+    });
   }
 
   private buildParams(page: number): JobSearchParams {
@@ -216,44 +220,6 @@ export class JobsComponent implements OnInit {
         page: page > 1 ? page : null,
       },
       queryParamsHandling: 'merge',
-    });
-  }
-
-  toggleSave(job: Job) {
-    this.jobsService.toggleSave(job.id).subscribe({
-      next: (updated) => {
-        this.jobs.update((list) => list.map((j) => (j.id === updated.id ? updated : j)));
-        this.jobsService.cachedState.update((s) =>
-          s ? { ...s, jobs: s.jobs.map((j) => (j.id === updated.id ? updated : j)) } : s
-        );
-      },
-    });
-  }
-
-  applyFromJob(job: Job) {
-    if (job.isApplied) return;
-    this.applyingIds.update((s) => new Set([...s, job.id]));
-    this.appsService.create({
-      company: job.company,
-      jobTitle: job.title,
-      status: 'APPLIED',
-      source: 'JOB_BOARD',
-      jobUrl: job.url,
-      location: job.location,
-      salary: job.salary,
-      appliedAt: new Date().toISOString(),
-    }).subscribe({
-      next: () => {
-        this.jobs.update((list) =>
-          list.map((j) => (j.id === job.id ? { ...j, isApplied: true } : j))
-        );
-        this.applyingIds.update((s) => { const n = new Set(s); n.delete(job.id); return n; });
-        this.message.success(`Candidature créée pour ${job.company}`);
-      },
-      error: () => {
-        this.applyingIds.update((s) => { const n = new Set(s); n.delete(job.id); return n; });
-        this.message.error('Erreur lors de la création de la candidature');
-      },
     });
   }
 }
