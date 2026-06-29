@@ -9,6 +9,7 @@ import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { AuthService } from '../../core/services/auth.service';
 import { MapService } from '../../core/services/map.service';
+import { EmailService, EmailConnection } from '../../core/services/email.service';
 
 @Component({
   selector: 'app-main-layout',
@@ -23,9 +24,11 @@ import { MapService } from '../../core/services/map.service';
 export class MainLayoutComponent implements OnInit {
   auth = inject(AuthService);
   mapService = inject(MapService);
+  private emailService = inject(EmailService);
   private router = inject(Router);
   readonly dots = Array(24);
   isCollapsed = signal(false);
+  emailConnections = signal<EmailConnection[]>([]);
 
   private currentUrl = toSignal(
     this.router.events.pipe(
@@ -39,6 +42,9 @@ export class MainLayoutComponent implements OnInit {
 
   ngOnInit() {
     this.mapService.loadUnlocatedCount();
+    this.emailService.getConnections().subscribe({
+      next: (conns) => this.emailConnections.set(conns),
+    });
   }
 
   toggleSidebar() {
