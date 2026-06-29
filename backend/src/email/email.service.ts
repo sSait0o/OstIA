@@ -17,19 +17,19 @@ export interface SyncProgress {
   synced?: number;
   created?: number;
   skipped?: number;
+  failed?: number;
 }
 
 const OSTIA_LABEL = 'OstIA';
 const OSTIA_SUBLABELS = ['Accepté', 'Archivé', 'Autre', 'Entretien', 'Envoyé', 'Refus'];
 
-const STATUS_TO_SUBLABEL: Record<ApplicationStatus, string> = {
+const STATUS_TO_SUBLABEL: Partial<Record<ApplicationStatus, string>> = {
   [ApplicationStatus.APPLIED]: 'Envoyé',
   [ApplicationStatus.ACKNOWLEDGED]: 'Archivé',
-  [ApplicationStatus.INTERVIEW]: 'Entretien',
   [ApplicationStatus.TECHNICAL]: 'Autre',
+  [ApplicationStatus.INTERVIEW]: 'Entretien',
   [ApplicationStatus.OFFER]: 'Accepté',
   [ApplicationStatus.REJECTED]: 'Refus',
-  [ApplicationStatus.WITHDRAWN]: 'Archivé',
 };
 
 @Injectable()
@@ -86,7 +86,7 @@ export class EmailService {
     return this.connectionRepo.save(connection);
   }
 
-  async syncGmailEmails(userId: string): Promise<{ synced: number; created: number; skipped: number }> {
+  async syncGmailEmails(userId: string): Promise<{ synced: number; created: number; skipped: number; failed: number }> {
     return this.doGmailSync(userId, () => {});
   }
 
@@ -107,7 +107,7 @@ export class EmailService {
   private async doGmailSync(
     userId: string,
     onProgress: (p: SyncProgress) => void,
-  ): Promise<{ synced: number; created: number; skipped: number }> {
+  ): Promise<{ synced: number; created: number; skipped: number; failed: number }> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
     });
@@ -122,7 +122,7 @@ export class EmailService {
     const labelMap = await this.ensureOstiaLabels(gmail);
     const ostiaLabelId = labelMap.get(OSTIA_LABEL);
 
-    if (!ostiaLabelId) return { synced: 0, created: 0, skipped: 0 };
+    if (!ostiaLabelId) return { synced: 0, created: 0, skipped: 0, failed: 0 };
 
     const messages = await gmail.users.messages.list({
       userId: 'me',
@@ -130,15 +130,15 @@ export class EmailService {
       maxResults: 50,
     });
 
-    if (!messages.data.messages) return { synced: 0, created: 0, skipped: 0 };
+    if (!messages.data.messages) return { synced: 0, created: 0, skipped: 0, failed: 0 };
 
     const msgList = messages.data.messages.filter((m) => !!m.id);
     const total = msgList.length;
     let created = 0;
     let skipped = 0;
+    let failed = 0;
     const user = { id: userId } as User;
 
-    // Phase 1 : fetch les contenus en parallèle (rapide)
     onProgress({ percent: 5 });
     const fetched = await Promise.all(
       msgList.map(async (msg) => {
@@ -151,14 +151,12 @@ export class EmailService {
     );
     onProgress({ percent: 15 });
 
-    // Phase 2 : parsing IA séquentiel avec progression
     for (let i = 0; i < fetched.length; i++) {
       const { msgId, subject, body } = fetched[i];
 
       const percent = 15 + Math.round(((i + 1) / total) * 70);
       onProgress({ percent });
 
-      // Vérifier doublon par emailId avant d'appeler l'IA
       const existing = await this.applicationsService.findDuplicate(userId, msgId);
       if (existing) {
         if (!existing.emailBody && body) {
@@ -176,8 +174,7 @@ export class EmailService {
       const parsed = await this.aiService.parseEmailForApplication(subject, plainBody, msgId);
 
       if (!parsed || !parsed.company || !parsed.jobTitle) {
-        await this.applyGmailSublabel(gmail, msgId, ApplicationStatus.TECHNICAL, labelMap);
-        skipped++;
+        failed++;
         continue;
       }
 
@@ -210,7 +207,7 @@ export class EmailService {
       }
     }
 
-    return { synced: total, created, skipped };
+    return { synced: total, created, skipped, failed };
   }
 
   private async applyGmailSublabel(
@@ -219,7 +216,9 @@ export class EmailService {
     status: ApplicationStatus,
     labelMap: Map<string, string>,
   ): Promise<void> {
-    const targetSublabelName = `${OSTIA_LABEL}/${STATUS_TO_SUBLABEL[status]}`;
+    const sublabel = STATUS_TO_SUBLABEL[status];
+    if (!sublabel) return;
+    const targetSublabelName = `${OSTIA_LABEL}/${sublabel}`;
     const targetSublabelId = labelMap.get(targetSublabelName);
     if (!targetSublabelId) return;
 
@@ -236,8 +235,7 @@ export class EmailService {
           removeLabelIds: otherSublabelIds,
         },
       });
-    } catch (err: any) {
-      console.error('[Gmail] applyGmailSublabel error:', err?.response?.data ?? err?.message ?? err);
+    } catch {
     }
   }
 
@@ -363,7 +361,7 @@ export class EmailService {
     return this.connectionRepo.save(connection);
   }
 
-  async syncOutlookEmails(userId: string): Promise<{ synced: number; created: number; skipped: number }> {
+  async syncOutlookEmails(userId: string): Promise<{ synced: number; created: number; skipped: number; failed: number }> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.OUTLOOK },
     });
@@ -380,7 +378,7 @@ export class EmailService {
       (f: any) => f.displayName?.toLowerCase() === OSTIA_LABEL.toLowerCase(),
     );
 
-    if (!ostiaFolder) return { synced: 0, created: 0, skipped: 0 };
+    if (!ostiaFolder) return { synced: 0, created: 0, skipped: 0, failed: 0 };
 
     const messagesRes = await axios.get(
       `https://graph.microsoft.com/v1.0/me/mailFolders/${ostiaFolder.id}/messages` +
@@ -391,6 +389,7 @@ export class EmailService {
     const messages: any[] = messagesRes.data.value ?? [];
     let created = 0;
     let skipped = 0;
+    let failed = 0;
     const user = { id: userId } as User;
 
     for (const msg of messages) {
@@ -398,36 +397,39 @@ export class EmailService {
       const body: string = msg.body?.content ?? '';
       const msgId: string = msg.internetMessageId ?? msg.id;
       const parsed = await this.aiService.parseEmailForApplication(subject, this.stripHtml(body), msgId);
-      if (parsed) {
-        const duplicate = await this.applicationsService.findDuplicate(
-          userId, msgId, parsed.company, parsed.jobTitle,
-        );
+      if (!parsed) {
+        failed++;
+        continue;
+      }
 
-        if (duplicate) {
-          if (!duplicate.emailBody && body) {
-            await this.applicationsService.update(userId, duplicate.id, {
-              emailSubject: subject,
-              emailBody: body.slice(0, 50000),
-            } as any);
-          }
-          skipped++;
-          continue;
-        }
+      const duplicate = await this.applicationsService.findDuplicate(
+        userId, msgId, parsed.company, parsed.jobTitle,
+      );
 
-        try {
-          await this.applicationsService.create(user, {
-            ...parsed,
-            source: ApplicationSource.EMAIL,
+      if (duplicate) {
+        if (!duplicate.emailBody && body) {
+          await this.applicationsService.update(userId, duplicate.id, {
             emailSubject: subject,
             emailBody: body.slice(0, 50000),
           } as any);
-          created++;
-        } catch {
         }
+        skipped++;
+        continue;
+      }
+
+      try {
+        await this.applicationsService.create(user, {
+          ...parsed,
+          source: ApplicationSource.EMAIL,
+          emailSubject: subject,
+          emailBody: body.slice(0, 50000),
+        } as any);
+        created++;
+      } catch {
       }
     }
 
-    return { synced: messages.length, created, skipped };
+    return { synced: messages.length, created, skipped, failed };
   }
 
   private async refreshMicrosoftTokenIfNeeded(connection: EmailConnection): Promise<string> {

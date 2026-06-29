@@ -25,7 +25,7 @@ def _strip_html(text: str) -> str:
 
 
 def parse_email(subject: str, body: str, email_id: str) -> dict | None:
-    clean_body = _strip_html(body)[:_MAX_EMAIL_LENGTH]
+    clean_body = _strip_html(body)[:MAX_EMAIL_LENGTH]
 
     prompt = f"""Analyze this email related to a job application and return a structured JSON.
 
@@ -70,7 +70,7 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
         return None
 
     status = result.get("status", "APPLIED")
-    if status not in _VALID_STATUSES:
+    if status not in VALID_STATUSES:
         logger.warning("Email %s discarded: invalid status '%s' from AI", email_id, status)
         return None
 
@@ -87,13 +87,13 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
 
 
 def extract_cv(text: str) -> dict:
-    if len(text) > _MAX_CV_LENGTH:
-        logger.warning("CV text truncated from %d to %d characters", len(text), _MAX_CV_LENGTH)
+    if len(text) > MAX_CV_LENGTH:
+        logger.warning("CV text truncated from %d to %d characters", len(text), MAX_CV_LENGTH)
 
     prompt = f"""Analyze this CV and extract structured information.
 
 CV:
-{text[:_MAX_CV_LENGTH]}
+{text[:MAX_CV_LENGTH]}
 
 Return ONLY a valid JSON object:
 {{

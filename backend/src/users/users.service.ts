@@ -24,10 +24,9 @@ export class UsersService {
     return this.userRepo.findOne({ where: { id } });
   }
 
-  async updateCv(userId: string, cvPath: string, cvData: Record<string, any>): Promise<User> {
+  async updateCv(userId: string, cvData: Record<string, any>): Promise<User> {
     const user = await this.findById(userId);
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
-    user.cvPath = cvPath;
     user.cvData = cvData;
     return this.userRepo.save(user);
   }

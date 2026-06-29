@@ -46,7 +46,7 @@
         </nz-tag>
       </div>
       <div class="provider-actions">
-        <button nz-button [nzType]="hasGmail() ? 'default' : 'primary'" (click)="connectGmail()" [disabled]="hasGmail()">
+        <button nz-button [nzType]="hasGmail() ? 'default' : 'primary'" [class.connected-btn]="hasGmail()" (click)="connectGmail()" [disabled]="hasGmail()">
           <span nz-icon nzType="mail"></span>
           {{ hasGmail() ? 'Compte connecté' : 'Connecter Gmail' }}
         </button>
@@ -76,7 +76,7 @@
         </nz-tag>
       </div>
       <div class="provider-actions">
-        <button nz-button [nzType]="hasOutlook() ? 'default' : 'primary'" (click)="connectOutlook()" [disabled]="hasOutlook()">
+        <button nz-button [nzType]="hasOutlook() ? 'default' : 'primary'" [class.connected-btn]="hasOutlook()" (click)="connectOutlook()" [disabled]="hasOutlook()">
           <span nz-icon nzType="laptop"></span>
           {{ hasOutlook() ? 'Compte connecté' : 'Connecter Outlook' }}
         </button>

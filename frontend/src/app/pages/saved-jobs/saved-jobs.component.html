@@ -1,0 +1,100 @@
+<h2 class="page-title">Offres sauvegardées</h2>
+<p class="subtitle">Retrouvez toutes les offres que vous avez likées.</p>
+
+@if (loading()) {
+  <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+} @else if (jobs().length === 0) {
+  <nz-empty nzNotFoundContent="Aucune offre sauvegardée"></nz-empty>
+} @else {
+  <div nz-row [nzGutter]="[16, 16]">
+    @for (job of jobs(); track job.id) {
+      <div nz-col [nzXs]="24" [nzSm]="12" [nzLg]="8">
+        <nz-card [nzBodyStyle]="{ padding: '16px' }" class="job-card">
+          <div class="job-header">
+            <div class="job-info">
+              <div class="job-title">{{ job.title }}</div>
+              <div class="job-company">{{ job.company }}</div>
+            </div>
+            @if (job.matchScore != null && job.matchScore > 0) {
+              <div class="job-score">
+                <nz-progress
+                  [nzPercent]="job.matchScore"
+                  nzType="circle"
+                  [nzWidth]="50"
+                  [nzStrokeColor]="getScoreColor(job.matchScore)"
+                  [nzFormat]="scoreFormat"
+                ></nz-progress>
+              </div>
+            }
+          </div>
+
+          <div class="job-tags">
+            @if (job.location) {
+              <nz-tag nzColor="default"><span nz-icon nzType="environment"></span> {{ job.location }}</nz-tag>
+            }
+            @if (job.contractType) {
+              <nz-tag nzColor="blue">{{ job.contractType }}</nz-tag>
+            }
+            @if (job.salary) {
+              <nz-tag nzColor="green">{{ job.salary }}</nz-tag>
+            }
+          </div>
+
+          @if (job.matchDetails?.matchedSkills?.length || job.matchDetails?.missingSkills?.length) {
+            <div class="skills-breakdown">
+              @if (job.matchDetails?.matchedSkills?.length) {
+                <div class="skills-row skills-row--matched">
+                  <span class="skills-icon">✓</span>
+                  <span class="skills-list">{{ job.matchDetails!.matchedSkills.slice(0, 4).join(' · ') }}</span>
+                </div>
+              }
+              @if (job.matchDetails?.missingSkills?.length) {
+                <div class="skills-row skills-row--missing">
+                  <span class="skills-icon">✗</span>
+                  <span class="skills-list">{{ job.matchDetails!.missingSkills.slice(0, 3).join(' · ') }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          @if (job.matchDetails?.summary) {
+            <div class="match-summary">{{ job.matchDetails!.summary }}</div>
+          }
+
+          <nz-divider class="job-divider"></nz-divider>
+          <div class="job-actions">
+            @if (job.url) {
+              <a [href]="job.url" target="_blank" style="flex: 1">
+                <button nz-button nzSize="small" nzBlock>Voir l'offre</button>
+              </a>
+            }
+            <button
+              nz-button
+              nzSize="small"
+              [nzType]="job.isApplied ? 'primary' : 'default'"
+              [nzLoading]="applyingIds().has(job.id)"
+              [disabled]="job.isApplied"
+              nz-tooltip
+              [nzTooltipTitle]="job.isApplied ? 'Déjà postulé' : 'Postuler'"
+              (click)="applyFromJob(job)"
+            >
+              <span nz-icon [nzType]="job.isApplied ? 'check' : 'send'"></span>
+              {{ job.isApplied ? 'Postulé' : 'Postuler' }}
+            </button>
+            <button
+              nz-button
+              nzSize="small"
+              nzType="primary"
+              nzDanger
+              nz-tooltip
+              nzTooltipTitle="Retirer des favoris"
+              (click)="toggleSave(job)"
+            >
+              <span nz-icon nzType="heart" nzTheme="fill"></span>
+            </button>
+          </div>
+        </nz-card>
+      </div>
+    }
+  </div>
+}

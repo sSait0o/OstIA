@@ -160,7 +160,7 @@ export class ApplicationsService {
 
     const activeApps = apps.filter((a) => a.status !== ApplicationStatus.WITHDRAWN);
     const responded = activeApps.filter((a) =>
-      a.status !== ApplicationStatus.APPLIED,
+      [ApplicationStatus.INTERVIEW, ApplicationStatus.TECHNICAL, ApplicationStatus.OFFER, ApplicationStatus.REJECTED].includes(a.status),
     ).length;
     const responseRate = activeApps.length > 0
       ? Math.round((responded / activeApps.length) * 100)

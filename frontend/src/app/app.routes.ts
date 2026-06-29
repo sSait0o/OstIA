@@ -35,6 +35,11 @@ export const routes: Routes = [
           import('./pages/jobs/jobs.component').then((m) => m.JobsComponent),
       },
       {
+        path: 'saved-jobs',
+        loadComponent: () =>
+          import('./pages/saved-jobs/saved-jobs.component').then((m) => m.SavedJobsComponent),
+      },
+      {
         path: 'dashboard',
         loadComponent: () =>
           import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),

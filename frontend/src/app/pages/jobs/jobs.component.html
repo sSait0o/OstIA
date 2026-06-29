@@ -2,20 +2,112 @@
 <p class="subtitle">Les offres sont scorées en temps réel selon votre CV grâce à l'IA.</p>
 
 <div class="search-bar">
-  <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" />
-  <input nz-input placeholder="Localisation" [(ngModel)]="location" class="search-location" />
+  <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" (keyup.enter)="search()" />
+  <input nz-input placeholder="Département (ex: 75, 69, 13)" [(ngModel)]="location" class="search-location" (keyup.enter)="search()" />
   <button nz-button nzType="primary" (click)="search()" [nzLoading]="loading()">
     <span nz-icon nzType="search"></span> Rechercher
   </button>
 </div>
 
+<div class="filter-row">
+  <nz-select
+    [(ngModel)]="contractTypes"
+    nzMode="multiple"
+    nzPlaceHolder="Type de contrat"
+    class="filter-select filter-select--wide"
+    [nzMaxTagCount]="2"
+  >
+    @for (opt of contractTypeOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="experience"
+    nzPlaceHolder="Expérience"
+    nzAllowClear
+    class="filter-select"
+  >
+    @for (opt of experienceOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="workingTime"
+    nzPlaceHolder="Temps de travail"
+    nzAllowClear
+    class="filter-select"
+  >
+    <nz-option nzValue="full" nzLabel="Temps plein"></nz-option>
+    <nz-option nzValue="part" nzLabel="Temps partiel"></nz-option>
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="remote"
+    nzPlaceHolder="Télétravail"
+    nzAllowClear
+    class="filter-select"
+  >
+    @for (opt of remoteOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="distance"
+    nzPlaceHolder="Distance"
+    nzAllowClear
+    class="filter-select filter-select--sm"
+  >
+    @for (opt of distanceOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-input-number
+    [(ngModel)]="salaryMin"
+    [nzMin]="0"
+    [nzStep]="5000"
+    nzPlaceHolder="Salaire min (€/an)"
+    class="filter-salary"
+  ></nz-input-number>
+
+  <nz-select
+    [(ngModel)]="sortBy"
+    nzPlaceHolder="Trier par"
+    nzAllowClear
+    class="filter-select filter-select--sm"
+  >
+    @for (opt of sortOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+</div>
+
+@if (noCvUploaded()) {
+  <nz-alert
+    nzType="warning"
+    nzShowIcon
+    nzMessage="Uploadez votre CV pour obtenir un score de matching personnalisé"
+    nzDescription="Sans CV, les offres ne sont pas scorées. Rendez-vous sur la page CV pour uploader votre profil."
+    class="no-cv-alert"
+  >
+  </nz-alert>
+  <div class="no-cv-action">
+    <button nz-button nzType="primary" routerLink="/cv">
+      <span nz-icon nzType="file-text"></span> Uploader mon CV
+    </button>
+  </div>
+}
+
 @if (loading()) {
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
-} @else if (jobs().length === 0 && searched) {
+} @else if (filteredJobs().length === 0 && searched) {
   <nz-empty nzNotFoundContent="Aucune offre trouvée"></nz-empty>
 } @else {
   <div nz-row [nzGutter]="[16, 16]">
-    @for (job of jobs(); track job.id) {
+    @for (job of filteredJobs(); track job.id) {
       <div nz-col [nzXs]="24" [nzSm]="12" [nzLg]="8">
         <nz-card [nzBodyStyle]="{ padding: '16px' }" class="job-card">
           <div class="job-header">
@@ -23,7 +115,7 @@
               <div class="job-title">{{ job.title }}</div>
               <div class="job-company">{{ job.company }}</div>
             </div>
-            @if (job.matchScore != null) {
+            @if (job.matchScore != null && job.matchScore > 0) {
               <div class="job-score">
                 <nz-progress
                   [nzPercent]="job.matchScore"
@@ -46,15 +138,29 @@
             @if (job.salary) {
               <nz-tag nzColor="green">{{ job.salary }}</nz-tag>
             }
+            @if (job.source === 'adzuna') {
+              <nz-tag nzColor="purple">Adzuna</nz-tag>
+            }
           </div>
 
-          @if (job.matchDetails?.matchedSkills?.length) {
-            <div class="matched-skills">
-              ✓ {{ job.matchDetails!.matchedSkills.slice(0, 3).join(', ') }}
+          @if (job.matchDetails?.matchedSkills?.length || job.matchDetails?.missingSkills?.length) {
+            <div class="skills-breakdown">
+              @if (job.matchDetails?.matchedSkills?.length) {
+                <div class="skills-row skills-row--matched">
+                  <span class="skills-icon">✓</span>
+                  <span class="skills-list">{{ job.matchDetails!.matchedSkills.slice(0, 4).join(' · ') }}</span>
+                </div>
+              }
+              @if (job.matchDetails?.missingSkills?.length) {
+                <div class="skills-row skills-row--missing">
+                  <span class="skills-icon">✗</span>
+                  <span class="skills-list">{{ job.matchDetails!.missingSkills.slice(0, 3).join(' · ') }}</span>
+                </div>
+              }
             </div>
           }
 
-          @if (job.matchDetails?.summary) {
+          @if (job.matchDetails?.summary && !noCvUploaded()) {
             <div class="match-summary">{{ job.matchDetails!.summary }}</div>
           }
 
@@ -68,14 +174,39 @@
             <button
               nz-button
               nzSize="small"
+              [nzType]="job.isApplied ? 'primary' : 'default'"
+              [nzLoading]="applyingIds().has(job.id)"
+              [disabled]="job.isApplied"
+              nz-tooltip
+              [nzTooltipTitle]="job.isApplied ? 'Déjà postulé' : 'Postuler'"
+              (click)="applyFromJob(job)"
+            >
+              <span nz-icon [nzType]="job.isApplied ? 'check' : 'send'"></span>
+              {{ job.isApplied ? 'Postulé' : 'Postuler' }}
+            </button>
+            <button
+              nz-button
+              nzSize="small"
               [nzType]="job.isSaved ? 'primary' : 'default'"
+              nz-tooltip
+              [nzTooltipTitle]="job.isSaved ? 'Retirer des favoris' : 'Sauvegarder'"
               (click)="toggleSave(job)"
             >
-              <span nz-icon [nzType]="job.isSaved ? 'heart' : 'heart'" [nzTheme]="job.isSaved ? 'fill' : 'outline'"></span>
+              <span nz-icon [nzType]="'heart'" [nzTheme]="job.isSaved ? 'fill' : 'outline'"></span>
             </button>
           </div>
         </nz-card>
       </div>
     }
+  </div>
+
+  <div class="pagination-bar">
+    <nz-pagination
+      [nzPageIndex]="currentPage()"
+      [nzTotal]="total()"
+      [nzPageSize]="pageSize"
+      [nzShowSizeChanger]="false"
+      (nzPageIndexChange)="onPageChange($event)"
+    ></nz-pagination>
   </div>
 }

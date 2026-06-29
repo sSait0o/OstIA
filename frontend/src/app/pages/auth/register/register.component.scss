@@ -8,7 +8,7 @@
 }
 
 .auth-card {
-  width: 460px;
+  width: min(460px, calc(100vw - 32px));
   position: relative;
   z-index: 2;
 
@@ -27,7 +27,7 @@
   margin-bottom: 32px;
 
   h1 {
-    font-size: 40px;
+    font-size: clamp(28px, 6vw, 40px);
     font-weight: 800;
     color: #fff;
     margin: 0 0 8px;
@@ -49,6 +49,11 @@
 
   nz-form-item {
     flex: 1;
+  }
+
+  @media (max-width: 399px) {
+    flex-direction: column;
+    gap: 0;
   }
 }
 
