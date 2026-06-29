@@ -27,6 +27,28 @@
 .search-keywords { flex: 2; }
 .search-location  { flex: 1; }
 
+.filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  align-items: center;
+}
+
+.filter-select {
+  min-width: 160px;
+  flex: 1 1 160px;
+
+  &--wide { min-width: 200px; flex: 1 1 200px; }
+  &--sm   { min-width: 130px; flex: 1 1 130px; }
+}
+
+.filter-salary {
+  min-width: 150px;
+  flex: 1 1 150px;
+  width: 100%;
+}
+
 .loading-center {
   text-align: center;
   padding: 80px;

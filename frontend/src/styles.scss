@@ -198,6 +198,37 @@ html {
     color: $text !important;
   }
 
+  .ant-select-multiple .ant-select-selection-item {
+    background: rgba(255,255,255,.08) !important;
+    border-color: rgba(255,255,255,.15) !important;
+    color: $text !important;
+  }
+
+  .ant-select-selection-item-content { color: $text !important; }
+  .ant-select-selection-item-remove  { color: rgba(255,255,255,.45) !important;
+    &:hover { color: #fff !important; }
+  }
+
+  .ant-input-number {
+    background: $surface-2 !important;
+    border-color: $border !important;
+    border-radius: 6px !important;
+
+    &:hover { border-color: rgba(255,255,255,.22) !important; }
+    &-focused { border-color: rgba(255,255,255,.5) !important; box-shadow: 0 0 0 2px rgba(255,255,255,.06) !important; }
+
+    .ant-input-number-input {
+      background: transparent !important;
+      color: $text !important;
+      &::placeholder { color: #444; }
+    }
+
+    .ant-input-number-handler-wrap { background: $surface-2; border-color: $border; }
+    .ant-input-number-handler       { border-color: $border; color: $text-muted;
+      &:hover { color: $text; }
+    }
+  }
+
   .ant-select-focused .ant-select-selector {
     border-color: rgba(255,255,255,.5) !important;
     box-shadow: 0 0 0 2px rgba(255,255,255,.06) !important;

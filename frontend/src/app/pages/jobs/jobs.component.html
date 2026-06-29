@@ -2,11 +2,87 @@
 <p class="subtitle">Les offres sont scorées en temps réel selon votre CV grâce à l'IA.</p>
 
 <div class="search-bar">
-  <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" />
-  <input nz-input placeholder="Localisation" [(ngModel)]="location" class="search-location" />
+  <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" (keyup.enter)="search()" />
+  <input nz-input placeholder="Département (ex: 75, 69, 13)" [(ngModel)]="location" class="search-location" (keyup.enter)="search()" />
   <button nz-button nzType="primary" (click)="search()" [nzLoading]="loading()">
     <span nz-icon nzType="search"></span> Rechercher
   </button>
+</div>
+
+<div class="filter-row">
+  <nz-select
+    [(ngModel)]="contractTypes"
+    nzMode="multiple"
+    nzPlaceHolder="Type de contrat"
+    class="filter-select filter-select--wide"
+    [nzMaxTagCount]="2"
+  >
+    @for (opt of contractTypeOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="experience"
+    nzPlaceHolder="Expérience"
+    nzAllowClear
+    class="filter-select"
+  >
+    @for (opt of experienceOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="workingTime"
+    nzPlaceHolder="Temps de travail"
+    nzAllowClear
+    class="filter-select"
+  >
+    <nz-option nzValue="full" nzLabel="Temps plein"></nz-option>
+    <nz-option nzValue="part" nzLabel="Temps partiel"></nz-option>
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="remote"
+    nzPlaceHolder="Télétravail"
+    nzAllowClear
+    class="filter-select"
+  >
+    @for (opt of remoteOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="distance"
+    nzPlaceHolder="Distance"
+    nzAllowClear
+    class="filter-select filter-select--sm"
+  >
+    @for (opt of distanceOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-input-number
+    [(ngModel)]="salaryMin"
+    [nzMin]="0"
+    [nzStep]="5000"
+    nzPlaceHolder="Salaire min (€/an)"
+    class="filter-salary"
+  ></nz-input-number>
+
+  <nz-select
+    [(ngModel)]="sortBy"
+    nzPlaceHolder="Trier par"
+    nzAllowClear
+    class="filter-select filter-select--sm"
+  >
+    @for (opt of sortOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
 </div>
 
 @if (noCvUploaded()) {
@@ -24,7 +100,6 @@
     </button>
   </div>
 }
-
 
 @if (loading()) {
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
@@ -62,6 +137,9 @@
             }
             @if (job.salary) {
               <nz-tag nzColor="green">{{ job.salary }}</nz-tag>
+            }
+            @if (job.source === 'adzuna') {
+              <nz-tag nzColor="purple">Adzuna</nz-tag>
             }
           </div>
 

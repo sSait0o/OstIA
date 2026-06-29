@@ -30,10 +30,20 @@ export interface JobSearchResult {
   total: number;
 }
 
-export interface JobsState {
-  keywords: string;
-  location: string;
-  page: number;
+export interface JobSearchParams {
+  keywords?: string;
+  location?: string;
+  contractTypes?: string[];
+  experience?: string;
+  distance?: number;
+  fullTime?: boolean | null;
+  remote?: string;
+  salaryMin?: number | null;
+  sortBy?: string;
+  page?: number;
+}
+
+export interface JobsState extends JobSearchParams {
   jobs: Job[];
   total: number;
 }
@@ -46,16 +56,23 @@ export class JobsService {
 
   constructor(private readonly http: HttpClient) {}
 
-  search(params: { keywords?: string; location?: string; page?: number }) {
-    return this.http.get<JobSearchResult>(`${this.base}/search`, { params: params as any }).pipe(
+  search(params: JobSearchParams) {
+    const httpParams: Record<string, string | number | boolean> = {};
+
+    if (params.keywords) httpParams['keywords'] = params.keywords;
+    if (params.location) httpParams['location'] = params.location;
+    if (params.contractTypes?.length) httpParams['contractTypes'] = params.contractTypes.join(',');
+    if (params.experience) httpParams['experience'] = params.experience;
+    if (params.distance) httpParams['distance'] = params.distance;
+    if (params.fullTime != null) httpParams['fullTime'] = params.fullTime;
+    if (params.remote) httpParams['remote'] = params.remote;
+    if (params.salaryMin) httpParams['salaryMin'] = params.salaryMin;
+    if (params.sortBy) httpParams['sortBy'] = params.sortBy;
+    if (params.page && params.page > 1) httpParams['page'] = params.page;
+
+    return this.http.get<JobSearchResult>(`${this.base}/search`, { params: httpParams }).pipe(
       tap((result) => {
-        this.cachedState.set({
-          keywords: params.keywords ?? '',
-          location: params.location ?? '',
-          page: params.page ?? 1,
-          jobs: result.jobs,
-          total: result.total,
-        });
+        this.cachedState.set({ ...params, jobs: result.jobs, total: result.total });
       }),
     );
   }
