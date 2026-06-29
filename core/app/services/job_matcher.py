@@ -1,46 +1,75 @@
-import numpy as np
+import json
+import logging
+import re
 from app.services.ai_client import complete_json
+
+logger = logging.getLogger(__name__)
+
+_MAX_TEXT_LENGTH = 2000
 
 
 def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:
-    """Fast NumPy-based keyword overlap as a preliminary score."""
     if not cv_skills:
         return 0.0
     desc_lower = job_description.lower()
-    matches = np.array([1 if skill.lower() in desc_lower else 0 for skill in cv_skills])
-    return float(np.sum(matches) / len(matches) * 100)
+    matches = sum(
+        1 for skill in cv_skills
+        if re.search(r"\b" + re.escape(skill.lower()) + r"\b", desc_lower)
+    )
+    return round(matches / len(cv_skills) * 100, 1)
+
+
+def _cv_summary(cv_data: dict) -> str:
+    relevant = {
+        k: cv_data[k]
+        for k in ("firstName", "lastName", "skills", "experience", "education", "summary")
+        if k in cv_data
+    }
+    text = json.dumps(relevant, ensure_ascii=False)
+    return text[:_MAX_TEXT_LENGTH]
 
 
 def score_cv_job(cv_data: dict, job_title: str, job_description: str) -> dict:
     cv_skills: list[str] = cv_data.get("skills", [])
     preliminary = _keyword_overlap_score(cv_skills, job_description)
 
-    cv_summary = str(cv_data)[:2000]
+    prompt = f"""You are an expert technical recruiter. Evaluate the match between this candidate and the job offer.
 
-    prompt = f"""Tu es un expert en recrutement tech. Évalue la compatibilité entre ce CV et cette offre.
+Think step by step:
+1. List the key skills required by the job description.
+2. Cross-reference with the candidate's skills and experience.
+3. Identify matched and missing skills.
+4. Assign a final compatibility score (0-100).
 
-CV:
-{cv_summary}
+Candidate profile:
+{_cv_summary(cv_data)}
 
-Offre: {job_title}
-Description: {job_description[:2000]}
+Job title: {job_title}
+Job description:
+{job_description[:_MAX_TEXT_LENGTH]}
 
-Score préliminaire basé sur les mots-clés: {preliminary:.0f}/100
+Keyword-based preliminary score: {preliminary}/100
 
-Retourne UNIQUEMENT un objet JSON valide:
+Return ONLY a valid JSON object:
 {{
   "score": 0-100,
-  "matchedSkills": ["compétence1"],
-  "missingSkills": ["compétence manquante1"],
-  "summary": "résumé compatibilité en 1-2 phrases"
+  "matchedSkills": ["skill1"],
+  "missingSkills": ["missing1"],
+  "summary": "1-2 sentence compatibility summary"
 }}"""
 
     result = complete_json(prompt, max_tokens=512)
-    if not result:
+    if not result or "score" not in result:
+        logger.warning("AI matching returned no usable result, falling back to keyword score")
         return {
             "score": round(preliminary),
             "matchedSkills": cv_skills,
             "missingSkills": [],
-            "summary": "Analyse basée sur correspondance de mots-clés.",
+            "summary": "Score based on keyword overlap only.",
         }
+
+    score = result.get("score")
+    if not isinstance(score, (int, float)) or not (0 <= score <= 100):
+        result["score"] = round(preliminary)
+
     return result
