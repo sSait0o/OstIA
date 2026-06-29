@@ -19,7 +19,7 @@ class ExtractCvRequest(BaseModel):
 def parse_email(req: ParseEmailRequest):
     result = cv_parser.parse_email(req.subject, req.body, req.emailId)
     if result is None:
-        raise HTTPException(status_code=204, detail="Not a job application email")
+        raise HTTPException(status_code=400, detail="Not a job application email")
     return result
 
 
