@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import httpx
 from app.services.ai_client import complete_json
+from app.constants import RESPONDED_STATUSES, INTERVIEW_STATUSES
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +48,10 @@ def compute_stats(req: AnalyticsRequest):
     source_breakdown = df["source"].value_counts().to_dict()
 
     total = len(df)
-    responded_statuses = {"ACKNOWLEDGED", "INTERVIEW", "TECHNICAL", "OFFER", "REJECTED"}
-    responded = df["status"].isin(responded_statuses).sum()
+    responded = df["status"].isin(RESPONDED_STATUSES).sum()
     response_rate = float(np.round(responded / total * 100, 1))
 
-    interview_statuses = {"INTERVIEW", "TECHNICAL", "OFFER"}
-    interviews = df["status"].isin(interview_statuses).sum()
+    interviews = df["status"].isin(INTERVIEW_STATUSES).sum()
     interview_rate = float(np.round(interviews / total * 100, 1))
 
     timeline: list[dict] = []

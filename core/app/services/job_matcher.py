@@ -2,10 +2,11 @@ import json
 import logging
 import re
 from app.services.ai_client import complete_json
+from app.constants import MAX_JOB_TEXT_LENGTH
 
 logger = logging.getLogger(__name__)
 
-_MAX_TEXT_LENGTH = 2000
+_MAX_TEXT_LENGTH = MAX_JOB_TEXT_LENGTH
 
 
 def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:

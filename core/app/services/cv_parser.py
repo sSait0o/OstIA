@@ -2,18 +2,14 @@ import logging
 import re
 from html import unescape
 from app.services.ai_client import complete_json
+from app.constants import VALID_STATUSES, MAX_EMAIL_LENGTH, MAX_CV_LENGTH
 
 logger = logging.getLogger(__name__)
-
-_MAX_EMAIL_LENGTH = 4000
-_MAX_CV_LENGTH = 4000
 
 _RE_STYLE = re.compile(r"<style[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
 _RE_SCRIPT = re.compile(r"<script[^>]*>.*?</script>", re.DOTALL | re.IGNORECASE)
 _RE_TAG = re.compile(r"<[^>]+>")
 _RE_WHITESPACE = re.compile(r"\s+")
-
-_VALID_STATUSES = {"APPLIED", "ACKNOWLEDGED", "INTERVIEW", "TECHNICAL", "OFFER", "REJECTED"}
 
 _SYSTEM_EMAIL = """You are an expert in HR recruitment and email analysis.
 You analyze job application emails (internship, apprenticeship, permanent contract, fixed-term).
