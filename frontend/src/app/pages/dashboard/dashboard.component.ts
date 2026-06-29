@@ -11,7 +11,7 @@ import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { ApplicationsService, ApplicationStats } from '../../core/services/applications.service';
 import { JobsService, Job } from '../../core/services/jobs.service';
-import { getScoreColor, scoreFormat } from '../../core/helpers/score.helper';
+import { getScoreColor, scoreFormat } from '../../shared/utils/score.utils';
 import type { EChartsOption } from 'echarts';
 
 @Component({

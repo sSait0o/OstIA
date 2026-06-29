@@ -9,7 +9,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { Job } from '../../../core/services/jobs.service';
 import { ApplicationsService } from '../../../core/services/applications.service';
-import { getScoreColor, scoreFormat } from '../../../core/helpers/score.helper';
+import { getScoreColor, scoreFormat } from '../../utils/score.utils';
 
 @Component({
   selector: 'app-job-card',
