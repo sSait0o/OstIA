@@ -29,9 +29,6 @@ export class User {
   @Column()
   password: string;
 
-  @Column({ nullable: true })
-  cvPath: string;
-
   @Column({ nullable: true, type: 'jsonb' })
   cvData: Record<string, any>;
 
