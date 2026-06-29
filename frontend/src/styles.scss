@@ -185,17 +185,22 @@ html {
   .ant-input-prefix        { color: $text-muted; }
 
   .ant-select-selector {
-    background: $surface-2;
-    border-color: $border;
-    color: $text;
-    border-radius: 6px;
+    background: $surface-2 !important;
+    border-color: $border !important;
+    color: $text !important;
+    border-radius: 6px !important;
 
-    &:hover { border-color: rgba(255,255,255,.22); }
+    &:hover { border-color: rgba(255,255,255,.22) !important; }
+  }
+
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder {
+    color: $text !important;
   }
 
   .ant-select-focused .ant-select-selector {
-    border-color: rgba(255,255,255,.5);
-    box-shadow: 0 0 0 2px rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.5) !important;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.06) !important;
   }
 
   .ant-select-dropdown {
