@@ -1,67 +1,82 @@
+import logging
 import re
-from app.services.ai_client import complete, complete_json
+from html import unescape
+from app.services.ai_client import complete_json
+from app.constants import VALID_STATUSES, MAX_EMAIL_LENGTH, MAX_CV_LENGTH
 
-_SYSTEM_EMAIL = """Tu es un expert en recrutement et en analyse d'emails RH.
-Tu analyses des emails liés aux candidatures d'emploi (alternance, stage, CDI, CDD).
-Tu es rigoureux, précis, et tu réfléchis étape par étape avant de répondre."""
+logger = logging.getLogger(__name__)
+
+_RE_STYLE = re.compile(r"<style[^>]*>.*?</style>", re.DOTALL | re.IGNORECASE)
+_RE_SCRIPT = re.compile(r"<script[^>]*>.*?</script>", re.DOTALL | re.IGNORECASE)
+_RE_TAG = re.compile(r"<[^>]+>")
+_RE_WHITESPACE = re.compile(r"\s+")
+
+_SYSTEM_EMAIL = """You are an expert in HR recruitment and email analysis.
+You analyze job application emails (internship, apprenticeship, permanent contract, fixed-term).
+You are rigorous, precise, and think step by step before answering."""
 
 
 def _strip_html(text: str) -> str:
-    text = re.sub(r"<style[^>]*>.*?</style>", " ", text, flags=re.DOTALL)
-    text = re.sub(r"<script[^>]*>.*?</script>", " ", text, flags=re.DOTALL)
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"&nbsp;", " ", text)
-    text = re.sub(r"&[a-z]+;", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    text = _RE_STYLE.sub(" ", text)
+    text = _RE_SCRIPT.sub(" ", text)
+    text = _RE_TAG.sub(" ", text)
+    text = unescape(text)
+    return _RE_WHITESPACE.sub(" ", text).strip()
 
 
 def parse_email(subject: str, body: str, email_id: str) -> dict | None:
-    clean_body = _strip_html(body)[:4000]
+    clean_body = _strip_html(body)[:_MAX_EMAIL_LENGTH]
 
-    prompt = f"""Analyse cet email lié à une candidature d'emploi et retourne un JSON structuré.
+    prompt = f"""Analyze this email related to a job application and return a structured JSON.
 
-SUJET: {subject}
-CONTENU: {clean_body}
+SUBJECT: {subject}
+CONTENT: {clean_body}
 
-Règle 1 — Détermine si c'est un email de recrutement/candidature :
-- OUI : confirmation de candidature, accusé de réception RH, invitation entretien, test technique, offre d'embauche, refus
-- NON : newsletter, réinitialisation mot de passe, facture, publicité, email personnel → retourne {{"not_recruitment": true}}
+Step 1 — Determine if this is a recruitment/application email:
+- YES: application confirmation, HR acknowledgement, interview invitation, technical test, job offer, rejection
+- NO: newsletter, password reset, invoice, advertisement, personal email → return {{"not_recruitment": true}}
 
-Règle 2 — Si OUI, retourne exactement ce JSON (sans texte autour) :
+Step 2 — If YES, return exactly this JSON (no surrounding text):
 {{
-  "company": "nom exact de l'entreprise (jamais null)",
-  "jobTitle": "intitulé exact du poste (jamais null)",
+  "company": "exact company name (never null)",
+  "jobTitle": "exact job title (never null, use best guess if unclear)",
   "status": "APPLIED|ACKNOWLEDGED|INTERVIEW|TECHNICAL|OFFER|REJECTED",
-  "location": "ville/pays ou null",
-  "appliedAt": "date ISO 8601 ou null",
-  "notes": "résumé factuel en 1 phrase"
+  "location": "city/country or null",
+  "appliedAt": "ISO 8601 date or null",
+  "notes": "factual 1-sentence summary"
 }}
 
-Statuts — choisis le plus précis :
-- APPLIED : tu as envoyé une candidature, confirmation d'envoi sur une plateforme (LinkedIn, Indeed, Welcometothejungle...)
-- ACKNOWLEDGED : accusé de réception automatique de l'entreprise ("nous avons bien reçu votre candidature")
-- INTERVIEW : invitation à un entretien (téléphonique, visio, présentiel)
-- TECHNICAL : invitation à un test technique, cas pratique, assessment
-- OFFER : offre d'embauche, proposition de contrat
-- REJECTED : refus explicite de la candidature
+Status definitions:
+- APPLIED: you sent an application, platform confirmation (LinkedIn, Indeed, Welcometothejungle...)
+- ACKNOWLEDGED: automatic receipt from the company ("we have received your application")
+- INTERVIEW: invitation to an interview (phone, video, in-person)
+- TECHNICAL: invitation to a technical test, case study, assessment
+- OFFER: job offer, contract proposal
+- REJECTED: explicit rejection of the application
 
-Exemples de company : "BNP Paribas", "Thales", "Capgemini" (pas "RH de BNP", pas "l'équipe recrutement")
-Exemples de jobTitle : "Développeur Full Stack", "Data Analyst", "Alternance Chef de Projet IT" """
+Company examples: "BNP Paribas", "Thales", "Capgemini" (not "HR team of BNP", not "the recruitment team")
+JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager Apprenticeship" """
 
     result = complete_json(prompt, max_tokens=400, system=_SYSTEM_EMAIL)
 
-    if not result or result.get("not_recruitment") or not result.get("company") or not result.get("jobTitle"):
+    if not result or result.get("not_recruitment"):
         return None
 
-    valid_statuses = {"APPLIED", "ACKNOWLEDGED", "INTERVIEW", "TECHNICAL", "OFFER", "REJECTED"}
+    company = result.get("company")
+    job_title = result.get("jobTitle")
+
+    if not company and not job_title:
+        logger.info("Email %s discarded: no company or jobTitle found", email_id)
+        return None
+
     status = result.get("status", "APPLIED")
-    if status not in valid_statuses:
-        status = "APPLIED"
+    if status not in _VALID_STATUSES:
+        logger.warning("Email %s discarded: invalid status '%s' from AI", email_id, status)
+        return None
 
     return {
-        "company": result.get("company"),
-        "jobTitle": result.get("jobTitle"),
+        "company": company or "Unknown",
+        "jobTitle": job_title or "Unknown",
         "status": status,
         "location": result.get("location"),
         "appliedAt": result.get("appliedAt"),
@@ -72,21 +87,25 @@ Exemples de jobTitle : "Développeur Full Stack", "Data Analyst", "Alternance Ch
 
 
 def extract_cv(text: str) -> dict:
-    prompt = f"""Analyse ce CV et extrais les informations structurées.
+    if len(text) > _MAX_CV_LENGTH:
+        logger.warning("CV text truncated from %d to %d characters", len(text), _MAX_CV_LENGTH)
+
+    prompt = f"""Analyze this CV and extract structured information.
 
 CV:
-{text[:4000]}
+{text[:_MAX_CV_LENGTH]}
 
-Retourne UNIQUEMENT un objet JSON valide:
+Return ONLY a valid JSON object:
 {{
   "firstName": "",
   "lastName": "",
   "email": "",
-  "skills": ["compétence1"],
-  "languages": ["langue1"],
+  "phone": "",
+  "skills": ["skill1"],
+  "languages": ["language1"],
   "experience": [{{"title": "", "company": "", "duration": "", "description": ""}}],
   "education": [{{"degree": "", "school": "", "year": ""}}],
-  "summary": "résumé du profil"
+  "summary": "profile summary"
 }}"""
 
     return complete_json(prompt, max_tokens=1024)

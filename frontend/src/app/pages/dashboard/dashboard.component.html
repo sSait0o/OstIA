@@ -85,6 +85,41 @@
         </div>
       </nz-card>
     </div>
+
+    @if (topJobs().length > 0) {
+      <div nz-col [nzXs]="24">
+        <nz-card class="top-jobs-card">
+          <div class="top-jobs-header">
+            <span class="top-jobs-title">Top offres matchées</span>
+            <button nz-button nzType="link" nzSize="small" routerLink="/jobs">
+              Rechercher des offres <span nz-icon nzType="arrow-right"></span>
+            </button>
+          </div>
+          <div class="top-jobs-list">
+            @for (job of topJobs(); track job.id) {
+              <div class="top-job-item">
+                <div class="top-job-info">
+                  <div class="top-job-title">{{ job.title }}</div>
+                  <div class="top-job-company">{{ job.company }}</div>
+                  @if (job.matchDetails?.matchedSkills?.length) {
+                    <div class="top-job-skills">{{ job.matchDetails!.matchedSkills.slice(0, 3).join(' · ') }}</div>
+                  }
+                </div>
+                <div class="top-job-score">
+                  <nz-progress
+                    [nzPercent]="job.matchScore ?? 0"
+                    nzType="circle"
+                    [nzWidth]="44"
+                    [nzStrokeColor]="getScoreColor(job.matchScore ?? 0)"
+                    [nzFormat]="scoreFormat"
+                  ></nz-progress>
+                </div>
+              </div>
+            }
+          </div>
+        </nz-card>
+      </div>
+    }
   </div>
 }
 

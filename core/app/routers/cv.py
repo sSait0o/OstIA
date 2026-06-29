@@ -1,7 +1,10 @@
+import asyncio
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services import cv_parser
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -16,13 +19,13 @@ class ExtractCvRequest(BaseModel):
 
 
 @router.post("/parse-email")
-def parse_email(req: ParseEmailRequest):
-    result = cv_parser.parse_email(req.subject, req.body, req.emailId)
+async def parse_email(req: ParseEmailRequest):
+    result = await asyncio.to_thread(cv_parser.parse_email, req.subject, req.body, req.emailId)
     if result is None:
-        raise HTTPException(status_code=204, detail="Not a job application email")
+        raise HTTPException(status_code=400, detail="Not a job application email")
     return result
 
 
 @router.post("/extract")
-def extract_cv(req: ExtractCvRequest):
-    return cv_parser.extract_cv(req.text)
+async def extract_cv(req: ExtractCvRequest):
+    return await asyncio.to_thread(cv_parser.extract_cv, req.text)

@@ -1,7 +1,10 @@
+import asyncio
+import logging
 from fastapi import APIRouter
 from pydantic import BaseModel
 from app.services import job_matcher
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -12,5 +15,7 @@ class ScoreRequest(BaseModel):
 
 
 @router.post("/score")
-def score(req: ScoreRequest):
-    return job_matcher.score_cv_job(req.cvData, req.jobTitle, req.jobDescription)
+async def score(req: ScoreRequest):
+    return await asyncio.to_thread(
+        job_matcher.score_cv_job, req.cvData, req.jobTitle, req.jobDescription
+    )

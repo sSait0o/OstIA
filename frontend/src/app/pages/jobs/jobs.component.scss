@@ -17,6 +17,11 @@
   display: flex;
   gap: 12px;
   margin-bottom: 28px;
+
+  @media (max-width: 575px) {
+    flex-direction: column;
+    gap: 8px;
+  }
 }
 
 .search-keywords { flex: 2; }
@@ -41,6 +46,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 8px;
 }
 
 .job-info {
@@ -90,17 +96,64 @@
   margin-top: 12px;
 }
 
-.matched-skills {
+.skills-breakdown {
   margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skills-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 12px;
-  color: rgba(255,255,255,.5);
+
+  &--matched {
+    .skills-icon { color: #52c41a; font-weight: 700; }
+    .skills-list { color: rgba(255,255,255,.55); }
+  }
+
+  &--missing {
+    .skills-icon { color: #ff4d4f; font-weight: 700; }
+    .skills-list { color: rgba(255,100,100,.5); }
+  }
+}
+
+.skills-icon {
+  flex-shrink: 0;
+  width: 12px;
+}
+
+.skills-list {
+  line-height: 1.4;
 }
 
 .match-summary {
-  margin-top: 6px;
-  font-size: 12px;
-  color: rgba(255,255,255,.3);
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(255,255,255,.25);
   font-style: italic;
+  line-height: 1.5;
+}
+
+.no-cv-alert {
+  margin-bottom: 8px;
+  border-radius: 12px !important;
+}
+
+.no-cv-action {
+  margin-bottom: 24px;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+
+  .filter-good { --btn-color: #52c41a; }
+  .filter-medium { --btn-color: #ffc53d; }
 }
 
 .job-divider {
