@@ -25,30 +25,6 @@
   </div>
 }
 
-@if (!loading() && jobs().length > 0) {
-  <div class="filter-bar">
-    <button
-      nz-button
-      [nzType]="scoreFilter() === 'all' ? 'primary' : 'default'"
-      nzSize="small"
-      (click)="setFilter('all')"
-    >Tous ({{ jobs().length }})</button>
-    <button
-      nz-button
-      [nzType]="scoreFilter() === 'good' ? 'primary' : 'default'"
-      nzSize="small"
-      class="filter-good"
-      (click)="setFilter('good')"
-    >Excellent ≥70%</button>
-    <button
-      nz-button
-      [nzType]="scoreFilter() === 'medium' ? 'primary' : 'default'"
-      nzSize="small"
-      class="filter-medium"
-      (click)="setFilter('medium')"
-    >Bon ≥40%</button>
-  </div>
-}
 
 @if (loading()) {
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
@@ -124,10 +100,11 @@
               [nzLoading]="applyingIds().has(job.id)"
               [disabled]="job.isApplied"
               nz-tooltip
-              [nzTooltipTitle]="job.isApplied ? 'Candidature déjà envoyée' : 'Créer une candidature'"
+              [nzTooltipTitle]="job.isApplied ? 'Déjà postulé' : 'Postuler'"
               (click)="applyFromJob(job)"
             >
               <span nz-icon [nzType]="job.isApplied ? 'check' : 'send'"></span>
+              {{ job.isApplied ? 'Postulé' : 'Postuler' }}
             </button>
             <button
               nz-button
@@ -143,5 +120,15 @@
         </nz-card>
       </div>
     }
+  </div>
+
+  <div class="pagination-bar">
+    <nz-pagination
+      [nzPageIndex]="currentPage()"
+      [nzTotal]="total()"
+      [nzPageSize]="pageSize"
+      [nzShowSizeChanger]="false"
+      (nzPageIndexChange)="onPageChange($event)"
+    ></nz-pagination>
   </div>
 }
