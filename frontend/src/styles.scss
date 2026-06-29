@@ -7,6 +7,45 @@ $border: rgba(255, 255, 255, 0.08);
 $border-hover: rgba(255, 255, 255, 0.35);
 $text: #e8e8e8;
 $text-muted: #555;
+$text-secondary: rgba(255, 255, 255, 0.3);
+$text-tertiary: rgba(255, 255, 255, 0.35);
+
+$color-success: #52c41a;
+$color-warning: #ffc53d;
+$color-error: #ff4d4f;
+$color-info: #4a9eff;
+
+$bp-sm: 576px;
+$bp-md: 768px;
+$bp-lg: 992px;
+
+@mixin mobile { @media (max-width: #{$bp-sm - 1px}) { @content; } }
+@mixin tablet { @media (max-width: #{$bp-md - 1px}) { @content; } }
+@mixin tablet-up { @media (min-width: $bp-md) { @content; } }
+
+@mixin page-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0 0 4px;
+}
+
+@mixin subtitle {
+  color: $text-secondary;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+@mixin loading-center {
+  text-align: center;
+  padding: 80px;
+}
+
+.page-title { @include page-title; }
+.subtitle    { @include subtitle; }
+.loading-center { @include loading-center; }
 
 * {
   box-sizing: border-box;
@@ -177,17 +216,53 @@ html {
   .ant-input-prefix        { color: $text-muted; }
 
   .ant-select-selector {
-    background: $surface-2;
-    border-color: $border;
-    color: $text;
-    border-radius: 6px;
+    background: $surface-2 !important;
+    border-color: $border !important;
+    color: $text !important;
+    border-radius: 6px !important;
 
-    &:hover { border-color: rgba(255,255,255,.22); }
+    &:hover { border-color: rgba(255,255,255,.22) !important; }
+  }
+
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder {
+    color: $text !important;
+  }
+
+  .ant-select-multiple .ant-select-selection-item {
+    background: rgba(255,255,255,.08) !important;
+    border-color: rgba(255,255,255,.15) !important;
+    color: $text !important;
+  }
+
+  .ant-select-selection-item-content { color: $text !important; }
+  .ant-select-selection-item-remove  { color: rgba(255,255,255,.45) !important;
+    &:hover { color: #fff !important; }
+  }
+
+  .ant-input-number {
+    background: $surface-2 !important;
+    border-color: $border !important;
+    border-radius: 6px !important;
+
+    &:hover { border-color: rgba(255,255,255,.22) !important; }
+    &-focused { border-color: rgba(255,255,255,.5) !important; box-shadow: 0 0 0 2px rgba(255,255,255,.06) !important; }
+
+    .ant-input-number-input {
+      background: transparent !important;
+      color: $text !important;
+      &::placeholder { color: #444; }
+    }
+
+    .ant-input-number-handler-wrap { background: $surface-2; border-color: $border; }
+    .ant-input-number-handler       { border-color: $border; color: $text-muted;
+      &:hover { color: $text; }
+    }
   }
 
   .ant-select-focused .ant-select-selector {
-    border-color: rgba(255,255,255,.5);
-    box-shadow: 0 0 0 2px rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.5) !important;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.06) !important;
   }
 
   .ant-select-dropdown {

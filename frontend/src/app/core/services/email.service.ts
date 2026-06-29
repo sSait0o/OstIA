@@ -9,6 +9,7 @@ export interface SyncProgress {
   synced?: number;
   created?: number;
   skipped?: number;
+  failed?: number;
 }
 
 export interface EmailConnection {
@@ -38,7 +39,7 @@ export class EmailService {
   }
 
   syncGmail() {
-    return this.http.post<{ synced: number; created: number; skipped: number }>(`${this.base}/sync/gmail`, {});
+    return this.http.post<{ synced: number; created: number; skipped: number; failed: number }>(`${this.base}/sync/gmail`, {});
   }
 
   syncGmailStream(token: string): Observable<SyncProgress> {
@@ -55,7 +56,7 @@ export class EmailService {
   }
 
   syncOutlook() {
-    return this.http.post<{ synced: number; created: number; skipped: number }>(`${this.base}/sync/outlook`, {});
+    return this.http.post<{ synced: number; created: number; skipped: number; failed: number }>(`${this.base}/sync/outlook`, {});
   }
 
   disconnect(id: string) {

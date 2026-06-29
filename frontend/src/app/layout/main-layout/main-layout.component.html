@@ -5,7 +5,12 @@
 </div>
 
 <nz-layout class="main-layout">
-  <nz-sider nzTheme="dark">
+  <nz-sider nzTheme="dark"
+            [nzCollapsed]="isCollapsed()"
+            (nzCollapsedChange)="isCollapsed.set($event)"
+            [nzBreakpoint]="'md'"
+            [nzCollapsedWidth]="0"
+            [nzWidth]="220">
     <div class="logo">
       <span nz-icon nzType="compass" nzTheme="outline"></span>
       <span class="logo-text">OstIA</span>
@@ -36,6 +41,10 @@
             <span nz-icon nzType="search" nzTheme="outline"></span>
             <span>Offres</span>
           </li>
+          <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected">
+            <span nz-icon nzType="heart" nzTheme="outline"></span>
+            <span>Favoris</span>
+          </li>
           <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
             <span nz-icon nzType="file-text" nzTheme="outline"></span>
             <span>Mon CV</span>
@@ -44,13 +53,26 @@
       </li>
     </ul>
   </nz-sider>
-  <nz-layout>
+  <nz-layout [class.layout--map]="isMapRoute()">
     <div class="main-header">
       <div class="header-left">
+        <button class="menu-trigger" (click)="toggleSidebar()">
+          <span nz-icon [nzType]="isCollapsed() ? 'menu' : 'menu-fold'" nzTheme="outline"></span>
+        </button>
         <a routerLink="/email" class="sync-btn">
           <span nz-icon nzType="sync" nzTheme="outline"></span>
-          Sync email
+          <span class="sync-label">Sync email</span>
         </a>
+        @if (emailConnections().length > 0) {
+          <span class="sync-accounts">
+            @for (conn of emailConnections(); track conn.id) {
+              <span class="sync-account-item">
+                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'"></span>
+                {{ conn.email }}
+              </span>
+            }
+          </span>
+        }
       </div>
       <div class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight">
         <nz-avatar nzIcon="user" class="user-avatar"></nz-avatar>
@@ -71,7 +93,7 @@
         </div>
       </nz-dropdown-menu>
     </div>
-    <nz-content class="main-content">
+    <nz-content class="main-content" [class.main-content--map]="isMapRoute()">
       <router-outlet />
     </nz-content>
   </nz-layout>

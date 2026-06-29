@@ -62,8 +62,10 @@ export class EmailComponent implements OnInit {
       next: (p) => {
         this.gmailSyncPercent.set(p.percent);
         if (p.done) {
-          const skipMsg = p.skipped ? `, ${p.skipped} doublon(s) ignoré(s)` : '';
-          this.message.success(`${p.synced} emails analysés, ${p.created} candidatures créées${skipMsg}`);
+          const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
+          if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
+          if (p.failed) parts.push(`${p.failed} non reconnu(s) par l'IA`);
+          this.message.success(parts.join(', '));
           this.syncingGmail.set(false);
         }
       },
@@ -74,9 +76,11 @@ export class EmailComponent implements OnInit {
   syncOutlook() {
     this.syncingOutlook.set(true);
     this.emailService.syncOutlook().subscribe({
-      next: ({ synced, created, skipped }) => {
-        const skipMsg = skipped ? `, ${skipped} doublon(s) ignoré(s)` : '';
-        this.message.success(`${synced} emails analysés, ${created} candidatures créées${skipMsg}`);
+      next: ({ synced, created, skipped, failed }) => {
+        const parts: string[] = [`${synced} emails analysés`, `${created} candidature(s) créée(s)`];
+        if (skipped) parts.push(`${skipped} doublon(s) ignoré(s)`);
+        if (failed) parts.push(`${failed} non reconnu(s) par l'IA`);
+        this.message.success(parts.join(', '));
         this.syncingOutlook.set(false);
       },
       error: () => { this.message.error('Erreur de synchronisation Outlook'); this.syncingOutlook.set(false); },

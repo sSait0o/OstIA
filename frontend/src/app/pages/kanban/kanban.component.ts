@@ -54,7 +54,6 @@ export class KanbanComponent implements OnInit {
   filteredColumns = computed(() => {
     const q = this.searchTerm().toLowerCase().trim();
     if (!q) return this.columns();
-    // For search: return shallow copies with filtered items (read-only display, drag disabled during search)
     return this.columns().map((col) => ({
       ...col,
       items: col.items.filter(
@@ -75,20 +74,18 @@ export class KanbanComponent implements OnInit {
 
   columns = signal<Column[]>([
     { key: 'APPLIED', label: 'Envoyée', color: 'default', items: [] },
-    { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
     { key: 'TECHNICAL', label: 'Test technique', color: 'purple', items: [] },
+    { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
     { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
     { key: 'REJECTED', label: 'Refusé', color: 'red', items: [] },
-    { key: 'WITHDRAWN', label: 'Retirée', color: 'default', items: [] },
   ]);
 
   statusOptions = [
     { value: 'APPLIED', label: 'Envoyée' },
-    { value: 'INTERVIEW', label: 'Entretien' },
     { value: 'TECHNICAL', label: 'Test technique' },
+    { value: 'INTERVIEW', label: 'Entretien' },
     { value: 'OFFER', label: 'Offre' },
     { value: 'REJECTED', label: 'Refusé' },
-    { value: 'WITHDRAWN', label: 'Retirée' },
   ];
 
   form: Partial<CreateApplicationDto> & { status?: ApplicationStatus } = {
@@ -201,7 +198,7 @@ export class KanbanComponent implements OnInit {
 
   getStatusColor(status: string): string {
     const map: Record<string, string> = {
-      APPLIED: 'default', ACKNOWLEDGED: 'default', INTERVIEW: 'orange', TECHNICAL: 'purple', OFFER: 'green', REJECTED: 'red', WITHDRAWN: 'default',
+      APPLIED: 'default', ACKNOWLEDGED: 'default', TECHNICAL: 'purple', INTERVIEW: 'orange', OFFER: 'green', REJECTED: 'red',
     };
     return map[status] ?? 'default';
   }

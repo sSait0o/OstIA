@@ -12,11 +12,64 @@ interface FranceTravailToken {
   expires_in: number;
 }
 
-interface JobSearchParams {
+export interface JobSearchParams {
   keywords?: string;
   location?: string;
-  contractType?: string;
+  contractTypes?: string[];
+  experience?: string;
+  distance?: number;
+  fullTime?: boolean;
+  remote?: string;
+  salaryMin?: number;
+  sortBy?: 'date' | 'pertinence';
   page?: number;
+}
+
+interface JobOffer {
+  title: string;
+  company: string;
+  description: string;
+  location?: string;
+  salary?: string;
+  contractType?: string;
+  url: string;
+  source: string;
+  externalId: string;
+  publishedAt?: string;
+}
+
+interface AdzunaResult {
+  id: string;
+  title: string;
+  company: { display_name: string };
+  description: string;
+  location: { display_name: string };
+  salary_min?: number;
+  salary_max?: number;
+  contract_type?: string;
+  redirect_url: string;
+  created: string;
+}
+
+interface AdzunaResponse {
+  results: AdzunaResult[];
+  count: number;
+}
+
+interface FranceTravailOffer {
+  id: string;
+  intitule: string;
+  description: string;
+  typeContratLibelle?: string;
+  dateCreation?: string;
+  entreprise?: { nom?: string };
+  lieuTravail?: { libelle?: string };
+  salaire?: { libelle?: string };
+  origineOffre?: { urlOrigine?: string };
+}
+
+interface FranceTravailSearchResponse {
+  resultats?: FranceTravailOffer[];
 }
 
 @Injectable()
@@ -55,82 +108,224 @@ export class JobsService {
     return this.franceTravailToken;
   }
 
-  async searchFranceTravail(params: JobSearchParams): Promise<any[]> {
+  private extractKeywordsFromCv(cvData: Record<string, unknown>): string {
+    const experience = cvData.experience as Array<{ title?: string }> | undefined;
+    if (experience?.length && experience[0].title) return experience[0].title;
+    const skills = cvData.skills as string[] | undefined;
+    if (skills?.length) return skills[0];
+    return '';
+  }
+
+  async searchFranceTravail(
+    params: JobSearchParams,
+    perPage = 9,
+  ): Promise<{ offers: JobOffer[]; total: number }> {
     const token = await this.getFranceTravailToken();
+    const page = params.page || 1;
+    const start = (page - 1) * perPage;
 
     const queryParams: Record<string, string> = {
-      motsCles: params.keywords || 'data engineer alternance',
-      typeContrat: params.contractType || 'CDI,CDD',
-      range: `${((params.page || 1) - 1) * 15}-${((params.page || 1) - 1) * 15 + 14}`,
+      motsCles: params.keywords || '',
+      range: `${start}-${start + perPage - 1}`,
     };
-    if (params.location) queryParams['commune'] = params.location;
 
-    const response = await axios.get(
+    if (params.location) queryParams['departement'] = params.location;
+    if (params.contractTypes?.length) queryParams['typeContrat'] = params.contractTypes.join(',');
+    if (params.experience) queryParams['experience'] = params.experience;
+    if (params.distance) queryParams['distance'] = String(params.distance);
+    if (params.fullTime === true) queryParams['tempsPlein'] = 'true';
+    if (params.remote) queryParams['modesTravail'] = params.remote;
+    if (params.sortBy === 'date') queryParams['tri'] = '1';
+
+    const response = await axios.get<FranceTravailSearchResponse>(
       'https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search',
       { headers: { Authorization: `Bearer ${token}` }, params: queryParams },
     );
 
-    return (response.data.resultats || []).map((offer: any) => ({
+    const contentRange =
+      (response.headers as Record<string, string>)['content-range'] ?? '';
+    const total = parseInt(contentRange.split('/')[1] ?? '0', 10) || 0;
+
+    const resultats = response.data.resultats ?? [];
+    const offers: JobOffer[] = resultats.map((offer) => ({
       title: offer.intitule,
       company: offer.entreprise?.nom || 'Non précisé',
       description: offer.description,
       location: offer.lieuTravail?.libelle,
       salary: offer.salaire?.libelle,
       contractType: offer.typeContratLibelle,
-      url: offer.origineOffre?.urlOrigine || `https://candidat.francetravail.fr/offres/recherche/detail/${offer.id}`,
+      url:
+        offer.origineOffre?.urlOrigine ||
+        `https://candidat.francetravail.fr/offres/recherche/detail/${offer.id}`,
       source: 'france_travail',
       externalId: offer.id,
       publishedAt: offer.dateCreation,
     }));
+
+    return { offers, total };
+  }
+
+  async searchAdzuna(
+    params: JobSearchParams,
+  ): Promise<{ offers: JobOffer[]; total: number }> {
+    const appId = this.configService.get<string>('ADZUNA_APP_ID');
+    const appKey = this.configService.get<string>('ADZUNA_APP_KEY');
+
+    if (!appId || !appKey) return { offers: [], total: 0 };
+
+    const page = params.page || 1;
+    const queryParams: Record<string, string | number> = {
+      app_id: appId,
+      app_key: appKey,
+      results_per_page: 3,
+    };
+
+    if (params.keywords) queryParams['what'] = params.keywords;
+    if (params.location) queryParams['where'] = params.location;
+    if (params.distance) queryParams['distance'] = params.distance;
+    if (params.salaryMin) queryParams['salary_min'] = params.salaryMin;
+    if (params.fullTime === true) queryParams['full_time'] = 1;
+    if (params.fullTime === false) queryParams['part_time'] = 1;
+    if (params.sortBy === 'date') queryParams['sort_by'] = 'date';
+    else if (params.sortBy === 'pertinence') queryParams['sort_by'] = 'relevance';
+
+    if (params.contractTypes?.length) {
+      const hasPermanent = params.contractTypes.includes('CDI');
+      const hasContract = params.contractTypes.some((c) =>
+        ['CDD', 'MIS'].includes(c),
+      );
+      if (hasPermanent && !hasContract) queryParams['contract_type'] = 'permanent';
+      else if (hasContract && !hasPermanent) queryParams['contract_type'] = 'contract';
+    }
+
+    const response = await axios.get<AdzunaResponse>(
+      `https://api.adzuna.com/v1/api/jobs/fr/search/${page}`,
+      { params: queryParams, timeout: 5000 },
+    );
+
+    const { results, count } = response.data;
+
+    const offers: JobOffer[] = results.map((r) => {
+      const salaryMin = r.salary_min ? Math.round(r.salary_min / 1000) : null;
+      const salaryMax = r.salary_max ? Math.round(r.salary_max / 1000) : null;
+      const salary =
+        salaryMin && salaryMax
+          ? `${salaryMin}k - ${salaryMax}k €/an`
+          : salaryMin
+            ? `${salaryMin}k+ €/an`
+            : undefined;
+
+      const contractType =
+        r.contract_type === 'permanent'
+          ? 'CDI'
+          : r.contract_type === 'contract'
+            ? 'CDD'
+            : r.contract_type;
+
+      return {
+        title: r.title,
+        company: r.company?.display_name || 'Non précisé',
+        description: r.description,
+        location: r.location?.display_name,
+        salary,
+        contractType,
+        url: r.redirect_url,
+        source: 'adzuna',
+        externalId: `adzuna_${r.id}`,
+        publishedAt: r.created,
+      };
+    });
+
+    return { offers, total: count };
   }
 
   async searchAndScore(
     userId: string,
     params: JobSearchParams,
-    cvData: Record<string, any>,
-  ): Promise<Job[]> {
-    let offers: any[];
-    try {
-      offers = await this.searchFranceTravail(params);
-    } catch {
-      return [];
-    }
-    const jobs: Job[] = [];
-
+    cvData: Record<string, unknown>,
+  ): Promise<{ jobs: Job[]; total: number }> {
     const hasCv = cvData && Object.keys(cvData).length > 0;
 
-    for (const offer of offers.slice(0, 10)) {
-      let match: { score: number | null; matchedSkills: string[]; summary: string };
-      try {
-        match = hasCv
-          ? await this.aiService.matchCvToJob(cvData, offer.title, offer.description || '')
-          : { score: null, matchedSkills: [], summary: 'Uploadez votre CV pour voir le score de matching' };
-      } catch {
-        match = { score: null, matchedSkills: [], summary: '' };
-      }
-
-      const existing = await this.jobRepo.findOne({
-        where: { externalId: offer.externalId, user: { id: userId } },
-      });
-
-      if (existing) {
-        existing.matchScore = match.score ?? 0;
-        existing.matchDetails = match;
-        jobs.push(await this.jobRepo.save(existing));
-        continue;
-      }
-
-      const job = this.jobRepo.create({
-        ...offer,
-        user: { id: userId } as User,
-        matchScore: match.score ?? 0,
-        matchDetails: match,
-        publishedAt: offer.publishedAt ? new Date(offer.publishedAt) : undefined,
-      });
-      jobs.push((await this.jobRepo.save(job)) as unknown as Job);
+    const resolvedParams = { ...params };
+    if (!resolvedParams.keywords && hasCv) {
+      resolvedParams.keywords = this.extractKeywordsFromCv(cvData);
     }
 
-    return jobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    let ftOffers: JobOffer[] = [];
+    let ftTotal = 0;
+    let adzunaOffers: JobOffer[] = [];
+    let adzunaTotal = 0;
+
+    const hasAdzuna =
+      !!this.configService.get('ADZUNA_APP_ID') &&
+      !!this.configService.get('ADZUNA_APP_KEY');
+
+    const [ftResult, adzunaResult] = await Promise.allSettled([
+      this.searchFranceTravail(resolvedParams, 9),
+      hasAdzuna
+        ? this.searchAdzuna(resolvedParams)
+        : Promise.resolve({ offers: [], total: 0 }),
+    ]);
+
+    if (ftResult.status === 'fulfilled') {
+      ({ offers: ftOffers, total: ftTotal } = ftResult.value);
+    }
+    if (adzunaResult.status === 'fulfilled') {
+      ({ offers: adzunaOffers, total: adzunaTotal } = adzunaResult.value);
+    }
+
+    const allOffers = [...ftOffers, ...adzunaOffers];
+    const total = Math.max(ftTotal, adzunaTotal);
+
+    const jobs = await Promise.all(
+      allOffers.map(async (offer) => {
+        const existing = await this.jobRepo.findOne({
+          where: { externalId: offer.externalId, user: { id: userId } },
+        });
+
+        if (existing && existing.matchScore != null) {
+          return existing;
+        }
+
+        const match = hasCv
+          ? await this.aiService
+              .matchCvToJob(cvData, offer.title, offer.description || '')
+              .catch(() => ({
+                score: null as number | null,
+                matchedSkills: [] as string[],
+                missingSkills: [] as string[],
+                summary: '',
+              }))
+          : {
+              score: null as number | null,
+              matchedSkills: [] as string[],
+              missingSkills: [] as string[],
+              summary: 'Uploadez votre CV pour voir le score de matching',
+            };
+
+        if (existing) {
+          existing.matchScore = match.score ?? 0;
+          existing.matchDetails = match;
+          return this.jobRepo.save(existing);
+        }
+
+        const job = this.jobRepo.create({
+          ...offer,
+          user: { id: userId } as User,
+          matchScore: match.score ?? 0,
+          matchDetails: match,
+          publishedAt: offer.publishedAt ? new Date(offer.publishedAt) : undefined,
+        });
+        return this.jobRepo.save(job);
+      }),
+    );
+
+    return {
+      jobs: jobs
+        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+        .slice(0, 9),
+      total,
+    };
   }
 
   async getSavedJobs(userId: string): Promise<Job[]> {

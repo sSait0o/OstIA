@@ -44,6 +44,8 @@
   align-items: center;
   padding: 14px 0;
   border-bottom: 1px solid rgba(255,255,255,.06);
+  gap: 12px;
+  flex-wrap: wrap;
 
   &:last-child { border-bottom: none; }
 }
@@ -70,6 +72,7 @@
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .provider-icon {
@@ -110,6 +113,17 @@
 .provider-actions {
   display: flex;
   gap: 10px;
+}
+
+.ant-btn-default[disabled] {
+  color: rgba(255, 255, 255, 0.45) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: transparent !important;
+}
+
+.connected-btn.ant-btn-default[disabled] {
+  color: rgba(255, 255, 255, 0.65) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 .sync-progress {

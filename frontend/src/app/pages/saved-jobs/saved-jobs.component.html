@@ -1,0 +1,21 @@
+<h2 class="page-title">Offres sauvegardées</h2>
+<p class="subtitle">Retrouvez toutes les offres que vous avez likées.</p>
+
+@if (loading()) {
+  <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+} @else if (jobs().length === 0) {
+  <nz-empty nzNotFoundContent="Aucune offre sauvegardée"></nz-empty>
+} @else {
+  <div nz-row [nzGutter]="[16, 16]">
+    @for (job of jobs(); track job.id) {
+      <div nz-col [nzXs]="24" [nzSm]="12" [nzLg]="8">
+        <app-job-card
+          [job]="job"
+          [savedPage]="true"
+          (jobApplied)="onJobApplied($event)"
+          (toggleSave)="toggleSave($event)"
+        ></app-job-card>
+      </div>
+    }
+  </div>
+}

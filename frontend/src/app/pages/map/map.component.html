@@ -1,103 +1,93 @@
 <div class="map-page">
 
-  <div class="map-header">
-    <div>
-      <h2>Localisation</h2>
-      <p class="subtitle">Cliquez sur un marqueur pour voir le détail.</p>
-    </div>
-    <div class="map-header-right">
-      @if (geocoding()) {
-        <nz-spin nzSize="small"></nz-spin>
-        <span class="geocoding-label">Géocodage en cours...</span>
+  <div #mapContainer class="map-canvas"></div>
+
+  <div class="map-nav">
+    <button class="map-nav-tab" [class.active]="activeTab() === 'map'" (click)="activeTab.set('map')">
+      <span nz-icon nzType="global" nzTheme="outline"></span>
+      Carte
+    </button>
+    <button class="map-nav-tab" [class.active]="activeTab() === 'unlocated'" (click)="activeTab.set('unlocated')">
+      <span nz-icon nzType="environment" nzTheme="outline"></span>
+      À localiser
+      @if (unlocatedApps().length > 0) {
+        <span class="map-nav-badge">{{ unlocatedApps().length }}</span>
       }
-      <span class="map-count">
-        <strong>{{ locatedApps().length }}</strong> / {{ allApps().length }} localisées
-      </span>
+    </button>
+  </div>
+
+  <div class="map-info">
+    @if (geocoding()) {
+      <nz-spin nzSize="small"></nz-spin>
+    }
+    <span class="map-count">
+      <strong>{{ locatedApps().length }}</strong> / {{ allApps().length }}
+    </span>
+  </div>
+
+  <div class="map-panel" [class.map-panel--open]="drawerVisible && activeTab() === 'map'">
+    <div class="map-panel-header">
+      <span class="map-panel-city">{{ drawerCity }}</span>
+      <button class="map-panel-close" (click)="drawerVisible = false">
+        <span nz-icon nzType="close"></span>
+      </button>
+    </div>
+    <div class="map-panel-body">
+      @for (app of drawerApps; track app.id) {
+        <div class="panel-item panel-item--clickable" (click)="openEmail(app)">
+          <div class="panel-item-top">
+            <span class="panel-company">{{ app.company }}</span>
+            <nz-tag [nzColor]="getStatusTag(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+          </div>
+          <div class="panel-job">{{ app.jobTitle }}</div>
+          @if (app.resolvedLocation) {
+            <div class="panel-location">
+              <span nz-icon nzType="environment"></span> {{ app.resolvedLocation }}
+            </div>
+          }
+          @if (app.emailBody) {
+            <div class="panel-email-hint">
+              <span nz-icon nzType="mail"></span> Voir l'email
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
 
-  <nz-tabset>
-
-    <nz-tab nzTitle="Carte">
-      <div class="map-wrapper">
-        <div #mapContainer class="ol-map"></div>
-
-        <div class="map-panel" [class.map-panel--open]="drawerVisible">
-          <div class="map-panel-header">
-            <span class="map-panel-city">{{ drawerCity }}</span>
-            <button class="map-panel-close" (click)="drawerVisible = false">
-              <span nz-icon nzType="close"></span>
-            </button>
-          </div>
-          <div class="map-panel-body">
-            @for (app of drawerApps; track app.id) {
-              <div class="panel-item panel-item--clickable" (click)="openEmail(app)">
-                <div class="panel-item-top">
-                  <span class="panel-company">{{ app.company }}</span>
-                  <nz-tag [nzColor]="getStatusTag(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
-                </div>
-                <div class="panel-job">{{ app.jobTitle }}</div>
-                @if (app.resolvedLocation) {
-                  <div class="panel-location">
-                    <span nz-icon nzType="environment"></span> {{ app.resolvedLocation }}
-                  </div>
-                }
-                @if (app.emailBody) {
-                  <div class="panel-email-hint">
-                    <span nz-icon nzType="mail"></span> Voir l'email
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        </div>
-      </div>
-    </nz-tab>
-
-    <nz-tab [nzTitle]="unlocatedTitle">
-      <ng-template #unlocatedTitle>
-        À localiser
-        @if (unlocatedApps().length > 0) {
-          <nz-badge [nzCount]="unlocatedApps().length"
-            [nzStyle]="{ backgroundColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', boxShadow: 'none' }">
-          </nz-badge>
-        }
-      </ng-template>
-
+  @if (activeTab() === 'unlocated') {
+    <div class="map-unlocated">
       @if (unlocatedApps().length === 0) {
         <div class="all-located">
           <span nz-icon nzType="check-circle" nzTheme="outline"></span>
           Toutes les candidatures sont localisées
         </div>
       } @else {
-        <div class="unlocated-list">
-          @for (app of unlocatedApps(); track app.id) {
-            <nz-card [nzBodyStyle]="{ padding: '14px 16px' }" class="unlocated-card">
-              <div class="unlocated-header">
-                <div class="unlocated-info">
-                  <span class="unlocated-company">{{ app.company }}</span>
-                  <span class="unlocated-job">{{ app.jobTitle }}</span>
-                </div>
-                <nz-tag [nzColor]="getStatusTag(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+        @for (app of unlocatedApps(); track app.id) {
+          <nz-card [nzBodyStyle]="{ padding: '14px 16px' }" class="unlocated-card">
+            <div class="unlocated-header">
+              <div class="unlocated-info">
+                <span class="unlocated-company">{{ app.company }}</span>
+                <span class="unlocated-job">{{ app.jobTitle }}</span>
               </div>
-              <div class="unlocated-form">
-                <input nz-input placeholder="Ex: Paris, Lyon, Bordeaux..."
-                  [(ngModel)]="manualLocations[app.id]"
-                  (keyup.enter)="saveManualLocation(app)"
-                  class="location-input" />
-                <button nz-button nzType="primary" nzSize="small"
-                  (click)="saveManualLocation(app)"
-                  [disabled]="!manualLocations[app.id]">
-                  <span nz-icon nzType="environment"></span>
-                </button>
-              </div>
-            </nz-card>
-          }
-        </div>
+              <nz-tag [nzColor]="getStatusTag(app.status)">{{ getStatusLabel(app.status) }}</nz-tag>
+            </div>
+            <div class="unlocated-form">
+              <input nz-input placeholder="Ex: Paris, Lyon, Bordeaux..."
+                [(ngModel)]="manualLocations[app.id]"
+                (keyup.enter)="saveManualLocation(app)"
+                class="location-input" />
+              <button nz-button nzType="primary" nzSize="small"
+                (click)="saveManualLocation(app)"
+                [disabled]="!manualLocations[app.id]">
+                <span nz-icon nzType="environment"></span>
+              </button>
+            </div>
+          </nz-card>
+        }
       }
-    </nz-tab>
-
-  </nz-tabset>
+    </div>
+  }
 
 </div>
 
