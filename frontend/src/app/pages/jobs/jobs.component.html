@@ -9,13 +9,54 @@
   </button>
 </div>
 
+@if (noCvUploaded()) {
+  <nz-alert
+    nzType="warning"
+    nzShowIcon
+    nzMessage="Uploadez votre CV pour obtenir un score de matching personnalisé"
+    nzDescription="Sans CV, les offres ne sont pas scorées. Rendez-vous sur la page CV pour uploader votre profil."
+    class="no-cv-alert"
+  >
+  </nz-alert>
+  <div class="no-cv-action">
+    <button nz-button nzType="primary" routerLink="/cv">
+      <span nz-icon nzType="file-text"></span> Uploader mon CV
+    </button>
+  </div>
+}
+
+@if (!loading() && jobs().length > 0) {
+  <div class="filter-bar">
+    <button
+      nz-button
+      [nzType]="scoreFilter() === 'all' ? 'primary' : 'default'"
+      nzSize="small"
+      (click)="setFilter('all')"
+    >Tous ({{ jobs().length }})</button>
+    <button
+      nz-button
+      [nzType]="scoreFilter() === 'good' ? 'primary' : 'default'"
+      nzSize="small"
+      class="filter-good"
+      (click)="setFilter('good')"
+    >Excellent ≥70%</button>
+    <button
+      nz-button
+      [nzType]="scoreFilter() === 'medium' ? 'primary' : 'default'"
+      nzSize="small"
+      class="filter-medium"
+      (click)="setFilter('medium')"
+    >Bon ≥40%</button>
+  </div>
+}
+
 @if (loading()) {
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
-} @else if (jobs().length === 0 && searched) {
+} @else if (filteredJobs().length === 0 && searched) {
   <nz-empty nzNotFoundContent="Aucune offre trouvée"></nz-empty>
 } @else {
   <div nz-row [nzGutter]="[16, 16]">
-    @for (job of jobs(); track job.id) {
+    @for (job of filteredJobs(); track job.id) {
       <div nz-col [nzXs]="24" [nzSm]="12" [nzLg]="8">
         <nz-card [nzBodyStyle]="{ padding: '16px' }" class="job-card">
           <div class="job-header">
@@ -23,7 +64,7 @@
               <div class="job-title">{{ job.title }}</div>
               <div class="job-company">{{ job.company }}</div>
             </div>
-            @if (job.matchScore != null) {
+            @if (job.matchScore != null && job.matchScore > 0) {
               <div class="job-score">
                 <nz-progress
                   [nzPercent]="job.matchScore"
@@ -48,13 +89,24 @@
             }
           </div>
 
-          @if (job.matchDetails?.matchedSkills?.length) {
-            <div class="matched-skills">
-              ✓ {{ job.matchDetails!.matchedSkills.slice(0, 3).join(', ') }}
+          @if (job.matchDetails?.matchedSkills?.length || job.matchDetails?.missingSkills?.length) {
+            <div class="skills-breakdown">
+              @if (job.matchDetails?.matchedSkills?.length) {
+                <div class="skills-row skills-row--matched">
+                  <span class="skills-icon">✓</span>
+                  <span class="skills-list">{{ job.matchDetails!.matchedSkills.slice(0, 4).join(' · ') }}</span>
+                </div>
+              }
+              @if (job.matchDetails?.missingSkills?.length) {
+                <div class="skills-row skills-row--missing">
+                  <span class="skills-icon">✗</span>
+                  <span class="skills-list">{{ job.matchDetails!.missingSkills.slice(0, 3).join(' · ') }}</span>
+                </div>
+              }
             </div>
           }
 
-          @if (job.matchDetails?.summary) {
+          @if (job.matchDetails?.summary && !noCvUploaded()) {
             <div class="match-summary">{{ job.matchDetails!.summary }}</div>
           }
 
@@ -68,10 +120,24 @@
             <button
               nz-button
               nzSize="small"
+              [nzType]="job.isApplied ? 'primary' : 'default'"
+              [nzLoading]="applyingIds().has(job.id)"
+              [disabled]="job.isApplied"
+              nz-tooltip
+              [nzTooltipTitle]="job.isApplied ? 'Candidature déjà envoyée' : 'Créer une candidature'"
+              (click)="applyFromJob(job)"
+            >
+              <span nz-icon [nzType]="job.isApplied ? 'check' : 'send'"></span>
+            </button>
+            <button
+              nz-button
+              nzSize="small"
               [nzType]="job.isSaved ? 'primary' : 'default'"
+              nz-tooltip
+              [nzTooltipTitle]="job.isSaved ? 'Retirer des favoris' : 'Sauvegarder'"
               (click)="toggleSave(job)"
             >
-              <span nz-icon [nzType]="job.isSaved ? 'heart' : 'heart'" [nzTheme]="job.isSaved ? 'fill' : 'outline'"></span>
+              <span nz-icon [nzType]="'heart'" [nzTheme]="job.isSaved ? 'fill' : 'outline'"></span>
             </button>
           </div>
         </nz-card>
