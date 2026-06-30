@@ -3,10 +3,14 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApplicationsService } from './applications.service';
-import { Application, ApplicationSource, ApplicationStatus } from './entities/application.entity';
+import {
+  Application,
+  ApplicationSource,
+  ApplicationStatus,
+} from './entities/application.entity';
 import { User } from '../users/entities/user.entity';
 
-const mockUser = (): User => ({ id: 'user-1' } as User);
+const mockUser = (): User => ({ id: 'user-1' }) as User;
 
 const mockApp = (overrides: Partial<Application> = {}): Application =>
   ({
@@ -19,7 +23,7 @@ const mockApp = (overrides: Partial<Application> = {}): Application =>
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
-  } as Application);
+  }) as Application;
 
 type MockRepo = Partial<Record<keyof Repository<Application>, jest.Mock>>;
 
@@ -53,7 +57,10 @@ describe('ApplicationsService', () => {
       repo.create!.mockReturnValue(app);
       repo.save!.mockResolvedValue(app);
 
-      const result = await service.create(mockUser(), { company: 'Google', jobTitle: 'Software Engineer' } as any);
+      const result = await service.create(mockUser(), {
+        company: 'Google',
+        jobTitle: 'Software Engineer',
+      });
       expect(repo.save).toHaveBeenCalled();
       expect(result.company).toBe('Google');
     });
@@ -63,7 +70,9 @@ describe('ApplicationsService', () => {
     it('returns applications for the given user', async () => {
       repo.find!.mockResolvedValue([mockApp()]);
       const result = await service.findAllByUser('user-1');
-      expect(repo.find).toHaveBeenCalledWith(expect.objectContaining({ where: { user: { id: 'user-1' } } }));
+      expect(repo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { user: { id: 'user-1' } } }),
+      );
       expect(result).toHaveLength(1);
     });
   });
@@ -72,21 +81,30 @@ describe('ApplicationsService', () => {
     it('updates and returns the application', async () => {
       const app = mockApp();
       repo.findOne!.mockResolvedValue(app);
-      repo.save!.mockResolvedValue({ ...app, status: ApplicationStatus.INTERVIEW });
+      repo.save!.mockResolvedValue({
+        ...app,
+        status: ApplicationStatus.INTERVIEW,
+      });
 
-      const result = await service.update('user-1', 'app-1', { status: ApplicationStatus.INTERVIEW });
+      const result = await service.update('user-1', 'app-1', {
+        status: ApplicationStatus.INTERVIEW,
+      });
       expect(result.status).toBe(ApplicationStatus.INTERVIEW);
     });
 
     it('throws NotFoundException when application does not exist', async () => {
       repo.findOne!.mockResolvedValue(null);
-      await expect(service.update('user-1', 'non-existent', {})).rejects.toThrow(NotFoundException);
+      await expect(
+        service.update('user-1', 'non-existent', {}),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws ForbiddenException when user does not own the application', async () => {
       const app = mockApp({ user: { id: 'other-user' } as User });
       repo.findOne!.mockResolvedValue(app);
-      await expect(service.update('user-1', 'app-1', {})).rejects.toThrow(ForbiddenException);
+      await expect(service.update('user-1', 'app-1', {})).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -102,13 +120,17 @@ describe('ApplicationsService', () => {
 
     it('throws NotFoundException when application does not exist', async () => {
       repo.findOne!.mockResolvedValue(null);
-      await expect(service.remove('user-1', 'non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('user-1', 'non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('throws ForbiddenException when user does not own the application', async () => {
       const app = mockApp({ user: { id: 'other-user' } as User });
       repo.findOne!.mockResolvedValue(app);
-      await expect(service.remove('user-1', 'app-1')).rejects.toThrow(ForbiddenException);
+      await expect(service.remove('user-1', 'app-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 

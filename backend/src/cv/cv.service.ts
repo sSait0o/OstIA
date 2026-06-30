@@ -1,8 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-
-const pdfParse: (
-  buf: Buffer,
-) => Promise<{ text: string }> = require('pdf-parse');
+import pdfParse from 'pdf-parse';
 import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';

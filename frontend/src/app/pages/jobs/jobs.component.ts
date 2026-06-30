@@ -93,7 +93,9 @@ export class JobsComponent implements OnInit {
     { label: 'Moyen (≥ 40%)', value: 'medium' },
   ];
 
-  scoreFilter = 'all';
+  private readonly _scoreFilter = signal('all');
+  get scoreFilter(): string { return this._scoreFilter(); }
+  set scoreFilter(v: string) { this._scoreFilter.set(v); }
 
   noCvUploaded = computed(() =>
     this.jobs().length > 0 &&
@@ -101,7 +103,8 @@ export class JobsComponent implements OnInit {
   );
 
   filteredJobs = computed(() => {
-    const threshold = this.scoreFilter === 'good' ? 70 : this.scoreFilter === 'medium' ? 40 : 0;
+    const filter = this._scoreFilter();
+    const threshold = filter === 'good' ? 70 : filter === 'medium' ? 40 : 0;
     return [...this.jobs()]
       .filter((j) => (j.matchScore ?? 0) >= threshold)
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));

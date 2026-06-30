@@ -17,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CvService } from './cv.service';
+import { User } from '../users/entities/user.entity';
 
 @ApiTags('CV')
 @ApiBearerAuth()
@@ -32,7 +33,7 @@ export class CvController {
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )
   async upload(
-    @Request() req: { user: any },
+    @Request() req: { user: User },
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('Aucun fichier fourni');
@@ -43,7 +44,7 @@ export class CvController {
 
   @Get()
   @ApiOperation({ summary: 'Récupérer les données du CV analysé' })
-  async getCv(@Request() req: { user: any }) {
+  async getCv(@Request() req: { user: User }) {
     return this.cvService.getCvData(req.user.id);
   }
 }

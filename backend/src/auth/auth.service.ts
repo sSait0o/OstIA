@@ -19,7 +19,7 @@ export class AuthService {
     return isMatch ? user : null;
   }
 
-  async login(user: User) {
+  login(user: User) {
     const payload = { sub: user.id, email: user.email };
     return {
       accessToken: this.jwtService.sign(payload),

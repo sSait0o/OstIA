@@ -17,11 +17,16 @@ const mockJob = (overrides: Partial<Job> = {}): Job =>
     isApplied: false,
     matchScore: 75,
     ...overrides,
-  } as Job);
+  }) as Job;
 
 describe('JobsService', () => {
   let service: JobsService;
-  let jobRepo: { findOne: jest.Mock; save: jest.Mock; find: jest.Mock; create: jest.Mock };
+  let jobRepo: {
+    findOne: jest.Mock;
+    save: jest.Mock;
+    find: jest.Mock;
+    create: jest.Mock;
+  };
 
   beforeEach(async () => {
     jobRepo = {
@@ -86,18 +91,25 @@ describe('JobsService', () => {
 
     it('throws NotFoundException when job does not belong to user', async () => {
       jobRepo.findOne.mockResolvedValue(null);
-      await expect(service.toggleSave('user-1', 'unknown')).rejects.toThrow(NotFoundException);
+      await expect(service.toggleSave('user-1', 'unknown')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('getSavedJobs', () => {
     it('returns saved jobs for user sorted by matchScore', async () => {
-      const jobs = [mockJob({ isSaved: true, matchScore: 50 }), mockJob({ id: 'job-2', isSaved: true, matchScore: 90 })];
+      const jobs = [
+        mockJob({ isSaved: true, matchScore: 50 }),
+        mockJob({ id: 'job-2', isSaved: true, matchScore: 90 }),
+      ];
       jobRepo.find.mockResolvedValue(jobs);
 
       const result = await service.getSavedJobs('user-1');
       expect(jobRepo.find).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { user: { id: 'user-1' }, isSaved: true } }),
+        expect.objectContaining({
+          where: { user: { id: 'user-1' }, isSaved: true },
+        }),
       );
       expect(result).toHaveLength(2);
     });

@@ -1,9 +1,15 @@
-import { Controller, Post, Body, UseGuards, Request, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
@@ -24,7 +30,7 @@ export class AuthController {
   @Post('login')
   @Throttle({ short: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Se connecter' })
-  login(@Request() req: { user: User }, @Body() _: LoginDto) {
+  login(@Request() req: { user: User }) {
     return this.authService.login(req.user);
   }
 

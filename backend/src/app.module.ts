@@ -23,7 +23,7 @@ import { AiModule } from './ai/ai.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
         const isProd = configService.get('NODE_ENV') === 'production';
-        const databaseUrl = configService.get('DATABASE_URL');
+        const databaseUrl = configService.get<string>('DATABASE_URL');
         const rejectUnauthorized =
           configService.get('DB_SSL_REJECT_UNAUTHORIZED', 'true') !== 'false';
         return {
@@ -34,7 +34,10 @@ import { AiModule } from './ai/ai.module';
                 host: configService.get<string>('DB_HOST', 'localhost'),
                 port: configService.get<number>('DB_PORT', 5432),
                 username: configService.get<string>('DB_USER', 'ostia_user'),
-                password: configService.get<string>('DB_PASSWORD', 'ostia_secret'),
+                password: configService.get<string>(
+                  'DB_PASSWORD',
+                  'ostia_secret',
+                ),
                 database: configService.get<string>('DB_NAME', 'ostia'),
               }),
           ssl: isProd ? { rejectUnauthorized } : false,

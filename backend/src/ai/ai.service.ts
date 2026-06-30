@@ -36,11 +36,10 @@ export class AiService {
     emailId: string,
   ): Promise<ParsedApplication | null> {
     try {
-      const { data } = await axios.post(`${this.coreUrl}/cv/parse-email`, {
-        subject: emailSubject,
-        body: emailBody,
-        emailId,
-      });
+      const { data } = await axios.post<Omit<ParsedApplication, 'source'>>(
+        `${this.coreUrl}/cv/parse-email`,
+        { subject: emailSubject, body: emailBody, emailId },
+      );
       return { ...data, source: ApplicationSource.EMAIL };
     } catch {
       return null;
@@ -48,16 +47,15 @@ export class AiService {
   }
 
   async matchCvToJob(
-    cvData: Record<string, any>,
+    cvData: Record<string, unknown>,
     jobTitle: string,
     jobDescription: string,
   ): Promise<CvMatchResult> {
     try {
-      const { data } = await axios.post(`${this.coreUrl}/matching/score`, {
-        cvData,
-        jobTitle,
-        jobDescription,
-      });
+      const { data } = await axios.post<CvMatchResult>(
+        `${this.coreUrl}/matching/score`,
+        { cvData, jobTitle, jobDescription },
+      );
       return data;
     } catch {
       return {
@@ -69,9 +67,12 @@ export class AiService {
     }
   }
 
-  async extractCvData(text: string): Promise<Record<string, any>> {
+  async extractCvData(text: string): Promise<Record<string, unknown>> {
     try {
-      const { data } = await axios.post(`${this.coreUrl}/cv/extract`, { text });
+      const { data } = await axios.post<Record<string, unknown>>(
+        `${this.coreUrl}/cv/extract`,
+        { text },
+      );
       return data;
     } catch {
       return {};
@@ -79,12 +80,13 @@ export class AiService {
   }
 
   async computeAnalytics(
-    applications: Record<string, any>[],
-  ): Promise<Record<string, any>> {
+    applications: Record<string, unknown>[],
+  ): Promise<Record<string, unknown>> {
     try {
-      const { data } = await axios.post(`${this.coreUrl}/analytics/stats`, {
-        applications,
-      });
+      const { data } = await axios.post<Record<string, unknown>>(
+        `${this.coreUrl}/analytics/stats`,
+        { applications },
+      );
       return data;
     } catch {
       return {};

@@ -17,7 +17,7 @@ import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { EmailService } from '../email/email.service';
-import { ApplicationStatus } from './entities/application.entity';
+import { User } from '../users/entities/user.entity';
 
 @ApiTags('Applications')
 @ApiBearerAuth()
@@ -31,14 +31,17 @@ export class ApplicationsController {
 
   @Post()
   @ApiOperation({ summary: 'Créer une candidature' })
-  create(@Request() req: { user: any }, @Body() dto: CreateApplicationDto) {
+  create(
+    @Request() req: { user: User },
+    @Body() dto: CreateApplicationDto,
+  ) {
     return this.applicationsService.create(req.user, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Lister toutes les candidatures (paginé)' })
   findAll(
-    @Request() req: { user: any },
+    @Request() req: { user: User },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -51,19 +54,19 @@ export class ApplicationsController {
 
   @Get('kanban')
   @ApiOperation({ summary: 'Candidatures groupées par statut (Kanban)' })
-  kanban(@Request() req: { user: any }) {
+  kanban(@Request() req: { user: User }) {
     return this.applicationsService.findByStatus(req.user.id);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Statistiques des candidatures' })
-  stats(@Request() req: { user: any }) {
+  stats(@Request() req: { user: User }) {
     return this.applicationsService.getStats(req.user.id);
   }
 
   @Get('map')
   @ApiOperation({ summary: 'Candidatures avec coordonnées pour la carte' })
-  map(@Request() req: { user: any }) {
+  map(@Request() req: { user: User }) {
     return this.applicationsService.findForMap(req.user.id);
   }
 
@@ -71,7 +74,7 @@ export class ApplicationsController {
   @ApiOperation({
     summary: 'Supprimer les candidatures en double (même entreprise + poste)',
   })
-  deduplicate(@Request() req: { user: any }) {
+  deduplicate(@Request() req: { user: User }) {
     return this.applicationsService.deduplicateApplications(req.user.id);
   }
 
@@ -79,14 +82,14 @@ export class ApplicationsController {
   @ApiOperation({
     summary: 'Réinitialiser les coordonnées de toutes les candidatures',
   })
-  resetCoordinates(@Request() req: { user: any }) {
+  resetCoordinates(@Request() req: { user: User }) {
     return this.applicationsService.resetAllCoordinates(req.user.id);
   }
 
   @Patch(':id/coordinates')
   @ApiOperation({ summary: 'Enregistrer les coordonnées géocodées' })
   saveCoordinates(
-    @Request() req: { user: any },
+    @Request() req: { user: User },
     @Param('id') id: string,
     @Body() body: { lat: number; lon: number; resolvedLocation: string },
   ) {
@@ -96,7 +99,7 @@ export class ApplicationsController {
   @Patch(':id')
   @ApiOperation({ summary: 'Mettre à jour une candidature' })
   async update(
-    @Request() req: { user: any },
+    @Request() req: { user: User },
     @Param('id') id: string,
     @Body() dto: UpdateApplicationDto,
   ) {
@@ -111,7 +114,7 @@ export class ApplicationsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Supprimer une candidature' })
-  remove(@Request() req: { user: any }, @Param('id') id: string) {
+  remove(@Request() req: { user: User }, @Param('id') id: string) {
     return this.applicationsService.remove(req.user.id, id);
   }
 }

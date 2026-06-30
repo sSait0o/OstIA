@@ -10,6 +10,7 @@ import {
   Redirect,
   Sse,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
@@ -60,7 +61,10 @@ export class EmailController {
 
   @Delete('connections/:id')
   @ApiOperation({ summary: 'Déconnecter un compte email' })
-  disconnect(@Request() req: { user: { id: string } }, @Param('id') id: string) {
+  disconnect(
+    @Request() req: { user: { id: string } },
+    @Param('id') id: string,
+  ) {
     return this.emailService.disconnect(req.user.id, id);
   }
 }
@@ -98,10 +102,15 @@ export class EmailCallbackController {
   @ApiOperation({ summary: 'Callback OAuth2 Google (public)' })
   async googleCallback(
     @Query('code') code: string,
-    @Query('state') userId: string,
+    @Query('state') state: string,
   ) {
+    const userId = this.emailService.verifyOAuthState(state);
+    if (!userId) throw new BadRequestException('Invalid OAuth state');
     await this.emailService.handleGoogleCallback(code, userId);
-    const frontendUrl = this.configService.get('FRONTEND_URL', 'http://localhost:4200');
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:4200',
+    );
     return { url: `${frontendUrl}/dashboard?gmail=connected` };
   }
 
@@ -110,10 +119,15 @@ export class EmailCallbackController {
   @ApiOperation({ summary: 'Callback OAuth2 Microsoft (public)' })
   async microsoftCallback(
     @Query('code') code: string,
-    @Query('state') userId: string,
+    @Query('state') state: string,
   ) {
+    const userId = this.emailService.verifyOAuthState(state);
+    if (!userId) throw new BadRequestException('Invalid OAuth state');
     await this.emailService.handleMicrosoftCallback(code, userId);
-    const frontendUrl = this.configService.get('FRONTEND_URL', 'http://localhost:4200');
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:4200',
+    );
     return { url: `${frontendUrl}/dashboard?outlook=connected` };
   }
 }

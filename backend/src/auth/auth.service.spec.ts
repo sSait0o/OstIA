@@ -13,7 +13,7 @@ const mockUser = (): User =>
     firstName: 'Test',
     lastName: 'User',
     password: bcrypt.hashSync('password123', 10),
-  } as User);
+  }) as User;
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -55,7 +55,10 @@ describe('AuthService', () => {
 
     it('returns null when user does not exist', async () => {
       usersService.findByEmail.mockResolvedValue(null);
-      const result = await service.validateUser('unknown@example.com', 'password');
+      const result = await service.validateUser(
+        'unknown@example.com',
+        'password',
+      );
       expect(result).toBeNull();
     });
 
@@ -68,11 +71,14 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('returns access token and user data', async () => {
+    it('returns access token and user data', () => {
       const user = mockUser();
-      const result = await service.login(user);
+      const result = service.login(user);
 
-      expect(jwtService.sign).toHaveBeenCalledWith({ sub: user.id, email: user.email });
+      expect(jest.mocked(jwtService.sign)).toHaveBeenCalledWith({
+        sub: user.id,
+        email: user.email,
+      });
       expect(result.accessToken).toBe('mock-jwt-token');
       expect(result.user.id).toBe(user.id);
       expect(result.user.email).toBe(user.email);
@@ -92,14 +98,19 @@ describe('AuthService', () => {
         lastName: user.lastName,
       });
 
-      expect(usersService.create).toHaveBeenCalled();
+      expect(jest.mocked(usersService.create)).toHaveBeenCalled();
       expect(result.accessToken).toBe('mock-jwt-token');
     });
 
     it('throws ConflictException when email already exists', async () => {
       usersService.findByEmail.mockResolvedValue(mockUser());
       await expect(
-        service.register({ email: 'test@example.com', password: 'pass', firstName: 'A', lastName: 'B' }),
+        service.register({
+          email: 'test@example.com',
+          password: 'pass',
+          firstName: 'A',
+          lastName: 'B',
+        }),
       ).rejects.toThrow(ConflictException);
     });
   });

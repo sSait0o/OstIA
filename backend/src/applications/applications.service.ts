@@ -38,7 +38,12 @@ export class ApplicationsService {
     userId: string,
     page = 1,
     limit = 20,
-  ): Promise<{ data: Application[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: Application[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const [data, total] = await this.appRepo.findAndCount({
       where: { user: { id: userId } },
       order: { updatedAt: 'DESC' },
@@ -145,9 +150,7 @@ export class ApplicationsService {
     const apps = await this.findAllByUser(userId);
     await Promise.all(
       apps.map((a) => {
-        a.lat = null as any;
-        a.lon = null as any;
-        a.resolvedLocation = null as any;
+        Object.assign(a, { lat: null, lon: null, resolvedLocation: null });
         return this.appRepo.save(a);
       }),
     );

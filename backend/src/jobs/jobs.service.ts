@@ -93,8 +93,12 @@ export class JobsService {
       return this.franceTravailToken;
     }
 
-    const clientId = this.configService.get('FRANCE_TRAVAIL_CLIENT_ID');
-    const clientSecret = this.configService.get('FRANCE_TRAVAIL_CLIENT_SECRET');
+    const clientId = this.configService.get<string>(
+      'FRANCE_TRAVAIL_CLIENT_ID',
+    )!;
+    const clientSecret = this.configService.get<string>(
+      'FRANCE_TRAVAIL_CLIENT_SECRET',
+    )!;
 
     const response = await axios.post<FranceTravailToken>(
       'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire',
