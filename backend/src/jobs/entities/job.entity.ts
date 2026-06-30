@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -13,6 +14,7 @@ export class Job {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @ManyToOne(() => User, (user) => user.savedJobs, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

@@ -3,7 +3,7 @@
 
 <div class="search-bar">
   <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" (keyup.enter)="search()" />
-  <input nz-input placeholder="Département (ex: 75, 69, 13)" [(ngModel)]="location" class="search-location" (keyup.enter)="search()" />
+  <input nz-input placeholder="Ville (ex: Paris, Lyon...)" [(ngModel)]="location" class="search-location" (keyup.enter)="search()" />
   <button nz-button nzType="primary" (click)="search()" [nzLoading]="loading()">
     <span nz-icon nzType="search"></span> Rechercher
   </button>
