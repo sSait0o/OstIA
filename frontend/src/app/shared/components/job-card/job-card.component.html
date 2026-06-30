@@ -1,4 +1,4 @@
-<nz-card [nzBodyStyle]="{ padding: '16px' }" class="job-card">
+<nz-card [nzBodyStyle]="{ padding: '16px' }" class="job-card" (click)="openOffer()">
   <div class="job-header">
     <div class="job-info">
       <div class="job-title">{{ job.title }}</div>
@@ -22,14 +22,12 @@
       <nz-tag nzColor="default"><span nz-icon nzType="environment"></span> {{ job.location }}</nz-tag>
     }
     @if (job.contractType) {
-      <nz-tag nzColor="blue">{{ job.contractType }}</nz-tag>
+      <nz-tag nzColor="default">{{ job.contractType }}</nz-tag>
     }
     @if (job.salary) {
-      <nz-tag nzColor="green">{{ job.salary }}</nz-tag>
+      <nz-tag nzColor="default">{{ job.salary }}</nz-tag>
     }
-    @if (job.source === 'adzuna') {
-      <nz-tag nzColor="purple">Adzuna</nz-tag>
-    }
+
   </div>
 
   @if (job.matchDetails?.matchedSkills?.length || job.matchDetails?.missingSkills?.length) {
@@ -49,17 +47,9 @@
     </div>
   }
 
-  @if (job.matchDetails?.summary && showSummary) {
-    <div class="match-summary">{{ job.matchDetails!.summary }}</div>
-  }
 
   <nz-divider class="job-divider"></nz-divider>
-  <div class="job-actions">
-    @if (job.url) {
-      <a [href]="job.url" target="_blank" style="flex: 1">
-        <button nz-button nzSize="small" nzBlock>Voir l'offre</button>
-      </a>
-    }
+  <div class="job-actions" (click)="$event.stopPropagation()">
     <button
       nz-button
       nzSize="small"
