@@ -83,6 +83,15 @@
       <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
     }
   </nz-select>
+
+  <nz-select
+    [(ngModel)]="scoreFilter"
+    class="filter-select"
+  >
+    @for (opt of scoreFilterOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
 </div>
 
 @if (noCvUploaded()) {
