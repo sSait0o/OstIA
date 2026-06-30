@@ -83,7 +83,7 @@ export class Application {
   @Column({ nullable: true, type: 'float' })
   lon: number | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   resolvedLocation: string | null;
 
   @Column({ nullable: true })
