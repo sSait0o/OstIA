@@ -156,9 +156,14 @@ export class JobsService {
     const page = params.page || 1;
     const start = (page - 1) * perPage;
 
+    const minCreationDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
+
     const queryParams: Record<string, string> = {
       motsCles: params.keywords || '',
       range: `${start}-${start + perPage - 1}`,
+      minCreationDate,
     };
 
     if (params.location) {
@@ -221,6 +226,7 @@ export class JobsService {
       app_id: appId,
       app_key: appKey,
       results_per_page: 3,
+      max_days_old: 30,
     };
 
     if (params.keywords) queryParams['what'] = params.keywords;

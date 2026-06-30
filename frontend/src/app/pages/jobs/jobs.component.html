@@ -3,7 +3,29 @@
 
 <div class="search-bar">
   <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" (keyup.enter)="search()" />
-  <input nz-input placeholder="Ville (ex: Paris, Lyon...)" [(ngModel)]="location" class="search-location" (keyup.enter)="search()" />
+  <div class="search-location-group">
+    <input
+      nz-input
+      placeholder="Ville (ex: Paris, Lyon...)"
+      [(ngModel)]="location"
+      class="search-location"
+      (ngModelChange)="onLocationInput($event)"
+      (keyup.enter)="search()"
+      [nzAutocomplete]="cityAuto"
+    />
+    <nz-autocomplete #cityAuto [nzBackfill]="false">
+      @for (city of citySuggestions(); track city.name + city.dept) {
+        <nz-auto-option [nzValue]="city.name" (click)="onCitySelect(city)">
+          {{ city.name }} <span class="city-dept">({{ city.dept }})</span>
+        </nz-auto-option>
+      }
+    </nz-autocomplete>
+    <nz-select [(ngModel)]="distance" nzPlaceHolder="Rayon" nzAllowClear class="search-distance">
+      @for (opt of distanceOptions; track opt.value) {
+        <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+      }
+    </nz-select>
+  </div>
   <button nz-button nzType="primary" (click)="search()" [nzLoading]="loading()">
     <span nz-icon nzType="search"></span> Rechercher
   </button>
@@ -50,17 +72,6 @@
     class="filter-select"
   >
     @for (opt of remoteOptions; track opt.value) {
-      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
-    }
-  </nz-select>
-
-  <nz-select
-    [(ngModel)]="distance"
-    nzPlaceHolder="Distance"
-    nzAllowClear
-    class="filter-select filter-select--sm"
-  >
-    @for (opt of distanceOptions; track opt.value) {
       <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
     }
   </nz-select>

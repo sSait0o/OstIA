@@ -10,7 +10,33 @@
 }
 
 .search-keywords { flex: 2; }
-.search-location  { flex: 1; }
+
+.search-location-group {
+  flex: 1;
+  display: flex;
+  gap: 0;
+
+  .search-location {
+    flex: 1;
+    border-radius: 6px 0 0 6px !important;
+  }
+
+  .search-distance {
+    width: 110px;
+    flex-shrink: 0;
+
+    ::ng-deep .ant-select-selector {
+      border-radius: 0 6px 6px 0 !important;
+      border-left: none !important;
+    }
+  }
+}
+
+.city-dept {
+  color: #8c8c8c;
+  font-size: 12px;
+  margin-left: 4px;
+}
 
 .filter-row {
   display: flex;

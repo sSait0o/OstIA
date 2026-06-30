@@ -1,6 +1,10 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { Subject, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
@@ -12,8 +16,12 @@ import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzAutocompleteModule } from 'ng-zorro-antd/auto-complete';
 import { JobsService, Job, JobSearchParams } from '../../core/services/jobs.service';
 import { JobCardComponent } from '../../shared/components/job-card/job-card.component';
+
+interface CityOption { name: string; dept: string }
+interface GeoCommune { nom: string; codeDepartement: string }
 
 @Component({
   selector: 'app-jobs',
@@ -24,6 +32,7 @@ import { JobCardComponent } from '../../shared/components/job-card/job-card.comp
     NzInputModule, NzInputNumberModule, NzSpinModule,
     NzEmptyModule, NzGridModule,
     NzAlertModule, NzPaginationModule, NzSelectModule,
+    NzAutocompleteModule,
     JobCardComponent,
   ],
   templateUrl: './jobs.component.html',
@@ -34,6 +43,11 @@ export class JobsComponent implements OnInit {
   private readonly message = inject(NzMessageService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly http = inject(HttpClient);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly locationInput$ = new Subject<string>();
+
+  citySuggestions = signal<CityOption[]>([]);
 
   loading = signal(false);
   jobs = signal<Job[]>([]);
@@ -111,6 +125,19 @@ export class JobsComponent implements OnInit {
   });
 
   ngOnInit() {
+    this.locationInput$.pipe(
+      debounceTime(250),
+      distinctUntilChanged(),
+      switchMap(q =>
+        q.length < 2
+          ? of([])
+          : this.http.get<GeoCommune[]>('https://geo.api.gouv.fr/communes', {
+              params: { nom: q, fields: 'nom,codeDepartement', boost: 'population', limit: '6' },
+            }).pipe(catchError(() => of([])))
+      ),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(results => this.citySuggestions.set(results.map(r => ({ name: r.nom, dept: r.codeDepartement }))));
+
     const qp = this.route.snapshot.queryParams;
     this.keywords = qp['keywords'] ?? '';
     this.location = qp['location'] ?? '';
@@ -138,6 +165,15 @@ export class JobsComponent implements OnInit {
       this.currentPage.set(page);
       this.fetch(page);
     }
+  }
+
+  onLocationInput(value: string) {
+    this.locationInput$.next(value);
+  }
+
+  onCitySelect(city: CityOption) {
+    this.location = city.name;
+    this.citySuggestions.set([]);
   }
 
   search() {
