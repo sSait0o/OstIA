@@ -41,7 +41,7 @@ coverage/
 # NestJS
 backend/dist/
 
-# Uploaded files (user CV uploads — never commit)
+# Uploaded files (user CV uploads - never commit)
 backend/uploads/*
 !backend/uploads/.gitkeep
 

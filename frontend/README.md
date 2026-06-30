@@ -1,4 +1,4 @@
-# OstIA — Frontend
+# OstIA - Frontend
 
 Application web construite avec **Angular 19** (standalone components) + **NG-Zorro** (Ant Design).
 
@@ -7,7 +7,7 @@ Application web construite avec **Angular 19** (standalone components) + **NG-Zo
 ```
 src/app/
 ├── app.config.ts         # Configuration Angular (providers, router, HTTP, i18n)
-├── app.routes.ts         # Routes lazy-loaded — chaque page est un chunk séparé
+├── app.routes.ts         # Routes lazy-loaded - chaque page est un chunk séparé
 │
 ├── core/                 # Services singleton injectés une seule fois au niveau de l'app
 │   ├── services/         # Appels API backend (auth, applications, cv, email, jobs, map)
