@@ -65,4 +65,8 @@ export class JobCardComponent {
   onToggleSave() {
     this.toggleSave.emit(this.job);
   }
+
+  openOffer() {
+    if (this.job.url) window.open(this.job.url, '_blank');
+  }
 }

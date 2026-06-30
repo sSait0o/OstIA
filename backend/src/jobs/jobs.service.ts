@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import axios from 'axios';
 import { Job } from './entities/job.entity';
 import { AiService } from '../ai/ai.service';
@@ -85,7 +85,11 @@ export class JobsService {
   ) {}
 
   private async getFranceTravailToken(): Promise<string> {
-    if (this.franceTravailToken && this.tokenExpiry && this.tokenExpiry > new Date()) {
+    if (
+      this.franceTravailToken &&
+      this.tokenExpiry &&
+      this.tokenExpiry > new Date()
+    ) {
       return this.franceTravailToken;
     }
 
@@ -104,16 +108,40 @@ export class JobsService {
     );
 
     this.franceTravailToken = response.data.access_token;
-    this.tokenExpiry = new Date(Date.now() + (response.data.expires_in - 60) * 1000);
+    this.tokenExpiry = new Date(
+      Date.now() + (response.data.expires_in - 60) * 1000,
+    );
     return this.franceTravailToken;
   }
 
   private extractKeywordsFromCv(cvData: Record<string, unknown>): string {
-    const experience = cvData.experience as Array<{ title?: string }> | undefined;
+    const experience = cvData.experience as
+      | Array<{ title?: string }>
+      | undefined;
     if (experience?.length && experience[0].title) return experience[0].title;
     const skills = cvData.skills as string[] | undefined;
     if (skills?.length) return skills[0];
     return '';
+  }
+
+  private async resolveToInseeCode(cityName: string): Promise<string | null> {
+    try {
+      const response = await axios.get<Array<{ code: string }>>(
+        'https://geo.api.gouv.fr/communes',
+        {
+          params: {
+            nom: cityName,
+            fields: 'code',
+            boost: 'population',
+            limit: 1,
+          },
+          timeout: 3000,
+        },
+      );
+      return response.data[0]?.code ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async searchFranceTravail(
@@ -129,8 +157,19 @@ export class JobsService {
       range: `${start}-${start + perPage - 1}`,
     };
 
-    if (params.location) queryParams['departement'] = params.location;
-    if (params.contractTypes?.length) queryParams['typeContrat'] = params.contractTypes.join(',');
+    if (params.location) {
+      const isDeptCode = /^\d{1,3}$/.test(params.location.trim());
+      if (isDeptCode) {
+        queryParams['departement'] = params.location;
+      } else {
+        const inseeCode = await this.resolveToInseeCode(params.location);
+        if (inseeCode) {
+          queryParams['commune'] = inseeCode;
+        }
+      }
+    }
+    if (params.contractTypes?.length)
+      queryParams['typeContrat'] = params.contractTypes.join(',');
     if (params.experience) queryParams['experience'] = params.experience;
     if (params.distance) queryParams['distance'] = String(params.distance);
     if (params.fullTime === true) queryParams['tempsPlein'] = 'true';
@@ -187,15 +226,18 @@ export class JobsService {
     if (params.fullTime === true) queryParams['full_time'] = 1;
     if (params.fullTime === false) queryParams['part_time'] = 1;
     if (params.sortBy === 'date') queryParams['sort_by'] = 'date';
-    else if (params.sortBy === 'pertinence') queryParams['sort_by'] = 'relevance';
+    else if (params.sortBy === 'pertinence')
+      queryParams['sort_by'] = 'relevance';
 
     if (params.contractTypes?.length) {
       const hasPermanent = params.contractTypes.includes('CDI');
       const hasContract = params.contractTypes.some((c) =>
         ['CDD', 'MIS'].includes(c),
       );
-      if (hasPermanent && !hasContract) queryParams['contract_type'] = 'permanent';
-      else if (hasContract && !hasPermanent) queryParams['contract_type'] = 'contract';
+      if (hasPermanent && !hasContract)
+        queryParams['contract_type'] = 'permanent';
+      else if (hasContract && !hasPermanent)
+        queryParams['contract_type'] = 'contract';
     }
 
     const response = await axios.get<AdzunaResponse>(
@@ -277,11 +319,17 @@ export class JobsService {
     const allOffers = [...ftOffers, ...adzunaOffers];
     const total = Math.max(ftTotal, adzunaTotal);
 
+    const externalIds = allOffers.map((o) => o.externalId);
+    const existingJobs = await this.jobRepo.find({
+      where: { externalId: In(externalIds), user: { id: userId } },
+    });
+    const existingByExternalId = new Map(
+      existingJobs.map((j) => [j.externalId, j]),
+    );
+
     const jobs = await Promise.all(
       allOffers.map(async (offer) => {
-        const existing = await this.jobRepo.findOne({
-          where: { externalId: offer.externalId, user: { id: userId } },
-        });
+        const existing = existingByExternalId.get(offer.externalId);
 
         if (existing && existing.matchScore != null) {
           return existing;
@@ -314,7 +362,9 @@ export class JobsService {
           user: { id: userId } as User,
           matchScore: match.score ?? 0,
           matchDetails: match,
-          publishedAt: offer.publishedAt ? new Date(offer.publishedAt) : undefined,
+          publishedAt: offer.publishedAt
+            ? new Date(offer.publishedAt)
+            : undefined,
         });
         return this.jobRepo.save(job);
       }),
@@ -336,8 +386,10 @@ export class JobsService {
   }
 
   async toggleSave(userId: string, jobId: string): Promise<Job> {
-    const job = await this.jobRepo.findOne({ where: { id: jobId, user: { id: userId } } });
-    if (!job) throw new Error('Offre non trouvée');
+    const job = await this.jobRepo.findOne({
+      where: { id: jobId, user: { id: userId } },
+    });
+    if (!job) throw new NotFoundException();
     job.isSaved = !job.isSaved;
     return this.jobRepo.save(job);
   }

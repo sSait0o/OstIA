@@ -1,6 +1,17 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsUrl, IsDateString, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+  IsUrl,
+  IsDateString,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ApplicationStatus, ApplicationSource } from '../entities/application.entity';
+import {
+  ApplicationStatus,
+  ApplicationSource,
+} from '../entities/application.entity';
 
 export class CreateApplicationDto {
   @ApiProperty({ example: 'Google' })
@@ -13,12 +24,18 @@ export class CreateApplicationDto {
   @IsNotEmpty()
   jobTitle: string;
 
-  @ApiPropertyOptional({ enum: ApplicationStatus, default: ApplicationStatus.APPLIED })
+  @ApiPropertyOptional({
+    enum: ApplicationStatus,
+    default: ApplicationStatus.APPLIED,
+  })
   @IsEnum(ApplicationStatus)
   @IsOptional()
   status?: ApplicationStatus;
 
-  @ApiPropertyOptional({ enum: ApplicationSource, default: ApplicationSource.MANUAL })
+  @ApiPropertyOptional({
+    enum: ApplicationSource,
+    default: ApplicationSource.MANUAL,
+  })
   @IsEnum(ApplicationSource)
   @IsOptional()
   source?: ApplicationSource;

@@ -1,4 +1,4 @@
-# OstIA — Backend
+# OstIA - Backend
 
 API REST construite avec **NestJS** (TypeScript) + **TypeORM** + **PostgreSQL**.
 
@@ -6,8 +6,8 @@ API REST construite avec **NestJS** (TypeScript) + **TypeORM** + **PostgreSQL**.
 
 ```
 src/
-├── app.module.ts         # Module racine — configure TypeORM + importe tous les modules
-├── main.ts               # Point d'entrée — démarre le serveur, configure Swagger, CORS, validation
+├── app.module.ts         # Module racine - configure TypeORM + importe tous les modules
+├── main.ts               # Point d'entrée - démarre le serveur, configure Swagger, CORS, validation
 │
 ├── auth/                 # Authentification JWT
 │   ├── strategies/       # Stratégies Passport (jwt, jwt-query, local)
@@ -23,11 +23,11 @@ src/
 ```
 
 Chaque module suit la même convention NestJS :
-- `*.module.ts` — déclare le module (contrôleurs, providers, imports)
-- `*.controller.ts` — définit les routes HTTP
-- `*.service.ts` — contient la logique métier
-- `dto/` — classes de validation (class-validator)
-- `entities/` — entités TypeORM (schéma BDD)
+- `*.module.ts` - déclare le module (contrôleurs, providers, imports)
+- `*.controller.ts` - définit les routes HTTP
+- `*.service.ts` - contient la logique métier
+- `dto/` - classes de validation (class-validator)
+- `entities/` - entités TypeORM (schéma BDD)
 
 ## Prérequis
 
@@ -46,7 +46,7 @@ La documentation Swagger est disponible sur `http://localhost:3000/api/docs`.
 
 ## Variables d'environnement
 
-Voir [`.env.example`](.env.example) — toutes les variables sont documentées dans ce fichier.
+Voir [`.env.example`](.env.example) - toutes les variables sont documentées dans ce fichier.
 
 ## Scripts utiles
 

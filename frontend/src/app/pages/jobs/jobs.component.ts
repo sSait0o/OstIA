@@ -87,14 +87,25 @@ export class JobsComponent implements OnInit {
     { label: 'Plus récentes', value: 'date' },
   ];
 
+  readonly scoreFilterOptions = [
+    { label: 'Tous', value: 'all' },
+    { label: 'Bon match (≥ 70%)', value: 'good' },
+    { label: 'Moyen (≥ 40%)', value: 'medium' },
+  ];
+
+  scoreFilter = 'all';
+
   noCvUploaded = computed(() =>
     this.jobs().length > 0 &&
     this.jobs().every((j) => !j.matchScore && j.matchDetails?.summary?.includes('CV'))
   );
 
-  filteredJobs = computed(() =>
-    [...this.jobs()].sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
-  );
+  filteredJobs = computed(() => {
+    const threshold = this.scoreFilter === 'good' ? 70 : this.scoreFilter === 'medium' ? 40 : 0;
+    return [...this.jobs()]
+      .filter((j) => (j.matchScore ?? 0) >= threshold)
+      .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
+  });
 
   ngOnInit() {
     const qp = this.route.snapshot.queryParams;

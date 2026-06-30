@@ -3,7 +3,7 @@
 
 <div class="search-bar">
   <input nz-input placeholder="Mots-clés (ex: data engineer alternance)" [(ngModel)]="keywords" class="search-keywords" (keyup.enter)="search()" />
-  <input nz-input placeholder="Département (ex: 75, 69, 13)" [(ngModel)]="location" class="search-location" (keyup.enter)="search()" />
+  <input nz-input placeholder="Ville (ex: Paris, Lyon...)" [(ngModel)]="location" class="search-location" (keyup.enter)="search()" />
   <button nz-button nzType="primary" (click)="search()" [nzLoading]="loading()">
     <span nz-icon nzType="search"></span> Rechercher
   </button>
@@ -80,6 +80,15 @@
     class="filter-select filter-select--sm"
   >
     @for (opt of sortOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+
+  <nz-select
+    [(ngModel)]="scoreFilter"
+    class="filter-select"
+  >
+    @for (opt of scoreFilterOptions; track opt.value) {
       <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
     }
   </nz-select>
