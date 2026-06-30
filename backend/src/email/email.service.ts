@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
-import { google } from 'googleapis';
+import { google, gmail_v1 } from 'googleapis';
+import { OAuth2Client } from 'googleapis-common';
 import { Observable } from 'rxjs';
 import axios from 'axios';
 import { EmailConnection, EmailProvider } from './entities/email-connection.entity';
@@ -10,6 +11,8 @@ import { User } from '../users/entities/user.entity';
 import { AiService } from '../ai/ai.service';
 import { ApplicationsService } from '../applications/applications.service';
 import { ApplicationSource, ApplicationStatus } from '../applications/entities/application.entity';
+import { CreateApplicationDto } from '../applications/dto/create-application.dto';
+import { EncryptionService } from '../common/encryption.service';
 
 export interface SyncProgress {
   percent: number;
@@ -18,6 +21,29 @@ export interface SyncProgress {
   created?: number;
   skipped?: number;
   failed?: number;
+}
+
+interface MicrosoftTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+}
+
+interface MicrosoftProfile {
+  mail?: string;
+  userPrincipalName?: string;
+}
+
+interface OutlookFolder {
+  displayName?: string;
+  id?: string;
+}
+
+interface OutlookMessage {
+  subject?: string;
+  body?: { content?: string };
+  internetMessageId?: string;
+  id?: string;
 }
 
 const OSTIA_LABEL = 'OstIA';
@@ -34,12 +60,13 @@ const STATUS_TO_SUBLABEL: Partial<Record<ApplicationStatus, string>> = {
 
 @Injectable()
 export class EmailService {
-  private readonly googleOAuth2Client;
+  private readonly googleOAuth2Client: OAuth2Client;
 
   constructor(
     @InjectRepository(EmailConnection)
     private readonly connectionRepo: Repository<EmailConnection>,
     private readonly configService: ConfigService,
+    private readonly encryptionService: EncryptionService,
     private readonly aiService: AiService,
     private readonly applicationsService: ApplicationsService,
   ) {
@@ -47,7 +74,7 @@ export class EmailService {
       this.configService.get('GOOGLE_CLIENT_ID'),
       this.configService.get('GOOGLE_CLIENT_SECRET'),
       this.configService.get('GOOGLE_REDIRECT_URI'),
-    );
+    ) as unknown as OAuth2Client;
   }
 
   getGoogleAuthUrl(userId: string): string {
@@ -78,8 +105,8 @@ export class EmailService {
     });
 
     connection.email = profile.data.emailAddress ?? '';
-    connection.accessToken = tokens.access_token!;
-    connection.refreshToken = tokens.refresh_token ?? connection.refreshToken;
+    connection.accessToken = this.encryptionService.encrypt(tokens.access_token!);
+    if (tokens.refresh_token) connection.refreshToken = this.encryptionService.encrypt(tokens.refresh_token);
     if (tokens.expiry_date) connection.tokenExpiresAt = new Date(tokens.expiry_date);
     connection.isActive = true;
 
@@ -92,15 +119,14 @@ export class EmailService {
 
   syncGmailStream(userId: string): Observable<MessageEvent> {
     return new Observable((subscriber) => {
-      const emit = (data: SyncProgress) =>
-        subscriber.next({ data } as unknown as MessageEvent);
+      const emit = (data: SyncProgress) => subscriber.next({ data } as unknown as MessageEvent);
 
       this.doGmailSync(userId, emit)
         .then((result) => {
           emit({ percent: 100, done: true, ...result });
           subscriber.complete();
         })
-        .catch((err) => subscriber.error(err));
+        .catch((err: unknown) => subscriber.error(err));
     });
   }
 
@@ -114,8 +140,8 @@ export class EmailService {
     if (!connection) throw new NotFoundException('Connexion Gmail non trouvée');
 
     this.googleOAuth2Client.setCredentials({
-      access_token: connection.accessToken,
-      refresh_token: connection.refreshToken,
+      access_token: this.encryptionService.decrypt(connection.accessToken),
+      refresh_token: this.encryptionService.decrypt(connection.refreshToken),
     });
 
     const gmail = google.gmail({ version: 'v1', auth: this.googleOAuth2Client });
@@ -142,8 +168,8 @@ export class EmailService {
     onProgress({ percent: 5 });
     const fetched = await Promise.all(
       msgList.map(async (msg) => {
-        const full: any = await gmail.users.messages.get({ userId: 'me', id: msg.id!, format: 'full' });
-        const headers: Array<{ name?: string; value?: string }> = full.data?.payload?.headers ?? [];
+        const full = await gmail.users.messages.get({ userId: 'me', id: msg.id!, format: 'full' });
+        const headers: gmail_v1.Schema$MessagePartHeader[] = full.data?.payload?.headers ?? [];
         const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
         const body = this.extractGmailBody(full.data?.payload);
         return { msgId: msg.id!, subject, body };
@@ -153,57 +179,55 @@ export class EmailService {
 
     for (let i = 0; i < fetched.length; i++) {
       const { msgId, subject, body } = fetched[i];
-
-      const percent = 15 + Math.round(((i + 1) / total) * 70);
-      onProgress({ percent });
+      onProgress({ percent: 15 + Math.round(((i + 1) / total) * 70) });
 
       const existing = await this.applicationsService.findDuplicate(userId, msgId);
       if (existing) {
         if (!existing.emailBody && body) {
-          await this.applicationsService.update(userId, existing.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          } as any);
+          await this.applicationsService.update(userId, existing.id, { emailSubject: subject, emailBody: body.slice(0, 50000) });
         }
-        await this.applyGmailSublabel(gmail, msgId, existing.status as ApplicationStatus, labelMap);
+        await this.applyGmailSublabel(gmail, msgId, existing.status, labelMap);
         skipped++;
         continue;
       }
 
-      const plainBody = this.stripHtml(body);
-      const parsed = await this.aiService.parseEmailForApplication(subject, plainBody, msgId);
+      const parsed = await this.aiService.parseEmailForApplication(subject, this.stripHtml(body), msgId);
 
       if (!parsed || !parsed.company || !parsed.jobTitle) {
         failed++;
         continue;
       }
 
-      const duplicate = await this.applicationsService.findDuplicate(
-        userId, undefined, parsed.company, parsed.jobTitle,
-      );
+      const duplicate = await this.applicationsService.findDuplicate(userId, undefined, parsed.company, parsed.jobTitle);
 
       if (duplicate) {
         if (!duplicate.emailBody && body) {
-          await this.applicationsService.update(userId, duplicate.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          } as any);
+          await this.applicationsService.update(userId, duplicate.id, { emailSubject: subject, emailBody: body.slice(0, 50000) });
         }
-        await this.applyGmailSublabel(gmail, msgId, duplicate.status as ApplicationStatus, labelMap);
+        await this.applyGmailSublabel(gmail, msgId, duplicate.status, labelMap);
         skipped++;
         continue;
       }
 
       try {
-        const app = await this.applicationsService.create(user, {
-          ...parsed,
+        const dto: CreateApplicationDto = {
+          company: parsed.company,
+          jobTitle: parsed.jobTitle,
+          status: parsed.status as ApplicationStatus,
           source: ApplicationSource.EMAIL,
           emailSubject: subject,
           emailBody: body.slice(0, 50000),
-        } as any);
+          location: parsed.location ?? undefined,
+          appliedAt: parsed.appliedAt ?? undefined,
+          notes: parsed.notes ?? undefined,
+        };
+        const app = await this.applicationsService.create(user, dto);
         created++;
-        await this.applyGmailSublabel(gmail, msgId, app.status as ApplicationStatus, labelMap);
-      } catch {
+        await this.applyGmailSublabel(gmail, msgId, app.status, labelMap);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[EmailSync] Failed to create application for message ${msgId}: ${msg}`);
+        failed++;
       }
     }
 
@@ -211,7 +235,7 @@ export class EmailService {
   }
 
   private async applyGmailSublabel(
-    gmail: any,
+    gmail: gmail_v1.Gmail,
     msgId: string,
     status: ApplicationStatus,
     labelMap: Map<string, string>,
@@ -230,39 +254,32 @@ export class EmailService {
       await gmail.users.messages.modify({
         userId: 'me',
         id: msgId,
-        requestBody: {
-          addLabelIds: [targetSublabelId],
-          removeLabelIds: otherSublabelIds,
-        },
+        requestBody: { addLabelIds: [targetSublabelId], removeLabelIds: otherSublabelIds },
       });
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[EmailSync] Failed to apply label to message ${msgId}: ${msg}`);
     }
   }
 
-  private async ensureOstiaLabels(gmail: any): Promise<Map<string, string>> {
+  private async ensureOstiaLabels(gmail: gmail_v1.Gmail): Promise<Map<string, string>> {
     const labelMap = new Map<string, string>();
     const { data } = await gmail.users.labels.list({ userId: 'me' });
-    const existing: Array<{ id: string; name: string }> = data.labels ?? [];
+    const existingLabels: gmail_v1.Schema$Label[] = data.labels ?? [];
 
-    let parentId = existing.find((l) => l.name === OSTIA_LABEL)?.id;
+    let parentId = existingLabels.find((l) => l.name === OSTIA_LABEL)?.id;
     if (!parentId) {
-      const res = await gmail.users.labels.create({
-        userId: 'me',
-        requestBody: { name: OSTIA_LABEL },
-      });
-      parentId = res.data.id;
+      const res = await gmail.users.labels.create({ userId: 'me', requestBody: { name: OSTIA_LABEL } });
+      parentId = res.data.id ?? undefined;
     }
     if (parentId) labelMap.set(OSTIA_LABEL, parentId);
 
     for (const sub of OSTIA_SUBLABELS) {
       const fullName = `${OSTIA_LABEL}/${sub}`;
-      let labelId = existing.find((l) => l.name === fullName)?.id;
+      let labelId = existingLabels.find((l) => l.name === fullName)?.id;
       if (!labelId) {
-        const res = await gmail.users.labels.create({
-          userId: 'me',
-          requestBody: { name: fullName },
-        });
-        labelId = res.data.id;
+        const res = await gmail.users.labels.create({ userId: 'me', requestBody: { name: fullName } });
+        labelId = res.data.id ?? undefined;
       }
       if (labelId) labelMap.set(fullName, labelId);
     }
@@ -281,7 +298,7 @@ export class EmailService {
       .trim();
   }
 
-  private extractGmailBody(payload: any): string {
+  private extractGmailBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
     if (!payload) return '';
     if (payload.body?.data) return Buffer.from(payload.body.data, 'base64').toString('utf-8');
     if (payload.parts) {
@@ -311,15 +328,15 @@ export class EmailService {
     return (
       `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize` +
       `?client_id=${clientId}&response_type=code` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri as string)}` +
       `&scope=${scope}&state=${userId}`
     );
   }
 
   async handleMicrosoftCallback(code: string, userId: string): Promise<EmailConnection> {
-    const clientId = this.configService.get('MICROSOFT_CLIENT_ID')!;
-    const clientSecret = this.configService.get('MICROSOFT_CLIENT_SECRET')!;
-    const redirectUri = this.configService.get('MICROSOFT_REDIRECT_URI')!;
+    const clientId = this.configService.get<string>('MICROSOFT_CLIENT_ID')!;
+    const clientSecret = this.configService.get<string>('MICROSOFT_CLIENT_SECRET')!;
+    const redirectUri = this.configService.get<string>('MICROSOFT_REDIRECT_URI')!;
     const tenant = this.configService.get('MICROSOFT_TENANT_ID', 'common');
 
     const params = new URLSearchParams({
@@ -330,7 +347,7 @@ export class EmailService {
       grant_type: 'authorization_code',
     });
 
-    const tokenRes = await axios.post(
+    const tokenRes = await axios.post<MicrosoftTokenResponse>(
       `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
       params.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
@@ -338,7 +355,7 @@ export class EmailService {
 
     const { access_token, refresh_token, expires_in } = tokenRes.data;
 
-    const profileRes = await axios.get('https://graph.microsoft.com/v1.0/me', {
+    const profileRes = await axios.get<MicrosoftProfile>('https://graph.microsoft.com/v1.0/me', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
     const email: string = profileRes.data.mail ?? profileRes.data.userPrincipalName ?? '';
@@ -353,8 +370,8 @@ export class EmailService {
     });
 
     connection.email = email;
-    connection.accessToken = access_token;
-    connection.refreshToken = refresh_token ?? connection.refreshToken;
+    connection.accessToken = this.encryptionService.encrypt(access_token);
+    if (refresh_token) connection.refreshToken = this.encryptionService.encrypt(refresh_token);
     connection.tokenExpiresAt = new Date(Date.now() + expires_in * 1000);
     connection.isActive = true;
 
@@ -370,62 +387,67 @@ export class EmailService {
     const token = await this.refreshMicrosoftTokenIfNeeded(connection);
     const headers = { Authorization: `Bearer ${token}` };
 
-    const foldersRes = await axios.get(
+    const foldersRes = await axios.get<{ value: OutlookFolder[] }>(
       'https://graph.microsoft.com/v1.0/me/mailFolders?$top=50',
       { headers },
     );
     const ostiaFolder = foldersRes.data.value?.find(
-      (f: any) => f.displayName?.toLowerCase() === OSTIA_LABEL.toLowerCase(),
+      (f) => f.displayName?.toLowerCase() === OSTIA_LABEL.toLowerCase(),
     );
 
-    if (!ostiaFolder) return { synced: 0, created: 0, skipped: 0, failed: 0 };
+    if (!ostiaFolder?.id) return { synced: 0, created: 0, skipped: 0, failed: 0 };
 
-    const messagesRes = await axios.get(
+    const messagesRes = await axios.get<{ value: OutlookMessage[] }>(
       `https://graph.microsoft.com/v1.0/me/mailFolders/${ostiaFolder.id}/messages` +
       `?$top=50&$select=subject,body,internetMessageId,receivedDateTime`,
       { headers },
     );
 
-    const messages: any[] = messagesRes.data.value ?? [];
+    const messages = messagesRes.data.value ?? [];
     let created = 0;
     let skipped = 0;
     let failed = 0;
     const user = { id: userId } as User;
 
     for (const msg of messages) {
-      const subject: string = msg.subject ?? '';
-      const body: string = msg.body?.content ?? '';
-      const msgId: string = msg.internetMessageId ?? msg.id;
+      const subject = msg.subject ?? '';
+      const body = msg.body?.content ?? '';
+      const msgId = msg.internetMessageId ?? msg.id ?? '';
+
       const parsed = await this.aiService.parseEmailForApplication(subject, this.stripHtml(body), msgId);
       if (!parsed) {
         failed++;
         continue;
       }
 
-      const duplicate = await this.applicationsService.findDuplicate(
-        userId, msgId, parsed.company, parsed.jobTitle,
-      );
+      const duplicate = await this.applicationsService.findDuplicate(userId, msgId, parsed.company, parsed.jobTitle);
 
       if (duplicate) {
         if (!duplicate.emailBody && body) {
-          await this.applicationsService.update(userId, duplicate.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          } as any);
+          await this.applicationsService.update(userId, duplicate.id, { emailSubject: subject, emailBody: body.slice(0, 50000) });
         }
         skipped++;
         continue;
       }
 
       try {
-        await this.applicationsService.create(user, {
-          ...parsed,
+        const dto: CreateApplicationDto = {
+          company: parsed.company,
+          jobTitle: parsed.jobTitle,
+          status: parsed.status as ApplicationStatus,
           source: ApplicationSource.EMAIL,
           emailSubject: subject,
           emailBody: body.slice(0, 50000),
-        } as any);
+          location: parsed.location ?? undefined,
+          appliedAt: parsed.appliedAt ?? undefined,
+          notes: parsed.notes ?? undefined,
+        };
+        await this.applicationsService.create(user, dto);
         created++;
-      } catch {
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[OutlookSync] Failed to create application for message ${msgId}: ${errMsg}`);
+        failed++;
       }
     }
 
@@ -434,30 +456,30 @@ export class EmailService {
 
   private async refreshMicrosoftTokenIfNeeded(connection: EmailConnection): Promise<string> {
     const isExpired = connection.tokenExpiresAt && connection.tokenExpiresAt < new Date();
-    if (!isExpired) return connection.accessToken;
+    if (!isExpired) return this.encryptionService.decrypt(connection.accessToken);
 
-    const clientId = this.configService.get('MICROSOFT_CLIENT_ID')!;
-    const clientSecret = this.configService.get('MICROSOFT_CLIENT_SECRET')!;
+    const clientId = this.configService.get<string>('MICROSOFT_CLIENT_ID')!;
+    const clientSecret = this.configService.get<string>('MICROSOFT_CLIENT_SECRET')!;
     const tenant = this.configService.get('MICROSOFT_TENANT_ID', 'common');
 
     const params = new URLSearchParams({
       client_id: clientId,
       client_secret: clientSecret,
-      refresh_token: connection.refreshToken,
+      refresh_token: this.encryptionService.decrypt(connection.refreshToken),
       grant_type: 'refresh_token',
     });
 
-    const res = await axios.post(
+    const res = await axios.post<MicrosoftTokenResponse>(
       `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
       params.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
     );
 
-    connection.accessToken = res.data.access_token;
+    connection.accessToken = this.encryptionService.encrypt(res.data.access_token);
     connection.tokenExpiresAt = new Date(Date.now() + res.data.expires_in * 1000);
     await this.connectionRepo.save(connection);
 
-    return connection.accessToken;
+    return res.data.access_token;
   }
 
   async updateGmailLabelForEmail(userId: string, emailId: string, status: ApplicationStatus): Promise<void> {
@@ -467,8 +489,8 @@ export class EmailService {
     if (!connection) return;
 
     this.googleOAuth2Client.setCredentials({
-      access_token: connection.accessToken,
-      refresh_token: connection.refreshToken,
+      access_token: this.encryptionService.decrypt(connection.accessToken),
+      refresh_token: this.encryptionService.decrypt(connection.refreshToken),
     });
 
     const gmail = google.gmail({ version: 'v1', auth: this.googleOAuth2Client });
