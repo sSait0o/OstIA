@@ -11,6 +11,7 @@ export interface ParsedApplication {
   emailId?: string;
   appliedAt?: string;
   notes?: string;
+  location?: string;
 }
 
 export interface CvMatchResult {
@@ -25,7 +26,8 @@ export class AiService {
   private readonly coreUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.coreUrl = this.configService.get<string>('CORE_API_URL') ?? 'http://localhost:8001';
+    this.coreUrl =
+      this.configService.get<string>('CORE_API_URL') ?? 'http://localhost:8001';
   }
 
   async parseEmailForApplication(
@@ -58,7 +60,12 @@ export class AiService {
       });
       return data;
     } catch {
-      return { score: 0, matchedSkills: [], missingSkills: [], summary: "Erreur d'analyse" };
+      return {
+        score: 0,
+        matchedSkills: [],
+        missingSkills: [],
+        summary: "Erreur d'analyse",
+      };
     }
   }
 
@@ -71,9 +78,13 @@ export class AiService {
     }
   }
 
-  async computeAnalytics(applications: Record<string, any>[]): Promise<Record<string, any>> {
+  async computeAnalytics(
+    applications: Record<string, any>[],
+  ): Promise<Record<string, any>> {
     try {
-      const { data } = await axios.post(`${this.coreUrl}/analytics/stats`, { applications });
+      const { data } = await axios.post(`${this.coreUrl}/analytics/stats`, {
+        applications,
+      });
       return data;
     } catch {
       return {};

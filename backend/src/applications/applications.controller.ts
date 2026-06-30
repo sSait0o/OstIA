@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
   Optional,
@@ -35,9 +36,17 @@ export class ApplicationsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lister toutes les candidatures' })
-  findAll(@Request() req: { user: any }) {
-    return this.applicationsService.findAllByUser(req.user.id);
+  @ApiOperation({ summary: 'Lister toutes les candidatures (paginé)' })
+  findAll(
+    @Request() req: { user: any },
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.applicationsService.findPaginated(
+      req.user.id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
   }
 
   @Get('kanban')
@@ -59,13 +68,17 @@ export class ApplicationsController {
   }
 
   @Delete('duplicates')
-  @ApiOperation({ summary: 'Supprimer les candidatures en double (même entreprise + poste)' })
+  @ApiOperation({
+    summary: 'Supprimer les candidatures en double (même entreprise + poste)',
+  })
   deduplicate(@Request() req: { user: any }) {
     return this.applicationsService.deduplicateApplications(req.user.id);
   }
 
   @Delete('coordinates/reset')
-  @ApiOperation({ summary: 'Réinitialiser les coordonnées de toutes les candidatures' })
+  @ApiOperation({
+    summary: 'Réinitialiser les coordonnées de toutes les candidatures',
+  })
   resetCoordinates(@Request() req: { user: any }) {
     return this.applicationsService.resetAllCoordinates(req.user.id);
   }
@@ -90,7 +103,7 @@ export class ApplicationsController {
     const app = await this.applicationsService.update(req.user.id, id, dto);
     if (dto.status && app.emailId && this.emailService) {
       this.emailService
-        .updateGmailLabelForEmail(req.user.id, app.emailId, app.status as ApplicationStatus)
+        .updateGmailLabelForEmail(req.user.id, app.emailId, app.status)
         .catch(() => {});
     }
     return app;
