@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -30,6 +31,7 @@ export class Application {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @ManyToOne(() => User, (user) => user.applications, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;

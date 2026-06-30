@@ -4,57 +4,13 @@
   }
 </div>
 
-<nz-layout class="main-layout">
-  <nz-sider nzTheme="dark"
-            [nzCollapsed]="isCollapsed()"
-            (nzCollapsedChange)="isCollapsed.set($event)"
-            [nzBreakpoint]="'md'"
-            [nzCollapsedWidth]="0"
-            [nzWidth]="220">
+<div class="main-layout">
+  <div class="app-header">
     <div class="logo">
       <span nz-icon nzType="compass" nzTheme="outline"></span>
       <span class="logo-text">OstIA</span>
     </div>
-    <ul nz-menu nzTheme="dark" nzMode="inline">
-      <li nz-menu-group nzTitle="Organisation">
-        <ul>
-          <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
-            <span nz-icon nzType="project" nzTheme="outline"></span>
-            <span>Candidatures</span>
-          </li>
-          <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
-            <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
-            <span>Dashboard</span>
-          </li>
-          <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
-            <span nz-icon nzType="global" nzTheme="outline"></span>
-            <span>Carte</span>
-            @if (mapService.unlocatedCount() > 0) {
-              <span class="nav-badge">{{ mapService.unlocatedCount() }}</span>
-            }
-          </li>
-        </ul>
-      </li>
-      <li nz-menu-group nzTitle="Recherche">
-        <ul>
-          <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
-            <span nz-icon nzType="search" nzTheme="outline"></span>
-            <span>Offres</span>
-          </li>
-          <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected">
-            <span nz-icon nzType="heart" nzTheme="outline"></span>
-            <span>Favoris</span>
-          </li>
-          <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
-            <span nz-icon nzType="file-text" nzTheme="outline"></span>
-            <span>Mon CV</span>
-          </li>
-        </ul>
-      </li>
-    </ul>
-  </nz-sider>
-  <nz-layout [class.layout--map]="isMapRoute()">
-    <div class="main-header">
+    <div class="header-bar">
       <div class="header-left">
         <button class="menu-trigger" (click)="toggleSidebar()">
           <span nz-icon [nzType]="isCollapsed() ? 'menu' : 'menu-fold'" nzTheme="outline"></span>
@@ -93,8 +49,56 @@
         </div>
       </nz-dropdown-menu>
     </div>
-    <nz-content class="main-content" [class.main-content--map]="isMapRoute()">
-      <router-outlet />
-    </nz-content>
+  </div>
+  <nz-layout class="body-layout" [class.body-layout--map]="isMapRoute()">
+    <nz-sider nzTheme="dark"
+              [nzCollapsed]="isCollapsed()"
+              (nzCollapsedChange)="isCollapsed.set($event)"
+              [nzBreakpoint]="'md'"
+              [nzCollapsedWidth]="0"
+              [nzWidth]="220">
+      <ul nz-menu nzTheme="dark" nzMode="inline">
+        <li nz-menu-group nzTitle="Organisation">
+          <ul>
+            <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
+              <span nz-icon nzType="project" nzTheme="outline"></span>
+              <span>Candidatures</span>
+            </li>
+            <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
+              <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
+              <span>Dashboard</span>
+            </li>
+            <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
+              <span nz-icon nzType="global" nzTheme="outline"></span>
+              <span>Carte</span>
+              @if (mapService.unlocatedCount() > 0) {
+                <span class="nav-badge">{{ mapService.unlocatedCount() }}</span>
+              }
+            </li>
+          </ul>
+        </li>
+        <li nz-menu-group nzTitle="Recherche">
+          <ul>
+            <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
+              <span nz-icon nzType="search" nzTheme="outline"></span>
+              <span>Offres</span>
+            </li>
+            <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected">
+              <span nz-icon nzType="heart" nzTheme="outline"></span>
+              <span>Favoris</span>
+            </li>
+            <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
+              <span nz-icon nzType="file-text" nzTheme="outline"></span>
+              <span>Mon CV</span>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </nz-sider>
+    <nz-layout class="content-layout" [class.content-layout--map]="isMapRoute()">
+      <nz-content class="main-content" [class.main-content--map]="isMapRoute()">
+        <router-outlet />
+      </nz-content>
+    </nz-layout>
   </nz-layout>
-</nz-layout>
+</div>

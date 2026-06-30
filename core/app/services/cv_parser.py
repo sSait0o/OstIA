@@ -32,11 +32,11 @@ def parse_email(subject: str, body: str, email_id: str) -> dict | None:
 SUBJECT: {subject}
 CONTENT: {clean_body}
 
-Step 1 — Determine if this is a recruitment/application email:
+Step 1 - Determine if this is a recruitment/application email:
 - YES: application confirmation, HR acknowledgement, interview invitation, technical test, job offer, rejection
 - NO: newsletter, password reset, invoice, advertisement, personal email → return {{"not_recruitment": true}}
 
-Step 2 — If YES, return exactly this JSON (no surrounding text):
+Step 2 - If YES, return exactly this JSON (no surrounding text):
 {{
   "company": "exact company name (never null)",
   "jobTitle": "exact job title (never null, use best guess if unclear)",

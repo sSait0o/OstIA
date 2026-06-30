@@ -11,6 +11,7 @@ import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { ApplicationsService, ApplicationStats } from '../../core/services/applications.service';
 import { JobsService, Job } from '../../core/services/jobs.service';
+import { getScoreColor, scoreFormat } from '../../shared/utils/score.utils';
 import type { EChartsOption } from 'echarts';
 
 @Component({
@@ -77,13 +78,8 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  scoreFormat = (p: number) => `${p}%`;
-
-  getScoreColor(score: number): string {
-    if (score >= 70) return '#52c41a';
-    if (score >= 40) return '#ffc53d';
-    return '#ff4d4f';
-  }
+  readonly scoreFormat = scoreFormat;
+  readonly getScoreColor = getScoreColor;
 
   private buildPieChart(s: ApplicationStats) {
     const data = Object.entries(s.byStatus)

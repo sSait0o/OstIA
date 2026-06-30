@@ -1,6 +1,19 @@
-import { Controller, Get, Post, Delete, Param, Query, UseGuards, Request, Redirect, Sse, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  Redirect,
+  Sse,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EmailService } from './email.service';
 import { Observable } from 'rxjs';
@@ -17,37 +30,37 @@ export class EmailController {
 
   @Get('connections')
   @ApiOperation({ summary: 'Lister les comptes email connectés' })
-  getConnections(@Request() req: { user: any }) {
+  getConnections(@Request() req: { user: { id: string } }) {
     return this.emailService.getConnections(req.user.id);
   }
 
   @Get('google/auth')
   @ApiOperation({ summary: "Démarrer l'authentification Gmail" })
-  googleAuth(@Request() req: { user: any }) {
+  googleAuth(@Request() req: { user: { id: string } }) {
     return { url: this.emailService.getGoogleAuthUrl(req.user.id) };
   }
 
   @Get('microsoft/auth')
   @ApiOperation({ summary: "Démarrer l'authentification Outlook" })
-  microsoftAuth(@Request() req: { user: any }) {
+  microsoftAuth(@Request() req: { user: { id: string } }) {
     return { url: this.emailService.getMicrosoftAuthUrl(req.user.id) };
   }
 
   @Post('sync/gmail')
   @ApiOperation({ summary: 'Synchroniser les emails Gmail (dossier Ostia)' })
-  syncGmail(@Request() req: { user: any }) {
+  syncGmail(@Request() req: { user: { id: string } }) {
     return this.emailService.syncGmailEmails(req.user.id);
   }
 
   @Post('sync/outlook')
   @ApiOperation({ summary: 'Synchroniser les emails Outlook (dossier Ostia)' })
-  syncOutlook(@Request() req: { user: any }) {
+  syncOutlook(@Request() req: { user: { id: string } }) {
     return this.emailService.syncOutlookEmails(req.user.id);
   }
 
   @Delete('connections/:id')
   @ApiOperation({ summary: 'Déconnecter un compte email' })
-  disconnect(@Request() req: { user: any }, @Param('id') id: string) {
+  disconnect(@Request() req: { user: { id: string } }, @Param('id') id: string) {
     return this.emailService.disconnect(req.user.id, id);
   }
 }
@@ -75,21 +88,32 @@ export class EmailSseController {
 @ApiTags('Email Callbacks')
 @Controller('email')
 export class EmailCallbackController {
-  constructor(private readonly emailService: EmailService) {}
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Get('google/callback')
   @Redirect()
   @ApiOperation({ summary: 'Callback OAuth2 Google (public)' })
-  async googleCallback(@Query('code') code: string, @Query('state') userId: string) {
+  async googleCallback(
+    @Query('code') code: string,
+    @Query('state') userId: string,
+  ) {
     await this.emailService.handleGoogleCallback(code, userId);
-    return { url: 'http://localhost:4200/dashboard?gmail=connected' };
+    const frontendUrl = this.configService.get('FRONTEND_URL', 'http://localhost:4200');
+    return { url: `${frontendUrl}/dashboard?gmail=connected` };
   }
 
   @Get('microsoft/callback')
   @Redirect()
   @ApiOperation({ summary: 'Callback OAuth2 Microsoft (public)' })
-  async microsoftCallback(@Query('code') code: string, @Query('state') userId: string) {
+  async microsoftCallback(
+    @Query('code') code: string,
+    @Query('state') userId: string,
+  ) {
     await this.emailService.handleMicrosoftCallback(code, userId);
-    return { url: 'http://localhost:4200/dashboard?outlook=connected' };
+    const frontendUrl = this.configService.get('FRONTEND_URL', 'http://localhost:4200');
+    return { url: `${frontendUrl}/dashboard?outlook=connected` };
   }
 }

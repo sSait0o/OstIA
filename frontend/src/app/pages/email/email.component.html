@@ -8,7 +8,6 @@
     <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
   } @else {
 
-    <!-- Comptes connectés -->
     @if (emailConnections().length > 0) {
       <nz-card class="section-card" nzTitle="Comptes connectés">
         <div class="connections-list">
@@ -33,7 +32,6 @@
       </nz-card>
     }
 
-    <!-- Gmail -->
     <nz-card class="section-card provider-card">
       <div class="provider-header">
         <span nz-icon nzType="mail" class="provider-icon-lg"></span>
@@ -63,7 +61,6 @@
       }
     </nz-card>
 
-    <!-- Outlook -->
     <nz-card class="section-card provider-card">
       <div class="provider-header">
         <span nz-icon nzType="laptop" class="provider-icon-lg"></span>

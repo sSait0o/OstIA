@@ -1,33 +1,37 @@
 .main-layout {
   height: 100vh;
   overflow: hidden;
-}
-
-::ng-deep .main-layout > .ant-layout {
-  flex: 1;
-  height: 100vh;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
 
-::ng-deep .layout--map {
-  height: 100vh;
-  overflow: hidden;
+.app-header {
   display: flex;
-  flex-direction: column;
+  flex-shrink: 0;
+  height: 64px;
+  background: rgba(6, 6, 6, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 9;
 }
 
 .logo {
-  height: 64px;
+  width: 220px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   color: #fff;
   font-size: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   letter-spacing: 0.05em;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+  @media (max-width: 767px) {
+    width: auto;
+    padding: 0 16px;
+  }
 }
 
 .logo-text {
@@ -35,27 +39,45 @@
   font-size: 18px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 }
 
-.main-header {
-  height: 64px;
-  padding: 0 24px;
+.header-bar {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 9;
-  background: rgba(6, 6, 6, 0.95);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  padding: 0 24px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.body-layout {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+
+  &--map {
+    overflow: hidden;
+  }
+}
+
+::ng-deep .body-layout > .ant-layout {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+::ng-deep .content-layout--map {
+  overflow: hidden !important;
 }
 
 .sync-btn {
@@ -124,11 +146,19 @@
   font-size: 14px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.65);
+
+  @media (max-width: 575px) {
+    display: none;
+  }
 }
 
 .user-chevron {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.3);
+
+  @media (max-width: 575px) {
+    display: none;
+  }
 }
 
 .user-dropdown {
@@ -176,6 +206,10 @@
     background: rgba(255, 255, 255, 0.05);
     color: #fff;
   }
+}
+
+::ng-deep .ant-layout-sider-zero-width-trigger {
+  display: none;
 }
 
 ::ng-deep .ant-menu-item .ant-menu-title-content {
@@ -253,12 +287,5 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
-  }
-}
-
-.user-name,
-.user-chevron {
-  @media (max-width: 575px) {
-    display: none;
   }
 }

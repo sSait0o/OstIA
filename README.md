@@ -7,11 +7,11 @@ Plateforme intelligente de gestion de candidatures et de recherche d'emploi, pro
 
 ## Fonctionnalités
 
-- **Kanban des candidatures** — 7 statuts, drag & drop, filtres
-- **Parsing IA des emails** — Claude (Anthropic) analyse le dossier "Ostia" de votre boîte mail et crée les candidatures automatiquement
-- **Matching CV/offres** — Agrège les offres France Travail et les score en temps réel selon votre CV (Groq)
-- **Dashboard analytique** — Taux de réponse, répartition par statut (Apache ECharts)
-- **Carte géographique** — Visualisation des candidatures par localisation
+- **Kanban des candidatures** - 7 statuts, drag & drop, filtres
+- **Parsing IA des emails** - Claude (Anthropic) analyse le dossier "Ostia" de votre boîte mail et crée les candidatures automatiquement
+- **Matching CV/offres** - Agrège les offres France Travail et les score en temps réel selon votre CV (Groq)
+- **Dashboard analytique** - Taux de réponse, répartition par statut (Apache ECharts)
+- **Carte géographique** - Visualisation des candidatures par localisation
 
 ## Stack technique
 
@@ -65,6 +65,8 @@ L'app est disponible sur [http://localhost:4200](http://localhost:4200).
 | `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` | Azure OAuth (Outlook) |
 | `CORE_API_URL` | URL du service core (défaut: `http://localhost:8001`) |
 | `FRANCE_TRAVAIL_CLIENT_ID/SECRET` | API France Travail |
+| `ADZUNA_APP_ID` | Adzuna App ID (offres d'emploi) |
+| `ADZUNA_APP_KEY` | Adzuna App Key |
 
 ### Core (`core/.env`)
 
@@ -101,6 +103,6 @@ OstIA/
 
 Chaque service est déployé sur Railway. Configurer les secrets GitHub suivants pour activer le CD :
 
-- `RAILWAY_TOKEN` — Token Railway (Settings → Tokens)
-- `RAILWAY_SERVICE_BACKEND` — ID du service backend Railway
-- `RAILWAY_SERVICE_CORE` — ID du service core Railway
+- `RAILWAY_TOKEN` - Token Railway (Settings → Tokens)
+- `RAILWAY_SERVICE_BACKEND` - ID du service backend Railway
+- `RAILWAY_SERVICE_CORE` - ID du service core Railway

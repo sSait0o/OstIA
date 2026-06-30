@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Application, ApplicationSource, ApplicationStatus } from './entities/application.entity';
+import {
+  Application,
+  ApplicationSource,
+  ApplicationStatus,
+} from './entities/application.entity';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { User } from '../users/entities/user.entity';
@@ -26,7 +34,23 @@ export class ApplicationsService {
     });
   }
 
-  async findByStatus(userId: string): Promise<Record<ApplicationStatus, Application[]>> {
+  async findPaginated(
+    userId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: Application[]; total: number; page: number; limit: number }> {
+    const [data, total] = await this.appRepo.findAndCount({
+      where: { user: { id: userId } },
+      order: { updatedAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total, page, limit };
+  }
+
+  async findByStatus(
+    userId: string,
+  ): Promise<Record<ApplicationStatus, Application[]>> {
     const apps = await this.findAllByUser(userId);
     return apps.reduce(
       (acc, app) => {
@@ -38,8 +62,15 @@ export class ApplicationsService {
     );
   }
 
-  async update(userId: string, id: string, dto: UpdateApplicationDto): Promise<Application> {
-    const app = await this.appRepo.findOne({ where: { id }, relations: { user: true } });
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateApplicationDto,
+  ): Promise<Application> {
+    const app = await this.appRepo.findOne({
+      where: { id },
+      relations: { user: true },
+    });
     if (!app) throw new NotFoundException('Candidature non trouvée');
     if (app.user.id !== userId) throw new ForbiddenException();
     Object.assign(app, dto);
@@ -48,7 +79,10 @@ export class ApplicationsService {
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const app = await this.appRepo.findOne({ where: { id }, relations: { user: true } });
+    const app = await this.appRepo.findOne({
+      where: { id },
+      relations: { user: true },
+    });
     if (!app) throw new NotFoundException('Candidature non trouvée');
     if (app.user.id !== userId) throw new ForbiddenException();
     await this.appRepo.remove(app);
@@ -93,8 +127,12 @@ export class ApplicationsService {
       if (group.length <= 1) continue;
       group.sort((a, b) => {
         const score = (x: typeof a) =>
-          (x.emailBody ? 4 : 0) + (x.emailId ? 2 : 0) + (x.resolvedLocation ? 1 : 0);
-        return score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime();
+          (x.emailBody ? 4 : 0) +
+          (x.emailId ? 2 : 0) +
+          (x.resolvedLocation ? 1 : 0);
+        return (
+          score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime()
+        );
       });
       const [, ...toDelete] = group;
       await Promise.all(toDelete.map((a) => this.appRepo.remove(a)));
@@ -139,9 +177,9 @@ export class ApplicationsService {
         existing.find((a) => {
           const ec = norm(a.company);
           const ej = norm(a.jobTitle);
-          const companySimilar = ec === nc || ec.includes(nc) || nc.includes(ec);
-          const titleSimilar = ej === nj || ej.includes(nj) || nj.includes(ej);
-          return companySimilar && titleSimilar;
+          const companySimilar =
+            ec === nc || ec.includes(nc) || nc.includes(ec);
+          return companySimilar && ej === nj;
         }) ?? null
       );
     }
@@ -158,21 +196,35 @@ export class ApplicationsService {
       {} as Record<ApplicationStatus, number>,
     );
 
-    const activeApps = apps.filter((a) => a.status !== ApplicationStatus.WITHDRAWN);
+    const activeApps = apps.filter(
+      (a) => a.status !== ApplicationStatus.WITHDRAWN,
+    );
     const responded = activeApps.filter((a) =>
-      [ApplicationStatus.INTERVIEW, ApplicationStatus.TECHNICAL, ApplicationStatus.OFFER, ApplicationStatus.REJECTED].includes(a.status),
+      [
+        ApplicationStatus.INTERVIEW,
+        ApplicationStatus.TECHNICAL,
+        ApplicationStatus.OFFER,
+        ApplicationStatus.REJECTED,
+      ].includes(a.status),
     ).length;
-    const responseRate = activeApps.length > 0
-      ? Math.round((responded / activeApps.length) * 100)
-      : 0;
+    const responseRate =
+      activeApps.length > 0
+        ? Math.round((responded / activeApps.length) * 100)
+        : 0;
 
     const now = new Date();
     const byMonth = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      const label = d.toLocaleString('fr-FR', { month: 'short', year: '2-digit' });
+      const label = d.toLocaleString('fr-FR', {
+        month: 'short',
+        year: '2-digit',
+      });
       const count = apps.filter((a) => {
         const date = new Date(a.createdAt);
-        return date.getFullYear() === d.getFullYear() && date.getMonth() === d.getMonth();
+        return (
+          date.getFullYear() === d.getFullYear() &&
+          date.getMonth() === d.getMonth()
+        );
       }).length;
       return { month: label, count };
     });
@@ -180,7 +232,8 @@ export class ApplicationsService {
     const bySource = {
       EMAIL: apps.filter((a) => a.source === ApplicationSource.EMAIL).length,
       MANUAL: apps.filter((a) => a.source === ApplicationSource.MANUAL).length,
-      JOB_BOARD: apps.filter((a) => a.source === ApplicationSource.JOB_BOARD).length,
+      JOB_BOARD: apps.filter((a) => a.source === ApplicationSource.JOB_BOARD)
+        .length,
     };
 
     return { total, byStatus, responseRate, byMonth, bySource };

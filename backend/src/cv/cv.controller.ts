@@ -9,7 +9,12 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CvService } from './cv.service';
 
@@ -23,13 +28,16 @@ export class CvController {
   @Post('upload')
   @ApiOperation({ summary: 'Uploader et analyser un CV PDF' })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
   async upload(
     @Request() req: { user: any },
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('Aucun fichier fourni');
-    if (file.mimetype !== 'application/pdf') throw new BadRequestException('Le fichier doit être un PDF');
+    if (file.mimetype !== 'application/pdf')
+      throw new BadRequestException('Le fichier doit être un PDF');
     return this.cvService.processAndSave(req.user, file);
   }
 

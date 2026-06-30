@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { EncryptionModule } from './common/encryption.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ApplicationsModule } from './applications/applications.module';
@@ -12,23 +14,30 @@ import { AiModule } from './ai/ai.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 10 },
+      { name: 'medium', ttl: 60000, limit: 100 },
+    ]),
+    EncryptionModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
+      useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
         const isProd = configService.get('NODE_ENV') === 'production';
         const databaseUrl = configService.get('DATABASE_URL');
+        const rejectUnauthorized =
+          configService.get('DB_SSL_REJECT_UNAUTHORIZED', 'true') !== 'false';
         return {
           type: 'postgres' as const,
           ...(databaseUrl
             ? { url: databaseUrl }
             : {
-                host: configService.get('DB_HOST', 'localhost'),
+                host: configService.get<string>('DB_HOST', 'localhost'),
                 port: configService.get<number>('DB_PORT', 5432),
-                username: configService.get('DB_USER', 'ostia_user'),
-                password: configService.get('DB_PASSWORD', 'ostia_secret'),
-                database: configService.get('DB_NAME', 'ostia') as string,
+                username: configService.get<string>('DB_USER', 'ostia_user'),
+                password: configService.get<string>('DB_PASSWORD', 'ostia_secret'),
+                database: configService.get<string>('DB_NAME', 'ostia'),
               }),
-          ssl: isProd ? { rejectUnauthorized: false } : false,
+          ssl: isProd ? { rejectUnauthorized } : false,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           synchronize: !isProd,
           logging: !isProd,

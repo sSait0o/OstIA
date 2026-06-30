@@ -16,18 +16,19 @@ async function bootstrap() {
     }),
   );
 
-  const allowedOrigins = [
-    process.env.FRONTEND_URL || 'http://localhost:4200',
-    /\.vercel\.app$/,
-  ];
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+  const extraOrigins = process.env.CORS_EXTRA_ORIGINS
+    ? process.env.CORS_EXTRA_ORIGINS.split(',').map((o) => o.trim())
+    : [];
+
   app.enableCors({
-    origin: allowedOrigins,
+    origin: [frontendUrl, ...extraOrigins],
     credentials: true,
   });
 
   const config = new DocumentBuilder()
     .setTitle('Ostia API')
-    .setDescription('API de gestion de candidatures et offres d\'emploi')
+    .setDescription("API de gestion de candidatures et offres d'emploi")
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -39,4 +40,4 @@ async function bootstrap() {
   console.log(`Ostia API running on: http://localhost:${port}/api`);
   console.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }
-bootstrap();
+void bootstrap();
