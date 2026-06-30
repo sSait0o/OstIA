@@ -78,13 +78,13 @@ export class Application {
   notes: string;
 
   @Column({ nullable: true, type: 'float' })
-  lat: number;
+  lat: number | null;
 
   @Column({ nullable: true, type: 'float' })
-  lon: number;
+  lon: number | null;
 
   @Column({ nullable: true })
-  resolvedLocation: string;
+  resolvedLocation: string | null;
 
   @Column({ nullable: true })
   appliedAt: Date;

@@ -126,7 +126,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.allApps.set(apps);
         this.mapService.unlocatedCount.set(this.unlocatedApps().length);
         this.updateMarkers();
-        this.geocodeMissing(apps.filter((a) => a.lat === null));
+        this.geocodeMissing(this.unlocatedApps());
       },
     });
   }

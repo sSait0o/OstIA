@@ -64,8 +64,10 @@ export class ApplicationsService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getAll() {
-    return this.http.get<Application[]>(this.base);
+  getAll(page = 1, limit = 20) {
+    return this.http.get<{ data: Application[]; total: number; page: number; limit: number }>(
+      `${this.base}?page=${page}&limit=${limit}`,
+    );
   }
 
   getKanban() {

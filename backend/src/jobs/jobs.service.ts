@@ -300,7 +300,6 @@ export class JobsService {
     let ftOffers: JobOffer[] = [];
     let ftTotal = 0;
     let adzunaOffers: JobOffer[] = [];
-    let adzunaTotal = 0;
 
     const hasAdzuna =
       !!this.configService.get('ADZUNA_APP_ID') &&
@@ -317,11 +316,11 @@ export class JobsService {
       ({ offers: ftOffers, total: ftTotal } = ftResult.value);
     }
     if (adzunaResult.status === 'fulfilled') {
-      ({ offers: adzunaOffers, total: adzunaTotal } = adzunaResult.value);
+      ({ offers: adzunaOffers } = adzunaResult.value);
     }
 
     const allOffers = [...ftOffers, ...adzunaOffers];
-    const total = Math.max(ftTotal, adzunaTotal);
+    const total = ftTotal;
 
     const externalIds = allOffers.map((o) => o.externalId);
     const existingJobs = await this.jobRepo.find({
@@ -375,9 +374,7 @@ export class JobsService {
     );
 
     return {
-      jobs: jobs
-        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
-        .slice(0, 9),
+      jobs: jobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0)),
       total,
     };
   }

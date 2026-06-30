@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
@@ -9,10 +9,15 @@ const PREFIX = 'enc:';
 @Injectable()
 export class EncryptionService {
   private readonly key: Buffer;
+  private readonly logger = new Logger(EncryptionService.name);
 
   constructor(private readonly configService: ConfigService) {
+    const encKey = this.configService.get<string>('ENCRYPTION_KEY');
+    if (!encKey && this.configService.get('NODE_ENV') === 'production') {
+      this.logger.warn('ENCRYPTION_KEY is not set — falling back to JWT_SECRET for encryption. Set a dedicated ENCRYPTION_KEY in production.');
+    }
     const secret =
-      this.configService.get<string>('ENCRYPTION_KEY') ||
+      encKey ||
       this.configService.get<string>('JWT_SECRET') ||
       'fallback-dev-only-key-change-me';
     this.key = crypto.createHash('sha256').update(secret).digest();

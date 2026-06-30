@@ -78,14 +78,17 @@ export class KanbanComponent implements OnInit {
     { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
     { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
     { key: 'REJECTED', label: 'Refusé', color: 'red', items: [] },
+    { key: 'WITHDRAWN', label: 'Retiré', color: 'default', items: [] },
   ]);
 
   statusOptions = [
     { value: 'APPLIED', label: 'Envoyée' },
+    { value: 'ACKNOWLEDGED', label: 'Reçue' },
     { value: 'TECHNICAL', label: 'Test technique' },
     { value: 'INTERVIEW', label: 'Entretien' },
     { value: 'OFFER', label: 'Offre' },
     { value: 'REJECTED', label: 'Refusé' },
+    { value: 'WITHDRAWN', label: 'Retiré' },
   ];
 
   form: Partial<CreateApplicationDto> & { status?: ApplicationStatus } = {
@@ -278,9 +281,13 @@ export class KanbanComponent implements OnInit {
     this.saving.set(true);
     const existing = this.selectedApp();
 
-    const payload = Object.fromEntries(
-      Object.entries(this.form).filter(([, v]) => v !== '' && v !== null && v !== undefined),
-    ) as unknown as CreateApplicationDto;
+    const payload = existing
+      ? (Object.fromEntries(
+          Object.entries(this.form).map(([k, v]) => [k, v === '' ? null : v]),
+        ) as unknown as CreateApplicationDto)
+      : (Object.fromEntries(
+          Object.entries(this.form).filter(([, v]) => v !== '' && v !== null && v !== undefined),
+        ) as unknown as CreateApplicationDto);
     if (this.appliedAtDate) payload.appliedAt = this.appliedAtDate.toISOString();
 
     const obs = existing
