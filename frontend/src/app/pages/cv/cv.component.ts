@@ -34,7 +34,9 @@ export class CvComponent implements OnInit {
   ngOnInit() {
     this.cvService.getCv().subscribe({
       next: ({ cvData }) => {
-        if (cvData) this.cvData.set(cvData);
+        if (cvData && (cvData.firstName || cvData.skills?.length || cvData.experience?.length)) {
+          this.cvData.set(cvData);
+        }
       },
     });
   }
@@ -64,13 +66,17 @@ export class CvComponent implements OnInit {
     this.uploading.set(true);
     this.cvService.upload(file).subscribe({
       next: ({ cvData }) => {
-        this.cvData.set(cvData);
         this.uploading.set(false);
-        this.message.success('CV analysé ! Recherche des offres en cours...');
-        setTimeout(() => this.router.navigate(['/jobs']), 1500);
+        if (cvData && (cvData.firstName || cvData.skills?.length || cvData.experience?.length)) {
+          this.cvData.set(cvData);
+          this.message.success('CV analysé ! Recherche des offres en cours...');
+          setTimeout(() => this.router.navigate(['/jobs']), 1500);
+        } else {
+          this.message.warning("Le CV n'a pas pu être analysé. Vérifiez que le PDF contient du texte sélectionnable.");
+        }
       },
       error: () => {
-        this.message.error("Erreur lors de l'analyse du CV");
+        this.message.error("Erreur lors de l'analyse du CV. Le service IA est peut-être indisponible.");
         this.uploading.set(false);
       },
     });

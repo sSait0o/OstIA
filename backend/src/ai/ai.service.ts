@@ -68,15 +68,11 @@ export class AiService {
   }
 
   async extractCvData(text: string): Promise<Record<string, unknown>> {
-    try {
-      const { data } = await axios.post<Record<string, unknown>>(
-        `${this.coreUrl}/cv/extract`,
-        { text },
-      );
-      return data;
-    } catch {
-      return {};
-    }
+    const { data } = await axios.post<Record<string, unknown>>(
+      `${this.coreUrl}/cv/extract`,
+      { text },
+    );
+    return data;
   }
 
   async computeAnalytics(
