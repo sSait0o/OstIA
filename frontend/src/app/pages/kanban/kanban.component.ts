@@ -1,5 +1,5 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Component, OnInit, inject, signal, computed, SecurityContext } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTagModule } from 'ng-zorro-antd/tag';
@@ -167,8 +167,8 @@ export class KanbanComponent implements OnInit {
     });
   }
 
-  get safeEmailHtml(): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.emailApp()?.emailBody ?? '');
+  get safeEmailHtml(): string {
+    return this.sanitizer.sanitize(SecurityContext.HTML, this.emailApp()?.emailBody ?? '') ?? '';
   }
 
   isHtml(body: string | null): boolean {

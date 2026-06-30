@@ -1,5 +1,5 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, ViewChild, inject, signal, computed } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, ViewChild, inject, signal, computed, SecurityContext } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NzCardModule } from 'ng-zorro-antd/card';
@@ -112,8 +112,8 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.emailModalVisible = true;
   }
 
-  get safeEmailHtml(): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.emailApp?.emailBody ?? '');
+  get safeEmailHtml(): string {
+    return this.sanitizer.sanitize(SecurityContext.HTML, this.emailApp?.emailBody ?? '') ?? '';
   }
 
   isHtml(body: string | null): boolean {
