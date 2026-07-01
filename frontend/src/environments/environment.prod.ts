@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
   apiUrl: '/api',
-  coreUrl: 'https://ostia-core.railway.app',
+  coreUrl: 'https://ostia-production-df31.up.railway.app',
 };
