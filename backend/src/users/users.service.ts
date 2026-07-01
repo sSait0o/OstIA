@@ -30,4 +30,31 @@ export class UsersService {
     user.cvData = cvData;
     return this.userRepo.save(user);
   }
+
+  async setEmailVerificationToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.userRepo.update(userId, {
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationTokenExpiresAt: expiresAt,
+    });
+  }
+
+  async findByEmailVerificationTokenHash(
+    tokenHash: string,
+  ): Promise<User | null> {
+    return this.userRepo.findOne({
+      where: { emailVerificationTokenHash: tokenHash },
+    });
+  }
+
+  async markEmailAsVerified(userId: string): Promise<void> {
+    await this.userRepo.update(userId, {
+      isEmailVerified: true,
+      emailVerificationTokenHash: null,
+      emailVerificationTokenExpiresAt: null,
+    });
+  }
 }

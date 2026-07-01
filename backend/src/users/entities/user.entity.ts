@@ -29,6 +29,17 @@ export class User {
   @Column()
   password: string;
 
+  @Column({ default: false })
+  isEmailVerified: boolean;
+
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  emailVerificationTokenHash: string | null;
+
+  @Exclude()
+  @Column({ type: 'timestamp', nullable: true })
+  emailVerificationTokenExpiresAt: Date | null;
+
   @Column({ nullable: true, type: 'jsonb' })
   cvData: Record<string, any>;
 
