@@ -1,8 +1,9 @@
 import json
 import logging
-import time
-import httpx
+import asyncio
+import ssl
 import certifi
+import aiohttp
 from fastapi import HTTPException
 from app.config import settings
 
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 _MAX_RETRIES = 3
 _RETRY_DELAY = 2.0
 _GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+_SSL_CTX = ssl.create_default_context(cafile=certifi.where())
 
 
 def _build_messages(prompt: str, system: str | None) -> list[dict]:
@@ -31,32 +33,36 @@ async def _call_groq(messages: list[dict], max_tokens: int, response_format: dic
     if response_format:
         payload["response_format"] = response_format
 
-    async with httpx.AsyncClient(verify=certifi.where(), timeout=30.0) as client:
-        for attempt in range(_MAX_RETRIES):
-            try:
-                resp = await client.post(
+    headers = {"Authorization": f"Bearer {settings.groq_api_key}"}
+
+    for attempt in range(_MAX_RETRIES):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
                     _GROQ_URL,
-                    headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+                    headers=headers,
                     json=payload,
-                )
-                if resp.status_code == 429:
-                    logger.warning("Groq rate limit hit, attempt %d/%d", attempt + 1, _MAX_RETRIES)
-                    if attempt < _MAX_RETRIES - 1:
-                        time.sleep(_RETRY_DELAY * (attempt + 1))
-                    continue
-                resp.raise_for_status()
-                return resp.json()
-            except httpx.ConnectError as e:
-                logger.error("Groq connection error: %s", e)
-                if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_RETRY_DELAY)
-            except httpx.HTTPStatusError as e:
-                logger.error("Groq HTTP error: %s", e)
-                raise HTTPException(status_code=503, detail="AI service unavailable")
-            except httpx.TimeoutException:
-                logger.error("Groq timeout on attempt %d", attempt + 1)
-                if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_RETRY_DELAY)
+                    ssl=_SSL_CTX,
+                    timeout=aiohttp.ClientTimeout(total=30),
+                ) as resp:
+                    if resp.status == 429:
+                        logger.warning("Groq rate limit hit, attempt %d/%d", attempt + 1, _MAX_RETRIES)
+                        if attempt < _MAX_RETRIES - 1:
+                            await asyncio.sleep(_RETRY_DELAY * (attempt + 1))
+                        continue
+                    if resp.status >= 400:
+                        text = await resp.text()
+                        logger.error("Groq HTTP error %d: %s", resp.status, text)
+                        raise HTTPException(status_code=503, detail="AI service unavailable")
+                    return await resp.json()
+        except aiohttp.ClientConnectionError as e:
+            logger.error("Groq connection error: %s", e)
+            if attempt < _MAX_RETRIES - 1:
+                await asyncio.sleep(_RETRY_DELAY)
+        except asyncio.TimeoutError:
+            logger.error("Groq timeout on attempt %d", attempt + 1)
+            if attempt < _MAX_RETRIES - 1:
+                await asyncio.sleep(_RETRY_DELAY)
 
     raise HTTPException(status_code=503, detail="AI service unavailable after retries")
 
@@ -77,6 +83,6 @@ async def complete_json(prompt: str, max_tokens: int = 1024, system: str | None 
         except json.JSONDecodeError:
             logger.warning("Invalid JSON from Groq on attempt %d, retrying", attempt + 1)
             if attempt < _MAX_RETRIES - 1:
-                time.sleep(_RETRY_DELAY)
+                await asyncio.sleep(_RETRY_DELAY)
     logger.error("complete_json failed after %d attempts", _MAX_RETRIES)
     return {}
