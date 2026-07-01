@@ -1,13 +1,17 @@
 import json
 import logging
 import time
+import httpx
 from groq import Groq, APIError, APIConnectionError, RateLimitError
 from fastapi import HTTPException
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_client = Groq(api_key=settings.groq_api_key)
+_client = Groq(
+    api_key=settings.groq_api_key,
+    http_client=httpx.Client(http2=False, timeout=30.0),
+)
 _MAX_RETRIES = 3
 _RETRY_DELAY = 2.0
 
