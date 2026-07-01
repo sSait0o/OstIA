@@ -1,24 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { MailerService } from '../mailer/mailer.service';
 import { User } from '../users/entities/user.entity';
 
-const mockUser = (): User =>
+const mockUser = (overrides: Partial<User> = {}): User =>
   ({
     id: 'user-uuid-1',
     email: 'test@example.com',
     firstName: 'Test',
     lastName: 'User',
     password: bcrypt.hashSync('password123', 10),
+    isEmailVerified: true,
+    ...overrides,
   }) as User;
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
+  let mailerService: jest.Mocked<MailerService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -30,11 +35,24 @@ describe('AuthService', () => {
             findByEmail: jest.fn(),
             findById: jest.fn(),
             create: jest.fn(),
+            setEmailVerificationToken: jest.fn(),
+            findByEmailVerificationTokenHash: jest.fn(),
+            markEmailAsVerified: jest.fn(),
           },
         },
         {
           provide: JwtService,
           useValue: { sign: jest.fn().mockReturnValue('mock-jwt-token') },
+        },
+        {
+          provide: MailerService,
+          useValue: { sendVerificationEmail: jest.fn() },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((_key: string, fallback?: unknown) => fallback),
+          },
         },
       ],
     }).compile();
@@ -42,10 +60,11 @@ describe('AuthService', () => {
     service = module.get(AuthService);
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
+    mailerService = module.get(MailerService);
   });
 
   describe('validateUser', () => {
-    it('returns user when credentials are valid', async () => {
+    it('returns user when credentials are valid and email verified', async () => {
       const user = mockUser();
       usersService.findByEmail.mockResolvedValue(user);
 
@@ -68,6 +87,14 @@ describe('AuthService', () => {
       const result = await service.validateUser(user.email, 'wrongpassword');
       expect(result).toBeNull();
     });
+
+    it('throws ForbiddenException when email is not verified', async () => {
+      const user = mockUser({ isEmailVerified: false });
+      usersService.findByEmail.mockResolvedValue(user);
+      await expect(
+        service.validateUser(user.email, 'password123'),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   describe('login', () => {
@@ -86,8 +113,8 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('creates user and returns token when email is new', async () => {
-      const user = mockUser();
+    it('creates user and sends a verification email when email is new', async () => {
+      const user = mockUser({ isEmailVerified: false });
       usersService.findByEmail.mockResolvedValue(null);
       usersService.create.mockResolvedValue(user);
 
@@ -99,7 +126,13 @@ describe('AuthService', () => {
       });
 
       expect(jest.mocked(usersService.create)).toHaveBeenCalled();
-      expect(result.accessToken).toBe('mock-jwt-token');
+      expect(
+        jest.mocked(usersService.setEmailVerificationToken),
+      ).toHaveBeenCalled();
+      expect(
+        jest.mocked(mailerService.sendVerificationEmail),
+      ).toHaveBeenCalled();
+      expect(result.message).toBeDefined();
     });
 
     it('throws ConflictException when email already exists', async () => {

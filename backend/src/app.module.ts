@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { EncryptionModule } from './common/encryption.module';
+import { MailerModule } from './mailer/mailer.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ApplicationsModule } from './applications/applications.module';
@@ -20,6 +21,7 @@ import { AiModule } from './ai/ai.module';
       { name: 'medium', ttl: 60000, limit: 100 },
     ]),
     EncryptionModule,
+    MailerModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
