@@ -33,7 +33,7 @@ async def _call_groq(messages: list[dict], max_tokens: int, response_format: dic
     if response_format:
         payload["response_format"] = response_format
 
-    headers = {"Authorization": f"Bearer {settings.groq_api_key}"}
+    headers = {"Authorization": f"Bearer {settings.groq_api_key.strip()}"}
 
     for attempt in range(_MAX_RETRIES):
         try:
