@@ -30,7 +30,7 @@ def _cv_summary(cv_data: dict) -> str:
     return text[:_MAX_TEXT_LENGTH]
 
 
-def score_cv_job(cv_data: dict, job_title: str, job_description: str) -> dict:
+async def score_cv_job(cv_data: dict, job_title: str, job_description: str) -> dict:
     cv_skills: list[str] = cv_data.get("skills", [])
     preliminary = _keyword_overlap_score(cv_skills, job_description)
 
@@ -59,7 +59,7 @@ Return ONLY a valid JSON object:
   "summary": "1-2 sentence compatibility summary"
 }}"""
 
-    result = complete_json(prompt, max_tokens=512)
+    result = await complete_json(prompt, max_tokens=512)
     if not result or "score" not in result:
         logger.warning("AI matching returned no usable result, falling back to keyword score")
         return {

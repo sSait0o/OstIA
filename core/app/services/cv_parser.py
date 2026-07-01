@@ -24,7 +24,7 @@ def _strip_html(text: str) -> str:
     return _RE_WHITESPACE.sub(" ", text).strip()
 
 
-def parse_email(subject: str, body: str, email_id: str) -> dict | None:
+async def parse_email(subject: str, body: str, email_id: str) -> dict | None:
     clean_body = _strip_html(body)[:MAX_EMAIL_LENGTH]
 
     prompt = f"""Analyze this email related to a job application and return a structured JSON.
@@ -57,7 +57,7 @@ Status definitions:
 Company examples: "BNP Paribas", "Thales", "Capgemini" (not "HR team of BNP", not "the recruitment team")
 JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager Apprenticeship" """
 
-    result = complete_json(prompt, max_tokens=400, system=_SYSTEM_EMAIL)
+    result = await complete_json(prompt, max_tokens=400, system=_SYSTEM_EMAIL)
 
     if not result or result.get("not_recruitment"):
         return None
@@ -86,7 +86,7 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
     }
 
 
-def extract_cv(text: str) -> dict:
+async def extract_cv(text: str) -> dict:
     if len(text) > MAX_CV_LENGTH:
         logger.warning("CV text truncated from %d to %d characters", len(text), MAX_CV_LENGTH)
 
@@ -108,4 +108,4 @@ Return ONLY a valid JSON object:
   "summary": "profile summary"
 }}"""
 
-    return complete_json(prompt, max_tokens=1024)
+    return await complete_json(prompt, max_tokens=1024)

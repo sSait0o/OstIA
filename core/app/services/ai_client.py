@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-import requests
+import httpx
 import certifi
 from fastapi import HTTPException
 from app.config import settings
@@ -21,7 +21,7 @@ def _build_messages(prompt: str, system: str | None) -> list[dict]:
     return messages
 
 
-def _call_groq(messages: list[dict], max_tokens: int, response_format: dict | None = None) -> dict:
+async def _call_groq(messages: list[dict], max_tokens: int, response_format: dict | None = None) -> dict:
     payload: dict = {
         "model": settings.groq_model,
         "messages": messages,
@@ -31,48 +31,47 @@ def _call_groq(messages: list[dict], max_tokens: int, response_format: dict | No
     if response_format:
         payload["response_format"] = response_format
 
-    for attempt in range(_MAX_RETRIES):
-        try:
-            resp = requests.post(
-                _GROQ_URL,
-                headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-                json=payload,
-                verify=certifi.where(),
-                timeout=30,
-            )
-            if resp.status_code == 429:
-                logger.warning("Groq rate limit hit, attempt %d/%d", attempt + 1, _MAX_RETRIES)
+    async with httpx.AsyncClient(verify=certifi.where(), timeout=30.0) as client:
+        for attempt in range(_MAX_RETRIES):
+            try:
+                resp = await client.post(
+                    _GROQ_URL,
+                    headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+                    json=payload,
+                )
+                if resp.status_code == 429:
+                    logger.warning("Groq rate limit hit, attempt %d/%d", attempt + 1, _MAX_RETRIES)
+                    if attempt < _MAX_RETRIES - 1:
+                        time.sleep(_RETRY_DELAY * (attempt + 1))
+                    continue
+                resp.raise_for_status()
+                return resp.json()
+            except httpx.ConnectError as e:
+                logger.error("Groq connection error: %s", e)
                 if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_RETRY_DELAY * (attempt + 1))
-                continue
-            resp.raise_for_status()
-            return resp.json()
-        except requests.ConnectionError as e:
-            logger.error("Groq connection error: %s", e)
-            if attempt < _MAX_RETRIES - 1:
-                time.sleep(_RETRY_DELAY)
-        except requests.HTTPError as e:
-            logger.error("Groq HTTP error: %s", e)
-            raise HTTPException(status_code=503, detail="AI service unavailable")
-        except requests.Timeout:
-            logger.error("Groq timeout on attempt %d", attempt + 1)
-            if attempt < _MAX_RETRIES - 1:
-                time.sleep(_RETRY_DELAY)
+                    time.sleep(_RETRY_DELAY)
+            except httpx.HTTPStatusError as e:
+                logger.error("Groq HTTP error: %s", e)
+                raise HTTPException(status_code=503, detail="AI service unavailable")
+            except httpx.TimeoutException:
+                logger.error("Groq timeout on attempt %d", attempt + 1)
+                if attempt < _MAX_RETRIES - 1:
+                    time.sleep(_RETRY_DELAY)
 
     raise HTTPException(status_code=503, detail="AI service unavailable after retries")
 
 
-def complete(prompt: str, max_tokens: int = 1024, system: str | None = None) -> str:
+async def complete(prompt: str, max_tokens: int = 1024, system: str | None = None) -> str:
     messages = _build_messages(prompt, system)
-    result = _call_groq(messages, max_tokens)
+    result = await _call_groq(messages, max_tokens)
     return result["choices"][0]["message"]["content"] or ""
 
 
-def complete_json(prompt: str, max_tokens: int = 1024, system: str | None = None) -> dict:
+async def complete_json(prompt: str, max_tokens: int = 1024, system: str | None = None) -> dict:
     messages = _build_messages(prompt, system)
     for attempt in range(_MAX_RETRIES):
         try:
-            result = _call_groq(messages, max_tokens, response_format={"type": "json_object"})
+            result = await _call_groq(messages, max_tokens, response_format={"type": "json_object"})
             text = result["choices"][0]["message"]["content"] or "{}"
             return json.loads(text)
         except json.JSONDecodeError:
