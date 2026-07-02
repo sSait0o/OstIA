@@ -26,13 +26,10 @@
   text-align: center;
   margin-bottom: 32px;
 
-  h1 {
-    font-size: clamp(28px, 6vw, 40px);
-    font-weight: 800;
-    color: #fff;
+  .brand-logo {
+    height: 120px;
+    width: auto;
     margin: 0 0 8px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
   }
 
   p {

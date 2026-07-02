@@ -27,6 +27,7 @@
   font-size: 20px;
   letter-spacing: 0.05em;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
 
   @media (max-width: 767px) {
     width: auto;
@@ -34,15 +35,9 @@
   }
 }
 
-.logo-text {
-  font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-
-  @media (max-width: 767px) {
-    display: none;
-  }
+.logo-img {
+  height: 64px;
+  width: auto;
 }
 
 .header-bar {
@@ -210,6 +205,33 @@
 
 ::ng-deep .ant-layout-sider-zero-width-trigger {
   display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  ::ng-deep .body-layout > .ant-layout-sider {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    z-index: 100;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+  }
 }
 
 ::ng-deep .ant-menu-item .ant-menu-title-content {

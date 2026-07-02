@@ -6,9 +6,8 @@
 
 <div class="main-layout">
   <div class="app-header">
-    <div class="logo">
-      <span nz-icon nzType="compass" nzTheme="outline"></span>
-      <span class="logo-text">OstIA</span>
+    <div class="logo" routerLink="/">
+      <img src="/favicon.ico" alt="OstIA" class="logo-img" />
     </div>
     <div class="header-bar">
       <div class="header-left">
@@ -51,6 +50,9 @@
     </div>
   </div>
   <nz-layout class="body-layout" [class.body-layout--map]="isMapRoute()">
+    @if (!isCollapsed()) {
+      <div class="sidebar-backdrop" (click)="toggleSidebar()"></div>
+    }
     <nz-sider nzTheme="dark"
               [nzCollapsed]="isCollapsed()"
               (nzCollapsedChange)="isCollapsed.set($event)"
