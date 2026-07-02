@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { In, Repository } from 'typeorm';
@@ -74,6 +74,7 @@ interface FranceTravailSearchResponse {
 
 @Injectable()
 export class JobsService {
+  private readonly logger = new Logger(JobsService.name);
   private franceTravailToken: string | null = null;
   private tokenExpiry: Date | null = null;
 
@@ -83,6 +84,13 @@ export class JobsService {
     private readonly configService: ConfigService,
     private readonly aiService: AiService,
   ) {}
+
+  private describeAxiosError(reason: unknown): string {
+    if (axios.isAxiosError(reason)) {
+      return `${reason.message} — ${JSON.stringify(reason.response?.data)}`;
+    }
+    return reason instanceof Error ? reason.message : String(reason);
+  }
 
   private async getFranceTravailToken(): Promise<string> {
     if (
@@ -156,14 +164,15 @@ export class JobsService {
     const page = params.page || 1;
     const start = (page - 1) * perPage;
 
-    const minCreationDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+    const toFranceTravailDate = (date: Date) => `${date.toISOString().split('.')[0]}Z`;
+    const minCreationDate = toFranceTravailDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    const maxCreationDate = toFranceTravailDate(new Date());
 
     const queryParams: Record<string, string> = {
       motsCles: params.keywords || '',
       range: `${start}-${start + perPage - 1}`,
       minCreationDate,
+      maxCreationDate,
     };
 
     if (params.location) {
@@ -320,13 +329,21 @@ export class JobsService {
 
     if (ftResult.status === 'fulfilled') {
       ({ offers: ftOffers, total: ftTotal } = ftResult.value);
+    } else {
+      this.logger.error(
+        `France Travail search failed: ${this.describeAxiosError(ftResult.reason)}`,
+      );
     }
     if (adzunaResult.status === 'fulfilled') {
       ({ offers: adzunaOffers } = adzunaResult.value);
+    } else if (hasAdzuna) {
+      this.logger.error(
+        `Adzuna search failed: ${this.describeAxiosError(adzunaResult.reason)}`,
+      );
     }
 
     const allOffers = [...ftOffers, ...adzunaOffers];
-    const total = ftTotal;
+    const total = Math.max(ftTotal, allOffers.length);
 
     const externalIds = allOffers.map((o) => o.externalId);
     const existingJobs = await this.jobRepo.find({
