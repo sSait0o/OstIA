@@ -191,4 +191,8 @@
 
 .top-job-score {
   flex-shrink: 0;
+
+  ::ng-deep .ant-progress-text {
+    color: #fff;
+  }
 }
