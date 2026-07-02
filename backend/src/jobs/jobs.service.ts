@@ -72,6 +72,24 @@ interface FranceTravailSearchResponse {
   resultats?: FranceTravailOffer[];
 }
 
+// "APP" et "PRO" ne sont pas des codes typeContrat valides côté France Travail :
+// l'alternance/la professionnalisation y sont exposées via le paramètre natureContrat.
+const FT_NATURE_CONTRAT_MAP: Record<string, string> = {
+  APP: 'E2',
+  PRO: 'FS',
+};
+
+// Adzuna ne connaît que "permanent" / "contract" : ces types n'ont pas d'équivalent.
+const ADZUNA_UNSUPPORTED_CONTRACT_TYPES = new Set(['APP', 'PRO', 'SAI']);
+
+// France Travail rejette le code commune "ville entière" que renvoie geo.api.gouv.fr
+// pour Paris/Lyon/Marseille (découpées en arrondissements côté référentiel FT).
+const FT_ARRONDISSEMENT_CITY_DEPARTEMENTS: Record<string, string> = {
+  '75056': '75',
+  '69123': '69',
+  '13055': '13',
+};
+
 @Injectable()
 export class JobsService {
   private readonly logger = new Logger(JobsService.name);
@@ -181,13 +199,28 @@ export class JobsService {
         queryParams['departement'] = params.location;
       } else {
         const inseeCode = await this.resolveToInseeCode(params.location);
-        if (inseeCode) {
+        const fallbackDept = inseeCode
+          ? FT_ARRONDISSEMENT_CITY_DEPARTEMENTS[inseeCode]
+          : undefined;
+        if (fallbackDept) {
+          queryParams['departement'] = fallbackDept;
+        } else if (inseeCode) {
           queryParams['commune'] = inseeCode;
         }
       }
     }
-    if (params.contractTypes?.length)
-      queryParams['typeContrat'] = params.contractTypes.join(',');
+    if (params.contractTypes?.length) {
+      const typeContratValues = params.contractTypes.filter(
+        (c) => !FT_NATURE_CONTRAT_MAP[c],
+      );
+      const natureContratValues = params.contractTypes
+        .map((c) => FT_NATURE_CONTRAT_MAP[c])
+        .filter((v): v is string => !!v);
+      if (typeContratValues.length)
+        queryParams['typeContrat'] = typeContratValues.join(',');
+      if (natureContratValues.length)
+        queryParams['natureContrat'] = natureContratValues.join(',');
+    }
     if (params.experience) queryParams['experience'] = params.experience;
     if (params.distance) queryParams['distance'] = String(params.distance);
     if (params.fullTime === true) queryParams['tempsPlein'] = 'true';
@@ -249,6 +282,13 @@ export class JobsService {
       queryParams['sort_by'] = 'relevance';
 
     if (params.contractTypes?.length) {
+      const isExpressible = params.contractTypes.some(
+        (c) => !ADZUNA_UNSUPPORTED_CONTRACT_TYPES.has(c),
+      );
+      // Adzuna n'a pas d'équivalent pour l'alternance/la professionnalisation/le
+      // saisonnier : mieux vaut ne rien renvoyer que des offres non filtrées.
+      if (!isExpressible) return { offers: [], total: 0 };
+
       const hasPermanent = params.contractTypes.includes('CDI');
       const hasContract = params.contractTypes.some((c) =>
         ['CDD', 'MIS'].includes(c),
