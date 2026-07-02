@@ -199,10 +199,7 @@ export class ApplicationsService {
       {} as Record<ApplicationStatus, number>,
     );
 
-    const activeApps = apps.filter(
-      (a) => a.status !== ApplicationStatus.WITHDRAWN,
-    );
-    const responded = activeApps.filter((a) =>
+    const responded = apps.filter((a) =>
       [
         ApplicationStatus.INTERVIEW,
         ApplicationStatus.TECHNICAL,
@@ -211,9 +208,7 @@ export class ApplicationsService {
       ].includes(a.status),
     ).length;
     const responseRate =
-      activeApps.length > 0
-        ? Math.round((responded / activeApps.length) * 100)
-        : 0;
+      apps.length > 0 ? Math.round((responded / apps.length) * 100) : 0;
 
     const now = new Date();
     const byMonth = Array.from({ length: 6 }, (_, i) => {

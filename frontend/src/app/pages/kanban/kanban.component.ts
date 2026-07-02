@@ -78,7 +78,6 @@ export class KanbanComponent implements OnInit {
     { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
     { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
     { key: 'REJECTED', label: 'Refusé', color: 'red', items: [] },
-    { key: 'WITHDRAWN', label: 'Retiré', color: 'default', items: [] },
   ]);
 
   statusOptions = [
@@ -88,7 +87,6 @@ export class KanbanComponent implements OnInit {
     { value: 'INTERVIEW', label: 'Entretien' },
     { value: 'OFFER', label: 'Offre' },
     { value: 'REJECTED', label: 'Refusé' },
-    { value: 'WITHDRAWN', label: 'Retiré' },
   ];
 
   form: Partial<CreateApplicationDto> & { status?: ApplicationStatus } = {

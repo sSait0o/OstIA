@@ -17,7 +17,6 @@ export enum ApplicationStatus {
   TECHNICAL = 'TECHNICAL',
   OFFER = 'OFFER',
   REJECTED = 'REJECTED',
-  WITHDRAWN = 'WITHDRAWN',
 }
 
 export enum ApplicationSource {
