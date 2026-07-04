@@ -40,17 +40,6 @@
   }
 }
 
-:host ::ng-deep .ant-form-item-has-error input.ant-input {
-  background: transparent !important;
-  color: inherit !important;
-  border-color: #ff4d4f !important;
-  box-shadow: none !important;
-
-  &:focus {
-    box-shadow: none !important;
-  }
-}
-
 .auth-footer {
   text-align: center;
   margin-top: 20px;
