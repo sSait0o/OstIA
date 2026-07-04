@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import SMTPTransport = require('nodemailer/lib/smtp-transport');
 
 @Injectable()
 export class MailService {
@@ -18,7 +19,10 @@ export class MailService {
       'FRONTEND_URL',
       'http://localhost:4200',
     );
-    this.transporter = nodemailer.createTransport({
+    // `family` isn't in @types/nodemailer but nodemailer forwards it to the
+    // underlying socket connect() call; some networks resolve Gmail's AAAA
+    // record but have no working IPv6 route, causing ENETUNREACH.
+    const transportOptions: SMTPTransport.Options & { family?: number } = {
       host: this.configService.get<string>('SMTP_HOST'),
       port: this.configService.get<number>('SMTP_PORT', 587),
       secure: this.configService.get('SMTP_SECURE', 'false') === 'true',
@@ -29,7 +33,9 @@ export class MailService {
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 10_000,
-    });
+      family: 4,
+    };
+    this.transporter = nodemailer.createTransport(transportOptions);
   }
 
   async sendVerificationEmail(
