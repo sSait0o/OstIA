@@ -51,7 +51,15 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) throw new ConflictException('Email déjà utilisé');
+    if (existing) {
+      if (!this.isReclaimable(existing)) {
+        throw new ConflictException('Email déjà utilisé');
+      }
+      // Unverified and past the verification window: this is an abandoned
+      // signup (or a squatted email), not a real account — free it up rather
+      // than locking the real owner out of registering forever.
+      await this.usersService.remove(existing.id);
+    }
 
     const hashed = await bcrypt.hash(dto.password, 12);
     const user = await this.usersService.create({ ...dto, password: hashed });
@@ -86,14 +94,28 @@ export class AuthService {
     return { message: 'Email de vérification renvoyé' };
   }
 
+  private isReclaimable(user: User): boolean {
+    return (
+      !user.isEmailVerified &&
+      (!user.emailVerificationExpires ||
+        user.emailVerificationExpires.getTime() < Date.now())
+    );
+  }
+
   private async issueVerificationToken(user: User) {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
     await this.usersService.setVerificationToken(user.id, token, expires);
-    await this.mailService.sendVerificationEmail(
-      user.email,
-      user.firstName,
-      token,
-    );
+    try {
+      await this.mailService.sendVerificationEmail(
+        user.email,
+        user.firstName,
+        token,
+      );
+    } catch {
+      // MailService already logged the failure. Don't fail registration/resend
+      // over a mail-provider hiccup — the user can request another send once
+      // the mail service is reachable.
+    }
   }
 }

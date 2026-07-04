@@ -54,4 +54,8 @@ export class UsersService {
     user.cvData = cvData;
     return this.userRepo.save(user);
   }
+
+  async remove(userId: string): Promise<void> {
+    await this.userRepo.delete(userId);
+  }
 }
