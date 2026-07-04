@@ -8,10 +8,12 @@ Plateforme intelligente de gestion de candidatures et de recherche d'emploi, pro
 ## Fonctionnalités
 
 - **Kanban des candidatures** - 7 statuts, drag & drop, filtres
-- **Parsing IA des emails** - Claude (Anthropic) analyse le dossier "Ostia" de votre boîte mail et crée les candidatures automatiquement
+- **Parsing IA des emails** - Groq analyse le dossier "Ostia" de votre boîte mail et crée les candidatures automatiquement
+- **Sync email avancée** - suivi de progression par mailbox, dédoublonnage des relances par thread, détection automatique des changements de statut par IA
+- **Vérification d'email** - confirmation du compte par lien envoyé par email (SMTP)
 - **Matching CV/offres** - Agrège les offres France Travail et les score en temps réel selon votre CV (Groq)
 - **Dashboard analytique** - Taux de réponse, répartition par statut (Apache ECharts)
-- **Carte géographique** - Visualisation des candidatures par localisation
+- **Carte géographique** - Visualisation des candidatures par localisation, géocodage concurrent avec limitation de débit Nominatim
 
 ## Stack technique
 
@@ -19,10 +21,10 @@ Plateforme intelligente de gestion de candidatures et de recherche d'emploi, pro
 |--------|-------------|
 | Frontend | Angular 19, NG-Zorro, Apache ECharts |
 | Backend | NestJS, TypeORM, PostgreSQL |
-| Core IA | FastAPI, Groq (LLaMA), pdfplumber |
-| Emails | Claude API (Anthropic), Gmail OAuth2, Microsoft Graph |
+| Core IA | FastAPI, Groq, pdfplumber |
+| Emails | Gmail OAuth2, Microsoft Graph, nodemailer (SMTP) |
 | Jobs | France Travail API (officielle) |
-| Auth | JWT |
+| Auth | JWT, vérification d'email |
 | Infra | Docker, Railway, GitHub Actions |
 
 ## Prérequis
@@ -30,7 +32,7 @@ Plateforme intelligente de gestion de candidatures et de recherche d'emploi, pro
 - Node.js 22+
 - Python 3.12+
 - Docker & Docker Compose
-- Comptes : [Google Cloud](https://console.cloud.google.com) (Gmail), [Azure](https://portal.azure.com) (Outlook), [Anthropic](https://console.anthropic.com), [Groq](https://console.groq.com), [France Travail](https://francetravail.io)
+- Comptes : [Google Cloud](https://console.cloud.google.com) (Gmail), [Azure](https://portal.azure.com) (Outlook), [Groq](https://console.groq.com), [France Travail](https://francetravail.io)
 
 ## Démarrage rapide
 
@@ -61,6 +63,9 @@ L'app est disponible sur [http://localhost:4200](http://localhost:4200).
 | `DATABASE_URL` | URL PostgreSQL Railway (production) |
 | `DB_HOST/PORT/USER/PASSWORD/NAME` | PostgreSQL local |
 | `JWT_SECRET` | Clé secrète JWT (min. 32 chars en prod) |
+| `ENCRYPTION_KEY` | Chiffrement AES-256-GCM des tokens OAuth au repos (défaut: `JWT_SECRET`) |
+| `SMTP_HOST/PORT/SECURE/USER/PASS` | Serveur SMTP pour les emails transactionnels (vérification de compte) |
+| `MAIL_FROM` | Adresse d'expéditeur des emails transactionnels |
 | `GOOGLE_CLIENT_ID/SECRET` | Google OAuth (Gmail) |
 | `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` | Azure OAuth (Outlook) |
 | `CORE_API_URL` | URL du service core (défaut: `http://localhost:8001`) |
@@ -80,13 +85,15 @@ L'app est disponible sur [http://localhost:4200](http://localhost:4200).
 OstIA/
 ├── backend/          # API NestJS
 │   └── src/
-│       ├── auth/         # JWT
+│       ├── auth/         # JWT + vérification d'email
 │       ├── users/
 │       ├── applications/ # Candidatures
-│       ├── email/        # Gmail + Outlook OAuth
+│       ├── email/        # Gmail + Outlook OAuth, sync IMAP, dédup par thread
+│       ├── mail/         # Envoi SMTP (nodemailer)
 │       ├── jobs/         # France Travail API
 │       ├── cv/           # Upload & parsing CV
-│       └── ai/           # Claude API
+│       ├── ai/           # Client vers le core (Groq)
+│       └── migrations/   # Migrations TypeORM
 ├── core/             # Microservice Python FastAPI
 │   └── app/
 │       ├── routers/      # cv, matching, analytics
