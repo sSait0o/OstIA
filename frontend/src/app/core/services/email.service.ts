@@ -17,6 +17,8 @@ export interface SyncProgress {
   skipped?: number;
   failed?: number;
   aiUnavailable?: number;
+  rateLimited?: boolean;
+  retryAfterSeconds?: number;
 }
 
 export interface EmailConnection {
@@ -25,13 +27,13 @@ export interface EmailConnection {
   email: string;
   isActive: boolean;
   createdAt: string;
+  nextSyncAvailableAt: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
 export class EmailService {
   private readonly base = `${environment.apiUrl}/email`;
 
-  // Shared state so sync progress stays visible even if the user navigates away.
   syncingGmail = signal(false);
   gmailSyncPercent = signal(0);
   gmailSyncCurrent = signal(0);
@@ -82,7 +84,6 @@ export class EmailService {
     });
   }
 
-  /** Starts Gmail sync in the background; state stays accessible from any page. */
   startGmailSync() {
     const token = this.authService.getToken();
     if (!token || this.syncingGmail()) return;
@@ -98,6 +99,13 @@ export class EmailService {
         if (p.total) this.gmailSyncTotal.set(p.total);
         this.gmailSyncEtaSeconds.set(p.done ? 0 : (p.estimatedSecondsRemaining ?? 0));
         if (p.done) {
+          if (p.rateLimited) {
+            this.message.warning(
+              `Synchronisation limitée à une fois par heure. Réessayez dans ${this.formatRetryDelay(p.retryAfterSeconds ?? 0)}.`,
+            );
+            this.syncingGmail.set(false);
+            return;
+          }
           const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
           if (p.updated) parts.push(`${p.updated} mise(s) à jour`);
           if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
@@ -115,7 +123,6 @@ export class EmailService {
     });
   }
 
-  /** Starts Outlook sync in the background; state stays accessible from any page. */
   startOutlookSync() {
     const token = this.authService.getToken();
     if (!token || this.syncingOutlook()) return;
@@ -131,6 +138,13 @@ export class EmailService {
         if (p.total) this.outlookSyncTotal.set(p.total);
         this.outlookSyncEtaSeconds.set(p.done ? 0 : (p.estimatedSecondsRemaining ?? 0));
         if (p.done) {
+          if (p.rateLimited) {
+            this.message.warning(
+              `Synchronisation limitée à une fois par heure. Réessayez dans ${this.formatRetryDelay(p.retryAfterSeconds ?? 0)}.`,
+            );
+            this.syncingOutlook.set(false);
+            return;
+          }
           const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
           if (p.updated) parts.push(`${p.updated} mise(s) à jour`);
           if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
@@ -163,5 +177,10 @@ export class EmailService {
 
   resetOutlookData() {
     return this.http.delete<{ applicationsRemoved: number; syncRecordsRemoved: number }>(`${this.base}/outlook/data`);
+  }
+
+  private formatRetryDelay(seconds: number): string {
+    const minutes = Math.ceil(seconds / 60);
+    return minutes <= 1 ? '1 minute' : `${minutes} minutes`;
   }
 }

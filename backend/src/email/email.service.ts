@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
@@ -37,6 +43,17 @@ export interface SyncProgress {
   skipped?: number;
   failed?: number;
   aiUnavailable?: number;
+  rateLimited?: boolean;
+  retryAfterSeconds?: number;
+}
+
+export class SyncRateLimitedException extends HttpException {
+  constructor(public readonly retryAfterSeconds: number) {
+    super(
+      `Synchronisation limitée à une fois par heure. Réessayez dans ${Math.ceil(retryAfterSeconds / 60)} minute(s).`,
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
 }
 
 export interface SyncResult {
@@ -74,11 +91,13 @@ interface OutlookMessage {
   from?: { emailAddress?: { address?: string } };
 }
 
-// Spaces out AI calls to stay under Groq's free-tier requests/minute limit.
 const AI_REQUEST_DELAY_MS = 2100;
 
-// Only syncs recent mail to keep sync duration reasonable.
 const EMAIL_SYNC_LOOKBACK_MONTHS = 2;
+
+const SYNC_RATE_LIMIT_MS = 60 * 60 * 1000;
+
+const ETA_UPDATE_INTERVAL_MS = 60_000;
 
 const OSTIA_LABEL = 'OstIA';
 const OSTIA_SUBLABELS = [
@@ -216,7 +235,19 @@ export class EmailService {
           emit({ percent: 100, done: true, ...result });
           subscriber.complete();
         })
-        .catch((err: unknown) => subscriber.error(err));
+        .catch((err: unknown) => {
+          if (err instanceof SyncRateLimitedException) {
+            emit({
+              percent: 100,
+              done: true,
+              rateLimited: true,
+              retryAfterSeconds: err.retryAfterSeconds,
+            });
+            subscriber.complete();
+            return;
+          }
+          subscriber.error(err);
+        });
     });
   }
 
@@ -228,6 +259,7 @@ export class EmailService {
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
     });
     if (!connection) throw new NotFoundException('Connexion Gmail non trouvée');
+    await this.enforceSyncRateLimit(connection);
 
     this.googleOAuth2Client.setCredentials({
       access_token: this.encryptionService.decrypt(connection.accessToken),
@@ -319,17 +351,14 @@ export class EmailService {
     onProgress({ percent: 15 });
 
     const syncStartedAt = Date.now();
+    const estimateEta = this.createEtaEstimator(syncStartedAt);
     for (let i = 0; i < fetched.length; i++) {
       const { msgId, subject, from, body, threadId } = fetched[i];
       onProgress({
         percent: 15 + Math.round(((i + 1) / total) * 70),
         current: i + 1,
         total,
-        estimatedSecondsRemaining: this.estimateSecondsRemaining(
-          syncStartedAt,
-          i,
-          total,
-        ),
+        estimatedSecondsRemaining: estimateEta(i, total),
       });
 
       const existingRecord = await this.syncRecordsService.find(
@@ -379,8 +408,6 @@ export class EmailService {
       );
 
       if (dossier) {
-        // A rejected application has reached the end of its lifecycle; skip
-        // further mails in the same thread to avoid a needless AI call.
         if (dossier.status === ApplicationStatus.REJECTED) {
           await this.syncRecordsService.upsert(
             userId,
@@ -565,10 +592,6 @@ export class EmailService {
     const sublabel = STATUS_TO_SUBLABEL[status];
 
     if (!sublabel) {
-      // Safety net if a status has no sublabel: strip the OstIA labels rather
-      // than leave the mail mistagged. Shouldn't happen as long as
-      // STATUS_TO_SUBLABEL covers every status (the mail would otherwise stay
-      // invisible to future syncs).
       const sublabelIds = OSTIA_SUBLABELS.map((sub) =>
         labelMap.get(`${OSTIA_LABEL}/${sub}`),
       );
@@ -670,8 +693,6 @@ export class EmailService {
     total: number,
   ): number {
     const remaining = total - processedCount;
-    // Before any email is processed, fall back to the AI rate-limit delay
-    // since there's no average yet.
     const avgMsPerItem =
       processedCount > 0
         ? (Date.now() - startedAt) / processedCount
@@ -679,10 +700,58 @@ export class EmailService {
     return Math.round((avgMsPerItem * remaining) / 1000);
   }
 
+  private createEtaEstimator(
+    startedAt: number,
+  ): (processedCount: number, total: number) => number {
+    let lastComputedAt = 0;
+    let lastValue = 0;
+    return (processedCount: number, total: number): number => {
+      const now = Date.now();
+      if (now - lastComputedAt >= ETA_UPDATE_INTERVAL_MS) {
+        lastValue = this.estimateSecondsRemaining(
+          startedAt,
+          processedCount,
+          total,
+        );
+        lastComputedAt = now;
+      }
+      return lastValue;
+    };
+  }
+
   private getSyncCutoffDate(): Date {
     const cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - EMAIL_SYNC_LOOKBACK_MONTHS);
     return cutoff;
+  }
+
+  private isSyncRateLimitEnabled(): boolean {
+    return this.configService.get('NODE_ENV') === 'production';
+  }
+
+  private computeNextSyncAvailableAt(
+    lastSyncedAt: Date | null,
+  ): string | null {
+    if (!this.isSyncRateLimitEnabled() || !lastSyncedAt) return null;
+    const nextAvailableAt = lastSyncedAt.getTime() + SYNC_RATE_LIMIT_MS;
+    return nextAvailableAt > Date.now()
+      ? new Date(nextAvailableAt).toISOString()
+      : null;
+  }
+
+  private async enforceSyncRateLimit(
+    connection: EmailConnection,
+  ): Promise<void> {
+    if (this.isSyncRateLimitEnabled() && connection.lastSyncedAt) {
+      const elapsed = Date.now() - connection.lastSyncedAt.getTime();
+      if (elapsed < SYNC_RATE_LIMIT_MS) {
+        throw new SyncRateLimitedException(
+          Math.ceil((SYNC_RATE_LIMIT_MS - elapsed) / 1000),
+        );
+      }
+    }
+    connection.lastSyncedAt = new Date();
+    await this.connectionRepo.save(connection);
   }
 
   private extractEmailAddress(raw: string): string {
@@ -820,7 +889,19 @@ export class EmailService {
           emit({ percent: 100, done: true, ...result });
           subscriber.complete();
         })
-        .catch((err: unknown) => subscriber.error(err));
+        .catch((err: unknown) => {
+          if (err instanceof SyncRateLimitedException) {
+            emit({
+              percent: 100,
+              done: true,
+              rateLimited: true,
+              retryAfterSeconds: err.retryAfterSeconds,
+            });
+            subscriber.complete();
+            return;
+          }
+          subscriber.error(err);
+        });
     });
   }
 
@@ -833,6 +914,7 @@ export class EmailService {
     });
     if (!connection)
       throw new NotFoundException('Connexion Outlook non trouvée');
+    await this.enforceSyncRateLimit(connection);
 
     const token = await this.refreshMicrosoftTokenIfNeeded(connection);
     const headers = { Authorization: `Bearer ${token}` };
@@ -886,17 +968,14 @@ export class EmailService {
     onProgress({ percent: 15 });
 
     const syncStartedAt = Date.now();
+    const estimateEta = this.createEtaEstimator(syncStartedAt);
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       onProgress({
         percent: 15 + Math.round(((i + 1) / total) * 70),
         current: i + 1,
         total,
-        estimatedSecondsRemaining: this.estimateSecondsRemaining(
-          syncStartedAt,
-          i,
-          total,
-        ),
+        estimatedSecondsRemaining: estimateEta(i, total),
       });
 
       const subject = msg.subject ?? '';
@@ -953,8 +1032,6 @@ export class EmailService {
       );
 
       if (dossier) {
-        // A rejected application has reached the end of its lifecycle; skip
-        // further mails in the same thread to avoid a needless AI call.
         if (dossier.status === ApplicationStatus.REJECTED) {
           await this.syncRecordsService.upsert(
             userId,
@@ -1200,8 +1277,20 @@ export class EmailService {
     await this.applyGmailSublabel(gmail, emailId, status, labelMap);
   }
 
-  async getConnections(userId: string): Promise<EmailConnection[]> {
-    return this.connectionRepo.find({ where: { user: { id: userId } } });
+  async getConnections(
+    userId: string,
+  ): Promise<
+    Array<EmailConnection & { nextSyncAvailableAt: string | null }>
+  > {
+    const connections = await this.connectionRepo.find({
+      where: { user: { id: userId } },
+    });
+    return connections.map((connection) => ({
+      ...connection,
+      nextSyncAvailableAt: this.computeNextSyncAvailableAt(
+        connection.lastSyncedAt,
+      ),
+    }));
   }
 
   async disconnect(userId: string, connectionId: string): Promise<void> {
@@ -1279,8 +1368,6 @@ export class EmailService {
     ).filter((id): id is string => !!id);
     if (sublabelIds.length === 0) return { stripped: 0, remaining: 0 };
 
-    // Matches mails by sublabel rather than parent label, so a mail that lost
-    // its parent label (past bug) is still caught via its sublabel.
     const collectLabeledIds = async (): Promise<string[]> => {
       const ids = new Set<string>();
       for (const subLabelId of sublabelIds) {
@@ -1313,8 +1400,6 @@ export class EmailService {
 
     let stripped = await stripIds(await collectLabeledIds());
 
-    // Verify: recount what's still actually labeled and retry once to catch
-    // transient failures (quota, network).
     let remainingIds = await collectLabeledIds();
     if (remainingIds.length > 0) {
       stripped += await stripIds(remainingIds);
