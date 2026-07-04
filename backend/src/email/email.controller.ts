@@ -59,6 +59,24 @@ export class EmailController {
     return this.emailService.syncOutlookEmails(req.user.id);
   }
 
+  @Delete('gmail/data')
+  @ApiOperation({
+    summary:
+      'Supprimer les candidatures et l\'historique de sync Gmail pour resynchroniser proprement',
+  })
+  resetGmailData(@Request() req: { user: { id: string } }) {
+    return this.emailService.resetGmailData(req.user.id);
+  }
+
+  @Delete('outlook/data')
+  @ApiOperation({
+    summary:
+      'Supprimer les candidatures et l\'historique de sync Outlook pour resynchroniser proprement',
+  })
+  resetOutlookData(@Request() req: { user: { id: string } }) {
+    return this.emailService.resetOutlookData(req.user.id);
+  }
+
   @Delete('connections/:id')
   @ApiOperation({ summary: 'Déconnecter un compte email' })
   disconnect(
@@ -83,6 +101,17 @@ export class EmailSseController {
     try {
       const payload = this.jwtService.verify<{ sub: string }>(token);
       return this.emailService.syncGmailStream(payload.sub);
+    } catch {
+      throw new UnauthorizedException();
+    }
+  }
+
+  @Sse('sync/outlook/stream')
+  @ApiOperation({ summary: 'Synchroniser Outlook avec progression SSE' })
+  syncOutlookStream(@Query('token') token: string): Observable<MessageEvent> {
+    try {
+      const payload = this.jwtService.verify<{ sub: string }>(token);
+      return this.emailService.syncOutlookStream(payload.sub);
     } catch {
       throw new UnauthorizedException();
     }

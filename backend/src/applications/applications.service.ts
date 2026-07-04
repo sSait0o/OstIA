@@ -146,6 +146,14 @@ export class ApplicationsService {
     return { removed };
   }
 
+  async removeAllEmailSourced(userId: string): Promise<number> {
+    const result = await this.appRepo.delete({
+      user: { id: userId },
+      source: ApplicationSource.EMAIL,
+    });
+    return result.affected ?? 0;
+  }
+
   async resetAllCoordinates(userId: string): Promise<{ reset: number }> {
     const apps = await this.findAllByUser(userId);
     await Promise.all(
@@ -157,37 +165,43 @@ export class ApplicationsService {
     return { reset: apps.length };
   }
 
-  async findDuplicate(
+  private static readonly TERMINAL_STATUSES = new Set<ApplicationStatus>([
+    ApplicationStatus.OFFER,
+    ApplicationStatus.REJECTED,
+  ]);
+
+  async findByEmailId(
     userId: string,
-    emailId?: string,
-    company?: string,
-    jobTitle?: string,
+    emailId: string,
   ): Promise<Application | null> {
-    if (emailId) {
-      const byEmail = await this.appRepo.findOne({
-        where: { user: { id: userId }, emailId },
+    return this.appRepo.findOne({ where: { user: { id: userId }, emailId } });
+  }
+
+  async findDossierForEmail(
+    userId: string,
+    params: { threadId?: string; text: string },
+  ): Promise<Application | null> {
+    const { threadId, text } = params;
+
+    if (threadId) {
+      const byThread = await this.appRepo.findOne({
+        where: { user: { id: userId }, threadId },
       });
-      if (byEmail) return byEmail;
+      if (byThread) return byThread;
     }
 
-    if (company && jobTitle) {
-      const existing = await this.findAllByUser(userId);
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const nc = norm(company);
-      const nj = norm(jobTitle);
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nText = norm(text);
+    const existing = await this.findAllByUser(userId);
 
-      return (
-        existing.find((a) => {
-          const ec = norm(a.company);
-          const ej = norm(a.jobTitle);
-          const companySimilar =
-            ec === nc || ec.includes(nc) || nc.includes(ec);
-          return companySimilar && ej === nj;
-        }) ?? null
-      );
-    }
-
-    return null;
+    return (
+      existing.find((a) => {
+        if (ApplicationsService.TERMINAL_STATUSES.has(a.status)) return false;
+        const nc = norm(a.company);
+        const nj = norm(a.jobTitle);
+        return nc.length > 0 && nj.length > 0 && nText.includes(nc) && nText.includes(nj);
+      }) ?? null
+    );
   }
 
   async getStats(userId: string) {

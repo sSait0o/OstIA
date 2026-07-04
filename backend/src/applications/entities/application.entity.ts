@@ -58,6 +58,10 @@ export class Application {
   @Column({ nullable: true })
   emailId: string;
 
+  @Index()
+  @Column({ nullable: true })
+  threadId: string;
+
   @Column({ nullable: true, length: 500 })
   emailSubject: string;
 

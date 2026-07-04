@@ -7,18 +7,20 @@ import {
   EmailCallbackController,
 } from './email.controller';
 import { EmailConnection } from './entities/email-connection.entity';
+import { EmailSyncRecord } from './entities/email-sync-record.entity';
+import { EmailSyncRecordsService } from './email-sync-records.service';
 import { AiModule } from '../ai/ai.module';
 import { ApplicationsModule } from '../applications/applications.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmailConnection]),
+    TypeOrmModule.forFeature([EmailConnection, EmailSyncRecord]),
     AiModule,
     forwardRef(() => ApplicationsModule),
     AuthModule,
   ],
-  providers: [EmailService],
+  providers: [EmailService, EmailSyncRecordsService],
   controllers: [EmailController, EmailSseController, EmailCallbackController],
   exports: [EmailService],
 })

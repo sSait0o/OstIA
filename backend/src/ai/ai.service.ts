@@ -14,6 +14,12 @@ export interface ParsedApplication {
   location?: string;
 }
 
+export type EmailParseResult =
+  | { kind: 'ok'; data: ParsedApplication }
+  | { kind: 'not-relevant'; reason?: string }
+  | { kind: 'unavailable'; reason: string }
+  | { kind: 'failed'; reason: string };
+
 export interface CvMatchResult {
   score: number;
   matchedSkills: string[];
@@ -34,13 +40,59 @@ export class AiService {
     emailSubject: string,
     emailBody: string,
     emailId: string,
-  ): Promise<ParsedApplication | null> {
+  ): Promise<EmailParseResult> {
     try {
       const { data } = await axios.post<Omit<ParsedApplication, 'source'>>(
         `${this.coreUrl}/cv/parse-email`,
         { subject: emailSubject, body: emailBody, emailId },
       );
-      return { ...data, source: ApplicationSource.EMAIL };
+      return {
+        kind: 'ok',
+        data: { ...data, source: ApplicationSource.EMAIL },
+      };
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 503) {
+          return {
+            kind: 'unavailable',
+            reason:
+              'AI service unavailable (rate limit/connection) after retries',
+          };
+        }
+        if (err.response?.status === 400) {
+          return {
+            kind: 'not-relevant',
+            reason: (err.response?.data as { detail?: string } | undefined)
+              ?.detail,
+          };
+        }
+      }
+      return {
+        kind: 'failed',
+        reason: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  async detectStatusUpdate(
+    emailSubject: string,
+    emailBody: string,
+    company: string,
+    jobTitle: string,
+    currentStatus: string,
+  ): Promise<string | null> {
+    try {
+      const { data } = await axios.post<{ status: string | null }>(
+        `${this.coreUrl}/cv/detect-status`,
+        {
+          subject: emailSubject,
+          body: emailBody,
+          company,
+          jobTitle,
+          currentStatus,
+        },
+      );
+      return data.status ?? null;
     } catch {
       return null;
     }

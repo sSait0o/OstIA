@@ -4,6 +4,13 @@
     <p class="subtitle">Connectez vos boîtes mail pour importer automatiquement vos candidatures</p>
   </div>
 
+  <nz-alert
+    nzType="info"
+    nzShowIcon
+    nzMessage="Seuls les emails reçus dans les 2 derniers mois sont analysés."
+    class="sync-window-alert"
+  ></nz-alert>
+
   @if (loading()) {
     <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
   } @else {
@@ -48,16 +55,31 @@
           <span nz-icon nzType="mail"></span>
           {{ hasGmail() ? 'Compte connecté' : 'Connecter Gmail' }}
         </button>
-        <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail() || syncingGmail()">
+        <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="emailService.syncingGmail()" [disabled]="!hasGmail() || emailService.syncingGmail()">
           <span nz-icon nzType="sync"></span> Synchroniser
         </button>
+        <button nz-button nzType="default" nzDanger [disabled]="!hasGmail()"
+                nz-popconfirm
+                nzPopconfirmTitle="Supprimer toutes les candidatures et l'historique de sync Gmail, et retirer les sous-libellés (garder juste OstIA) ? Vous pourrez resynchroniser proprement ensuite."
+                nzPopconfirmPlacement="bottom"
+                (nzOnConfirm)="resetGmailData()">
+          <span nz-icon nzType="delete"></span> Tout supprimer
+        </button>
       </div>
-      @if (syncingGmail()) {
+      @if (emailService.syncingGmail()) {
         <nz-progress
-          [nzPercent]="gmailSyncPercent()"
-          [nzStatus]="gmailSyncPercent() === 100 ? 'success' : 'active'"
+          [nzPercent]="emailService.gmailSyncPercent()"
+          [nzStatus]="emailService.gmailSyncPercent() === 100 ? 'success' : 'active'"
           class="sync-progress"
         ></nz-progress>
+        @if (emailService.gmailSyncTotal()) {
+          <div class="sync-detail">
+            Email {{ emailService.gmailSyncCurrent() }} / {{ emailService.gmailSyncTotal() }}
+            @if (emailService.gmailSyncEtaSeconds() > 0) {
+              <span> · ~{{ formatEta(emailService.gmailSyncEtaSeconds()) }} restantes</span>
+            }
+          </div>
+        }
       }
     </nz-card>
 
@@ -77,10 +99,32 @@
           <span nz-icon nzType="laptop"></span>
           {{ hasOutlook() ? 'Compte connecté' : 'Connecter Outlook' }}
         </button>
-        <button nz-button nzType="default" (click)="syncOutlook()" [nzLoading]="syncingOutlook()" [disabled]="!hasOutlook()">
+        <button nz-button nzType="default" (click)="syncOutlook()" [nzLoading]="emailService.syncingOutlook()" [disabled]="!hasOutlook() || emailService.syncingOutlook()">
           <span nz-icon nzType="sync"></span> Synchroniser
         </button>
+        <button nz-button nzType="default" nzDanger [disabled]="!hasOutlook()"
+                nz-popconfirm
+                nzPopconfirmTitle="Supprimer toutes les candidatures et l'historique de sync Outlook ? Vous pourrez resynchroniser proprement ensuite."
+                nzPopconfirmPlacement="bottom"
+                (nzOnConfirm)="resetOutlookData()">
+          <span nz-icon nzType="delete"></span> Tout supprimer
+        </button>
       </div>
+      @if (emailService.syncingOutlook()) {
+        <nz-progress
+          [nzPercent]="emailService.outlookSyncPercent()"
+          [nzStatus]="emailService.outlookSyncPercent() === 100 ? 'success' : 'active'"
+          class="sync-progress"
+        ></nz-progress>
+        @if (emailService.outlookSyncTotal()) {
+          <div class="sync-detail">
+            Email {{ emailService.outlookSyncCurrent() }} / {{ emailService.outlookSyncTotal() }}
+            @if (emailService.outlookSyncEtaSeconds() > 0) {
+              <span> · ~{{ formatEta(emailService.outlookSyncEtaSeconds()) }} restantes</span>
+            }
+          </div>
+        }
+      }
     </nz-card>
 
   }
