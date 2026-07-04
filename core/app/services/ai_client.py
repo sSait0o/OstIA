@@ -34,7 +34,9 @@ def _rate_limit_wait(resp: aiohttp.ClientResponse, attempt: int) -> float:
     return min(_RETRY_DELAY * (attempt + 1), _MAX_RATE_LIMIT_WAIT)
 
 
-async def _call_groq(messages: list[dict], max_tokens: int, response_format: dict | None = None) -> dict:
+async def _call_groq(
+    messages: list[dict], max_tokens: int, response_format: dict | None = None
+) -> dict:
     payload: dict = {
         "model": settings.groq_model,
         "messages": messages,
@@ -60,7 +62,9 @@ async def _call_groq(messages: list[dict], max_tokens: int, response_format: dic
                         wait = _rate_limit_wait(resp, attempt)
                         logger.warning(
                             "Groq rate limit hit, attempt %d/%d, waiting %.1fs",
-                            attempt + 1, _MAX_RETRIES, wait,
+                            attempt + 1,
+                            _MAX_RETRIES,
+                            wait,
                         )
                         if attempt < _MAX_RETRIES - 1:
                             await asyncio.sleep(wait)
@@ -68,7 +72,9 @@ async def _call_groq(messages: list[dict], max_tokens: int, response_format: dic
                     if resp.status >= 400:
                         text = await resp.text()
                         logger.error("Groq HTTP error %d: %s", resp.status, text)
-                        raise HTTPException(status_code=503, detail="AI service unavailable")
+                        raise HTTPException(
+                            status_code=503, detail="AI service unavailable"
+                        )
                     return await resp.json()
         except aiohttp.ClientConnectionError as e:
             logger.error("Groq connection error: %s", e)
@@ -82,21 +88,29 @@ async def _call_groq(messages: list[dict], max_tokens: int, response_format: dic
     raise HTTPException(status_code=503, detail="AI service unavailable after retries")
 
 
-async def complete(prompt: str, max_tokens: int = 1024, system: str | None = None) -> str:
+async def complete(
+    prompt: str, max_tokens: int = 1024, system: str | None = None
+) -> str:
     messages = _build_messages(prompt, system)
     result = await _call_groq(messages, max_tokens)
     return result["choices"][0]["message"]["content"] or ""
 
 
-async def complete_json(prompt: str, max_tokens: int = 1024, system: str | None = None) -> dict:
+async def complete_json(
+    prompt: str, max_tokens: int = 1024, system: str | None = None
+) -> dict:
     messages = _build_messages(prompt, system)
     for attempt in range(_MAX_RETRIES):
         try:
-            result = await _call_groq(messages, max_tokens, response_format={"type": "json_object"})
+            result = await _call_groq(
+                messages, max_tokens, response_format={"type": "json_object"}
+            )
             text = result["choices"][0]["message"]["content"] or "{}"
             return json.loads(text)
         except json.JSONDecodeError:
-            logger.warning("Invalid JSON from Groq on attempt %d, retrying", attempt + 1)
+            logger.warning(
+                "Invalid JSON from Groq on attempt %d, retrying", attempt + 1
+            )
             if attempt < _MAX_RETRIES - 1:
                 await asyncio.sleep(_RETRY_DELAY)
     logger.error("complete_json failed after %d attempts", _MAX_RETRIES)

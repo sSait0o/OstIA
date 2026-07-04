@@ -14,7 +14,8 @@ def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:
         return 0.0
     desc_lower = job_description.lower()
     matches = sum(
-        1 for skill in cv_skills
+        1
+        for skill in cv_skills
         if re.search(r"\b" + re.escape(skill.lower()) + r"\b", desc_lower)
     )
     return round(matches / len(cv_skills) * 100, 1)
@@ -23,7 +24,14 @@ def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:
 def _cv_summary(cv_data: dict) -> str:
     relevant = {
         k: cv_data[k]
-        for k in ("firstName", "lastName", "skills", "experience", "education", "summary")
+        for k in (
+            "firstName",
+            "lastName",
+            "skills",
+            "experience",
+            "education",
+            "summary",
+        )
         if k in cv_data
     }
     text = json.dumps(relevant, ensure_ascii=False)
@@ -61,7 +69,9 @@ Return ONLY a valid JSON object:
 
     result = await complete_json(prompt, max_tokens=512)
     if not result or "score" not in result:
-        logger.warning("AI matching returned no usable result, falling back to keyword score")
+        logger.warning(
+            "AI matching returned no usable result, falling back to keyword score"
+        )
         return {
             "score": round(preliminary),
             "matchedSkills": cv_skills,

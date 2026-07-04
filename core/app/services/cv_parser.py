@@ -71,7 +71,9 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
 
     status = result.get("status", "APPLIED")
     if status not in VALID_STATUSES:
-        logger.warning("Email %s discarded: invalid status '%s' from AI", email_id, status)
+        logger.warning(
+            "Email %s discarded: invalid status '%s' from AI", email_id, status
+        )
         return None
 
     return {
@@ -109,7 +111,9 @@ Return null if the email does not clearly indicate one of these statuses (e.g. a
 
 async def extract_cv(text: str) -> dict:
     if len(text) > MAX_CV_LENGTH:
-        logger.warning("CV text truncated from %d to %d characters", len(text), MAX_CV_LENGTH)
+        logger.warning(
+            "CV text truncated from %d to %d characters", len(text), MAX_CV_LENGTH
+        )
 
     prompt = f"""Analyze this CV and extract structured information.
 

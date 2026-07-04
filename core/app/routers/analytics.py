@@ -41,7 +41,12 @@ class GeocodeRequest(BaseModel):
 @router.post("/stats")
 def compute_stats(req: AnalyticsRequest):
     if not req.applications:
-        return {"statusBreakdown": {}, "sourceBreakdown": {}, "responseRate": 0, "total": 0}
+        return {
+            "statusBreakdown": {},
+            "sourceBreakdown": {},
+            "responseRate": 0,
+            "total": 0,
+        }
 
     try:
         df = pd.DataFrame([a.model_dump() for a in req.applications])
@@ -87,7 +92,11 @@ def compute_stats(req: AnalyticsRequest):
 async def _nominatim_search(query: str) -> dict | None:
     global _last_nominatim_call
     async with _nominatim_lock:
-        wait = _last_nominatim_call + _NOMINATIM_MIN_INTERVAL - asyncio.get_event_loop().time()
+        wait = (
+            _last_nominatim_call
+            + _NOMINATIM_MIN_INTERVAL
+            - asyncio.get_event_loop().time()
+        )
         if wait > 0:
             await asyncio.sleep(wait)
         _last_nominatim_call = asyncio.get_event_loop().time()
@@ -104,7 +113,9 @@ async def _nominatim_search(query: str) -> dict | None:
         except httpx.TimeoutException:
             logger.warning("Nominatim timeout for query: %s", query)
         except httpx.HTTPStatusError as e:
-            logger.warning("Nominatim HTTP error %s for query: %s", e.response.status_code, query)
+            logger.warning(
+                "Nominatim HTTP error %s for query: %s", e.response.status_code, query
+            )
         except Exception as e:
             logger.error("Nominatim unexpected error: %s", e)
         return None
@@ -124,7 +135,11 @@ async def geocode(req: GeocodeRequest):
             "confidence": "geocoded",
         }
 
-    location_hint = f' The recorded location text is "{req.location}" — normalize it into a real city and country if possible.' if req.location else ""
+    location_hint = (
+        f' The recorded location text is "{req.location}" — normalize it into a real city and country if possible.'
+        if req.location
+        else ""
+    )
     prompt = f"""You are a geography expert. Given the company "{req.company}" and job title "{req.jobTitle}", identify the city and country of the company's main office.{location_hint}
 
 Return ONLY a JSON object:
@@ -140,7 +155,13 @@ If unknown, return {{"city": null, "country": null}}"""
     if city and country:
         fallback = await _nominatim_search(f"{city}, {country}")
         if fallback:
-            logger.info("Geocode success via AI fallback for company=%r location=%r -> %s, %s", req.company, req.location, city, country)
+            logger.info(
+                "Geocode success via AI fallback for company=%r location=%r -> %s, %s",
+                req.company,
+                req.location,
+                city,
+                country,
+            )
             return {
                 "lat": float(fallback["lat"]),
                 "lon": float(fallback["lon"]),
@@ -148,5 +169,7 @@ If unknown, return {{"city": null, "country": null}}"""
                 "confidence": "ai_guess",
             }
 
-    logger.warning("Geocode failed for company=%r location=%r", req.company, req.location)
+    logger.warning(
+        "Geocode failed for company=%r location=%r", req.company, req.location
+    )
     return {"lat": None, "lon": None, "resolvedLocation": None, "confidence": "failed"}
