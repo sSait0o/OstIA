@@ -43,7 +43,8 @@ import { AiModule } from './ai/ai.module';
               }),
           ssl: isProd ? { rejectUnauthorized } : false,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: !isProd || configService.get('DB_SYNCHRONIZE') === 'true',
+          synchronize:
+            !isProd || configService.get('DB_SYNCHRONIZE') === 'true',
           logging: !isProd,
         };
       },

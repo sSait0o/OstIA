@@ -62,7 +62,7 @@ export class EmailController {
   @Delete('gmail/data')
   @ApiOperation({
     summary:
-      'Supprimer les candidatures et l\'historique de sync Gmail pour resynchroniser proprement',
+      "Supprimer les candidatures et l'historique de sync Gmail pour resynchroniser proprement",
   })
   resetGmailData(@Request() req: { user: { id: string } }) {
     return this.emailService.resetGmailData(req.user.id);
@@ -71,7 +71,7 @@ export class EmailController {
   @Delete('outlook/data')
   @ApiOperation({
     summary:
-      'Supprimer les candidatures et l\'historique de sync Outlook pour resynchroniser proprement',
+      "Supprimer les candidatures et l'historique de sync Outlook pour resynchroniser proprement",
   })
   resetOutlookData(@Request() req: { user: { id: string } }) {
     return this.emailService.resetOutlookData(req.user.id);

@@ -31,10 +31,7 @@ export class ApplicationsController {
 
   @Post()
   @ApiOperation({ summary: 'Créer une candidature' })
-  create(
-    @Request() req: { user: User },
-    @Body() dto: CreateApplicationDto,
-  ) {
+  create(@Request() req: { user: User }, @Body() dto: CreateApplicationDto) {
     return this.applicationsService.create(req.user, dto);
   }
 

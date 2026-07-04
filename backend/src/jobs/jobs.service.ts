@@ -182,8 +182,11 @@ export class JobsService {
     const page = params.page || 1;
     const start = (page - 1) * perPage;
 
-    const toFranceTravailDate = (date: Date) => `${date.toISOString().split('.')[0]}Z`;
-    const minCreationDate = toFranceTravailDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    const toFranceTravailDate = (date: Date) =>
+      `${date.toISOString().split('.')[0]}Z`;
+    const minCreationDate = toFranceTravailDate(
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    );
     const maxCreationDate = toFranceTravailDate(new Date());
 
     const queryParams: Record<string, string> = {

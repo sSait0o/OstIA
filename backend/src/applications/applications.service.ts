@@ -199,7 +199,12 @@ export class ApplicationsService {
         if (ApplicationsService.TERMINAL_STATUSES.has(a.status)) return false;
         const nc = norm(a.company);
         const nj = norm(a.jobTitle);
-        return nc.length > 0 && nj.length > 0 && nText.includes(nc) && nText.includes(nj);
+        return (
+          nc.length > 0 &&
+          nj.length > 0 &&
+          nText.includes(nc) &&
+          nText.includes(nj)
+        );
       }) ?? null
     );
   }

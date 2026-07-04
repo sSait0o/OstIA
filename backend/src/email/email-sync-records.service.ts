@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { EmailSyncRecord, EmailSyncStatus } from './entities/email-sync-record.entity';
+import {
+  EmailSyncRecord,
+  EmailSyncStatus,
+} from './entities/email-sync-record.entity';
 import { EmailProvider } from './entities/email-connection.entity';
 import { User } from '../users/entities/user.entity';
 import { Application } from '../applications/entities/application.entity';

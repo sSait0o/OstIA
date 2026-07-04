@@ -14,7 +14,9 @@ export class EncryptionService {
   constructor(private readonly configService: ConfigService) {
     const encKey = this.configService.get<string>('ENCRYPTION_KEY');
     if (!encKey && this.configService.get('NODE_ENV') === 'production') {
-      this.logger.warn('ENCRYPTION_KEY is not set — falling back to JWT_SECRET for encryption. Set a dedicated ENCRYPTION_KEY in production.');
+      this.logger.warn(
+        'ENCRYPTION_KEY is not set — falling back to JWT_SECRET for encryption. Set a dedicated ENCRYPTION_KEY in production.',
+      );
     }
     const secret =
       encKey ||
