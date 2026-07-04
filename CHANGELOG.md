@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-07-04
+
+### Fixed
+
+- Registration and resend-verification could hang for minutes if the SMTP host accepted a connection but never responded, since the mail send was awaited before responding. The verification email is now sent fire-and-forget with a 10s transporter timeout, so the request always returns promptly regardless of mail-server latency.
+
 ## [1.0.4] - 2026-07-04
 
 ### Fixed
