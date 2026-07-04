@@ -57,6 +57,14 @@ export class AuthService {
     return this.http.post<MessageResponse>(`${environment.apiUrl}/auth/resend-verification`, { email });
   }
 
+  forgotPassword(email: string) {
+    return this.http.post<MessageResponse>(`${environment.apiUrl}/auth/forgot-password`, { email });
+  }
+
+  resetPassword(token: string, password: string) {
+    return this.http.post<MessageResponse>(`${environment.apiUrl}/auth/reset-password`, { token, password });
+  }
+
   logout() {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);

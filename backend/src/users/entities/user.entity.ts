@@ -40,6 +40,14 @@ export class User {
   @Column({ nullable: true, type: 'timestamptz' })
   emailVerificationExpires: Date | null;
 
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  passwordResetToken: string | null;
+
+  @Exclude()
+  @Column({ nullable: true, type: 'timestamptz' })
+  passwordResetExpires: Date | null;
+
   @Column({ nullable: true, type: 'jsonb' })
   cvData: Record<string, any>;
 

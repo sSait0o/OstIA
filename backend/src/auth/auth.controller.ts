@@ -11,7 +11,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { EmailDto } from './dto/email.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
@@ -38,8 +39,24 @@ export class AuthController {
   @Post('resend-verification')
   @Throttle({ short: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: "Renvoyer l'email de confirmation" })
-  resendVerification(@Body() dto: ResendVerificationDto) {
+  resendVerification(@Body() dto: EmailDto) {
     return this.authService.resendVerification(dto.email);
+  }
+
+  @Post('forgot-password')
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  @ApiOperation({
+    summary: 'Demander un lien de réinitialisation du mot de passe',
+  })
+  forgotPassword(@Body() dto: EmailDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Réinitialiser le mot de passe via le lien reçu' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.password);
   }
 
   @UseGuards(LocalAuthGuard)

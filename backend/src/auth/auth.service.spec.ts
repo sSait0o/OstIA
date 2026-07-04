@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
@@ -34,12 +38,16 @@ describe('AuthService', () => {
             findById: jest.fn(),
             create: jest.fn(),
             setVerificationToken: jest.fn(),
+            findByPasswordResetToken: jest.fn(),
+            setPasswordResetToken: jest.fn(),
+            resetPassword: jest.fn(),
           },
         },
         {
           provide: MailService,
           useValue: {
             sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+            sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -131,6 +139,70 @@ describe('AuthService', () => {
           lastName: 'B',
         }),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('issues a reset token and sends an email when the user exists', async () => {
+      const user = mockUser();
+      usersService.findByEmail.mockResolvedValue(user);
+
+      const result = await service.forgotPassword(user.email);
+
+      expect(
+        jest.mocked(usersService.setPasswordResetToken),
+      ).toHaveBeenCalled();
+      expect(result.message).toBeDefined();
+    });
+
+    it('returns the same generic message when the user does not exist', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      const result = await service.forgotPassword('unknown@example.com');
+
+      expect(
+        jest.mocked(usersService.setPasswordResetToken),
+      ).not.toHaveBeenCalled();
+      expect(result.message).toBeDefined();
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('updates the password when the token is valid', async () => {
+      const user = mockUser({
+        passwordResetToken: 'valid-token',
+        passwordResetExpires: new Date(Date.now() + 60000),
+      });
+      usersService.findByPasswordResetToken.mockResolvedValue(user);
+
+      const result = await service.resetPassword(
+        'valid-token',
+        'newPassword123',
+      );
+
+      expect(jest.mocked(usersService.resetPassword)).toHaveBeenCalledWith(
+        user.id,
+        expect.any(String),
+      );
+      expect(result.message).toBeDefined();
+    });
+
+    it('throws BadRequestException when the token is unknown', async () => {
+      usersService.findByPasswordResetToken.mockResolvedValue(null);
+      await expect(
+        service.resetPassword('unknown-token', 'newPassword123'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when the token is expired', async () => {
+      const user = mockUser({
+        passwordResetToken: 'expired-token',
+        passwordResetExpires: new Date(Date.now() - 1000),
+      });
+      usersService.findByPasswordResetToken.mockResolvedValue(user);
+      await expect(
+        service.resetPassword('expired-token', 'newPassword123'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

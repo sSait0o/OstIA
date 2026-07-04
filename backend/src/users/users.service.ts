@@ -48,6 +48,29 @@ export class UsersService {
     return (await this.findById(userId))!;
   }
 
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    return this.userRepo.findOne({ where: { passwordResetToken: token } });
+  }
+
+  async setPasswordResetToken(
+    userId: string,
+    token: string,
+    expires: Date,
+  ): Promise<void> {
+    await this.userRepo.update(userId, {
+      passwordResetToken: token,
+      passwordResetExpires: expires,
+    });
+  }
+
+  async resetPassword(userId: string, hashedPassword: string): Promise<void> {
+    await this.userRepo.update(userId, {
+      password: hashedPassword,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    });
+  }
+
   async updateCv(userId: string, cvData: Record<string, any>): Promise<User> {
     const user = await this.findById(userId);
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
