@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-04
+
+### Fixed
+
+- README (root and backend) documented Claude/Anthropic as the email-parsing AI provider; the implementation has always called Groq end to end. Also documented the email verification, IMAP sync/thread-dedup, and concurrent geocoding features, and the SMTP/encryption env vars and `mail/`/`migrations/` folders missing from the project structure.
+
 ## [1.0.1] - 2026-07-04
 
 ### Fixed
