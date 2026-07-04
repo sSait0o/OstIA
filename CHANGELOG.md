@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-04
+
+### Fixed
+
+- AI geocoding fallback and the `/health` endpoint were awaiting `complete_json` through `asyncio.to_thread`, which just handed back an un-awaited coroutine instead of running it (a leftover from the Groq client's move to `aiohttp`). The geocode fallback silently failed and `/health` always reported Groq as "degraded".
+
 ## [1.0.0] - 2026-07-04
 
 ### Added
