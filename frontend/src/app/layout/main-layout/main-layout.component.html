@@ -6,7 +6,7 @@
 
 <div class="main-layout">
   <div class="app-header">
-    <div class="logo" routerLink="/">
+    <div class="logo" routerLink="/" data-tutorial="logo">
       <img src="/favicon.ico" alt="OstIA" class="logo-img" />
     </div>
     <div class="header-bar">
@@ -14,7 +14,7 @@
         <button class="menu-trigger" (click)="toggleSidebar()">
           <span nz-icon [nzType]="isCollapsed() ? 'menu' : 'menu-fold'" nzTheme="outline"></span>
         </button>
-        <a routerLink="/email" class="sync-btn" [class.sync-btn--active]="isSyncing()">
+        <a routerLink="/email" class="sync-btn" [class.sync-btn--active]="isSyncing()" data-tutorial="sync-btn">
           <span nz-icon [nzType]="isSyncing() ? 'loading' : 'sync'" nzTheme="outline"></span>
           <span class="sync-label">Sync email</span>
           @if (isSyncing()) {
@@ -37,10 +37,15 @@
           </span>
         }
       </div>
-      <div class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight">
-        <nz-avatar nzIcon="user" class="user-avatar"></nz-avatar>
-        <span class="user-name">{{ auth.currentUser()?.firstName }}</span>
-        <span nz-icon nzType="down" class="user-chevron"></span>
+      <div class="header-right">
+        <button class="help-btn" (click)="tutorialService.start()" title="Revoir le tutoriel">
+          <span nz-icon nzType="question-circle" nzTheme="outline"></span>
+        </button>
+        <div class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight" data-tutorial="user-menu">
+          <nz-avatar nzIcon="user" class="user-avatar"></nz-avatar>
+          <span class="user-name">{{ auth.currentUser()?.firstName }}</span>
+          <span nz-icon nzType="down" class="user-chevron"></span>
+        </div>
       </div>
       <nz-dropdown-menu #userMenu="nzDropdownMenu">
         <div class="user-dropdown">
@@ -70,15 +75,15 @@
       <ul nz-menu nzTheme="dark" nzMode="inline">
         <li nz-menu-group nzTitle="Organisation">
           <ul>
-            <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-kanban">
               <span nz-icon nzType="project" nzTheme="outline"></span>
               <span>Candidatures</span>
             </li>
-            <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-dashboard">
               <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
               <span>Dashboard</span>
             </li>
-            <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-map">
               <span nz-icon nzType="global" nzTheme="outline"></span>
               <span>Carte</span>
               @if (mapService.unlocatedCount() > 0) {
@@ -89,15 +94,15 @@
         </li>
         <li nz-menu-group nzTitle="Recherche">
           <ul>
-            <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-jobs">
               <span nz-icon nzType="search" nzTheme="outline"></span>
               <span>Offres</span>
             </li>
-            <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-saved-jobs">
               <span nz-icon nzType="heart" nzTheme="outline"></span>
               <span>Favoris</span>
             </li>
-            <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-cv">
               <span nz-icon nzType="file-text" nzTheme="outline"></span>
               <span>Mon CV</span>
             </li>
@@ -112,3 +117,5 @@
     </nz-layout>
   </nz-layout>
 </div>
+
+<app-tutorial-overlay />

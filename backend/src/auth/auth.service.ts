@@ -15,6 +15,7 @@ import { RegisterDto } from './dto/register.dto';
 import { User } from '../users/entities/user.entity';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -58,9 +59,6 @@ export class AuthService {
       if (!this.isReclaimable(existing)) {
         throw new ConflictException('Email déjà utilisé');
       }
-      // Unverified and past the verification window: this is an abandoned
-      // signup (or a squatted email), not a real account — free it up rather
-      // than locking the real owner out of registering forever.
       await this.usersService.remove(existing.id);
     }
 
@@ -97,6 +95,33 @@ export class AuthService {
     return { message: 'Email de vérification renvoyé' };
   }
 
+  async forgotPassword(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (user) {
+      await this.issuePasswordResetToken(user);
+    }
+    return {
+      message:
+        'Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.',
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const user = await this.usersService.findByPasswordResetToken(token);
+    if (
+      !user ||
+      !user.passwordResetExpires ||
+      user.passwordResetExpires.getTime() < Date.now()
+    ) {
+      throw new BadRequestException(
+        'Lien de réinitialisation invalide ou expiré',
+      );
+    }
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await this.usersService.resetPassword(user.id, hashed);
+    return { message: 'Mot de passe mis à jour, vous pouvez vous connecter.' };
+  }
+
   private isReclaimable(user: User): boolean {
     return (
       !user.isEmailVerified &&
@@ -105,19 +130,44 @@ export class AuthService {
     );
   }
 
-  private async issueVerificationToken(user: User) {
+  private issuePasswordResetToken(user: User) {
+    return this.issueToken(
+      user,
+      PASSWORD_RESET_TOKEN_TTL_MS,
+      (userId, token, expires) =>
+        this.usersService.setPasswordResetToken(userId, token, expires),
+      (u, token) =>
+        this.mailService.sendPasswordResetEmail(u.email, u.firstName, token),
+      "Envoi de l'email de réinitialisation",
+    );
+  }
+
+  private issueVerificationToken(user: User) {
+    return this.issueToken(
+      user,
+      VERIFICATION_TOKEN_TTL_MS,
+      (userId, token, expires) =>
+        this.usersService.setVerificationToken(userId, token, expires),
+      (u, token) =>
+        this.mailService.sendVerificationEmail(u.email, u.firstName, token),
+      "Envoi de l'email de vérification",
+    );
+  }
+
+  private async issueToken(
+    user: User,
+    ttlMs: number,
+    persist: (userId: string, token: string, expires: Date) => Promise<void>,
+    send: (user: User, token: string) => Promise<void>,
+    actionLabel: string,
+  ) {
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
-    await this.usersService.setVerificationToken(user.id, token, expires);
-    // Fire-and-forget: the token is already persisted, so a slow/unreachable
-    // mail provider must never block the HTTP response. MailService logs
-    // failures itself; the user can request another send via resendVerification.
-    void this.mailService
-      .sendVerificationEmail(user.email, user.firstName, token)
-      .catch((err) => {
-        this.logger.warn(
-          `Envoi de l'email de vérification différé/échoué pour l'utilisateur ${user.id} (${user.email}): ${err instanceof Error ? err.message : String(err)}`,
-        );
-      });
+    const expires = new Date(Date.now() + ttlMs);
+    await persist(user.id, token, expires);
+    void send(user, token).catch((err) => {
+      this.logger.warn(
+        `${actionLabel} différé/échoué pour l'utilisateur ${user.id} (${user.email}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
   }
 }

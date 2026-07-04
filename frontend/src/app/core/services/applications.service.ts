@@ -41,7 +41,6 @@ export interface ApplicationStats {
   byStatus: Record<ApplicationStatus, number>;
   responseRate: number;
   byMonth?: { month: string; count: number }[];
-  bySource?: { EMAIL: number; MANUAL: number; JOB_BOARD: number };
 }
 
 export interface CreateApplicationDto {

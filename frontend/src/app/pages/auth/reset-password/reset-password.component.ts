@@ -1,6 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -11,24 +11,24 @@ import { syncPasswordMismatch } from '../../../shared/validators/password-match.
 import { extractErrorMessage } from '../../../shared/utils/http-error.utils';
 
 @Component({
-  selector: 'app-register',
+  selector: 'app-reset-password',
   standalone: true,
   imports: [ReactiveFormsModule, NzFormModule, NzInputModule, NzButtonModule, NzCardModule, RouterLink],
-  templateUrl: './register.component.html',
-  styleUrl: './register.component.scss',
+  templateUrl: './reset-password.component.html',
+  styleUrl: '../login/login.component.scss',
 })
-export class RegisterComponent {
+export class ResetPasswordComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
-  private readonly authService = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
   private readonly message = inject(NzMessageService);
 
   loading = false;
+  token = '';
+  invalidLink = false;
 
   form: FormGroup = this.fb.group({
-    firstName: ['', Validators.required],
-    lastName: ['', Validators.required],
-    email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     confirmPassword: ['', Validators.required],
   });
@@ -40,16 +40,24 @@ export class RegisterComponent {
     );
   }
 
+  ngOnInit() {
+    this.token = this.route.snapshot.queryParamMap.get('token') ?? '';
+    if (!this.token) this.invalidLink = true;
+  }
+
   onSubmit() {
-    if (this.form.invalid) return;
+    if (this.form.invalid || !this.token) return;
     this.loading = true;
-    const { firstName, lastName, email, password } = this.form.value;
-    this.authService.register(firstName, lastName, email, password).subscribe({
-      next: () =>
-        this.router.navigate(['/auth/verify-email-pending'], { queryParams: { email } }),
-      error: (err) => {
-        this.message.error(extractErrorMessage(err, 'Erreur lors de la création du compte'));
+    const { password } = this.form.value;
+    this.authService.resetPassword(this.token, password).subscribe({
+      next: () => {
         this.loading = false;
+        this.message.success('Mot de passe mis à jour, vous pouvez vous connecter.');
+        this.router.navigate(['/auth/login']);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.message.error(extractErrorMessage(err, 'Lien de réinitialisation invalide ou expiré'));
       },
     });
   }

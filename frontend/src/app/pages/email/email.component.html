@@ -55,8 +55,9 @@
           <span nz-icon nzType="mail"></span>
           {{ hasGmail() ? 'Compte connecté' : 'Connecter Gmail' }}
         </button>
-        <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="emailService.syncingGmail()" [disabled]="!hasGmail() || emailService.syncingGmail()">
-          <span nz-icon nzType="sync"></span> Synchroniser
+        <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="emailService.syncingGmail()" [disabled]="!hasGmail() || emailService.syncingGmail() || gmailSyncRemainingMs() > 0">
+          <span nz-icon nzType="sync"></span>
+          {{ gmailSyncRemainingMs() > 0 ? 'Synchroniser dans ' + formatCountdown(gmailSyncRemainingMs()) : 'Synchroniser' }}
         </button>
         <button nz-button nzType="default" nzDanger [disabled]="!hasGmail()"
                 nz-popconfirm
@@ -99,8 +100,9 @@
           <span nz-icon nzType="laptop"></span>
           {{ hasOutlook() ? 'Compte connecté' : 'Connecter Outlook' }}
         </button>
-        <button nz-button nzType="default" (click)="syncOutlook()" [nzLoading]="emailService.syncingOutlook()" [disabled]="!hasOutlook() || emailService.syncingOutlook()">
-          <span nz-icon nzType="sync"></span> Synchroniser
+        <button nz-button nzType="default" (click)="syncOutlook()" [nzLoading]="emailService.syncingOutlook()" [disabled]="!hasOutlook() || emailService.syncingOutlook() || outlookSyncRemainingMs() > 0">
+          <span nz-icon nzType="sync"></span>
+          {{ outlookSyncRemainingMs() > 0 ? 'Synchroniser dans ' + formatCountdown(outlookSyncRemainingMs()) : 'Synchroniser' }}
         </button>
         <button nz-button nzType="default" nzDanger [disabled]="!hasOutlook()"
                 nz-popconfirm
