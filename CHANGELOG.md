@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-07-05
+
+### Fixed
+
+- Prod crash-looped on boot after v1.1.0: `EmailConnection.lastSyncedAt` was typed `Date | null` without an explicit column type, and TypeScript's emitted `design:type` metadata for a union type is `Object`, which TypeORM can't map to a postgres column (`DataTypeNotSupportedError`). Added the explicit `timestamp` type, matching the pattern already used for the other nullable `Date` columns.
+
 ## [1.1.0] - 2026-07-05
 
 ### Added
