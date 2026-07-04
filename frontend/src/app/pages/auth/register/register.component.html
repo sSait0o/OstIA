@@ -27,6 +27,19 @@
           <input nz-input formControlName="password" placeholder="Mot de passe" type="password" />
         </nz-form-control>
       </nz-form-item>
+      <nz-form-item>
+        <nz-form-control [nzErrorTip]="confirmPasswordErrorTip">
+          <input
+            nz-input
+            formControlName="confirmPassword"
+            placeholder="Confirmer le mot de passe"
+            type="password"
+          />
+          <ng-template #confirmPasswordErrorTip let-control>
+            {{ control.hasError('passwordMismatch') ? 'Les mots de passe ne correspondent pas' : 'Requis' }}
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
       <button nz-button nzType="primary" nzBlock [nzLoading]="loading" type="submit">
         Créer mon compte
       </button>

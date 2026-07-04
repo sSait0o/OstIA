@@ -1,0 +1,25 @@
+<div class="auth-container">
+  <nz-card class="auth-card">
+    <div class="auth-header">
+      <img src="/favicon.ico" alt="OstIA" class="brand-logo" />
+      <p>Confirmation de l'email</p>
+    </div>
+
+    @switch (status) {
+      @case ('loading') {
+        <p style="color: rgba(255,255,255,.6); text-align: center;">Vérification en cours...</p>
+      }
+      @case ('success') {
+        <p style="color: rgba(255,255,255,.6); text-align: center;">
+          Email confirmé ! Redirection vers la connexion...
+        </p>
+      }
+      @case ('error') {
+        <p style="color: rgba(255,255,255,.6); text-align: center;">{{ errorMessage }}</p>
+        <div class="auth-footer">
+          <a routerLink="/auth/login">Retour à la connexion</a>
+        </div>
+      }
+    }
+  </nz-card>
+</div>
