@@ -729,9 +729,7 @@ export class EmailService {
     return this.configService.get('NODE_ENV') === 'production';
   }
 
-  private computeNextSyncAvailableAt(
-    lastSyncedAt: Date | null,
-  ): string | null {
+  private computeNextSyncAvailableAt(lastSyncedAt: Date | null): string | null {
     if (!this.isSyncRateLimitEnabled() || !lastSyncedAt) return null;
     const nextAvailableAt = lastSyncedAt.getTime() + SYNC_RATE_LIMIT_MS;
     return nextAvailableAt > Date.now()
@@ -1279,9 +1277,7 @@ export class EmailService {
 
   async getConnections(
     userId: string,
-  ): Promise<
-    Array<EmailConnection & { nextSyncAvailableAt: string | null }>
-  > {
+  ): Promise<Array<EmailConnection & { nextSyncAvailableAt: string | null }>> {
     const connections = await this.connectionRepo.find({
       where: { user: { id: userId } },
     });
