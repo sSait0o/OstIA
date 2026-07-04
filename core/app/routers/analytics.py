@@ -133,7 +133,7 @@ Return ONLY a JSON object:
 If unknown, return {{"city": null, "country": null}}"""
 
     async with _geocode_ai_semaphore:
-        ai_result = await asyncio.to_thread(complete_json, prompt, 64)
+        ai_result = await complete_json(prompt, 64)
     city = ai_result.get("city")
     country = ai_result.get("country")
 

@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import logging.config
 from fastapi import FastAPI, Request
@@ -49,7 +48,7 @@ async def health():
     from app.services.ai_client import complete_json
     groq_status = "ok"
     try:
-        result = await asyncio.to_thread(complete_json, '{"test": true}', 10)
+        result = await complete_json('{"test": true}', 10)
         if not isinstance(result, dict):
             groq_status = "degraded"
     except Exception:
