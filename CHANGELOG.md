@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-07-04
+
+### Fixed
+
+- Verification emails were silently dropped on networks where Gmail's SMTP host resolves to an IPv6 address with no working route, failing immediately with `ENETUNREACH`. The mail transporter now forces IPv4.
+
 ## [1.0.5] - 2026-07-04
 
 ### Fixed
