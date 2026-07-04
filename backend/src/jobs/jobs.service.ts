@@ -72,18 +72,13 @@ interface FranceTravailSearchResponse {
   resultats?: FranceTravailOffer[];
 }
 
-// "APP"/"PRO" aren't valid typeContrat codes on France Travail's side;
-// apprenticeship/professionalization are exposed via the natureContrat param instead.
 const FT_NATURE_CONTRAT_MAP: Record<string, string> = {
   APP: 'E2',
   PRO: 'FS',
 };
 
-// Adzuna only supports "permanent"/"contract"; these types have no equivalent there.
 const ADZUNA_UNSUPPORTED_CONTRACT_TYPES = new Set(['APP', 'PRO', 'SAI']);
 
-// France Travail rejects the "whole city" commune code from geo.api.gouv.fr for
-// Paris/Lyon/Marseille (split into arrondissements in FT's own reference data).
 const FT_ARRONDISSEMENT_CITY_DEPARTEMENTS: Record<string, string> = {
   '75056': '75',
   '69123': '69',
@@ -288,8 +283,6 @@ export class JobsService {
       const isExpressible = params.contractTypes.some(
         (c) => !ADZUNA_UNSUPPORTED_CONTRACT_TYPES.has(c),
       );
-      // No Adzuna equivalent for apprenticeship/professionalization/seasonal work;
-      // better to return nothing than unfiltered offers.
       if (!isExpressible) return { offers: [], total: 0 };
 
       const hasPermanent = params.contractTypes.includes('CDI');
