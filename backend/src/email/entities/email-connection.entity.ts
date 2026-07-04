@@ -45,6 +45,9 @@ export class EmailConnection {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ nullable: true })
+  lastSyncedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

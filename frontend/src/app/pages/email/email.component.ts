@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, computed, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, computed, effect, signal } from '@angular/core';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -22,21 +22,72 @@ import { EmailService, EmailConnection } from '../../core/services/email.service
   templateUrl: './email.component.html',
   styleUrl: './email.component.scss',
 })
-export class EmailComponent implements OnInit {
+export class EmailComponent implements OnInit, OnDestroy {
   readonly emailService = inject(EmailService);
   private readonly message = inject(NzMessageService);
 
   loading = signal(true);
   emailConnections = signal<EmailConnection[]>([]);
+  now = signal(Date.now());
+
+  private tickInterval?: ReturnType<typeof setInterval>;
+  private wasSyncingGmail = false;
+  private wasSyncingOutlook = false;
 
   hasGmail = computed(() => this.emailConnections().some((c) => c.provider === 'GMAIL'));
   hasOutlook = computed(() => this.emailConnections().some((c) => c.provider === 'OUTLOOK'));
 
+  gmailSyncRemainingMs = computed(() =>
+    this.remainingMs(this.emailConnections().find((c) => c.provider === 'GMAIL')?.nextSyncAvailableAt),
+  );
+  outlookSyncRemainingMs = computed(() =>
+    this.remainingMs(this.emailConnections().find((c) => c.provider === 'OUTLOOK')?.nextSyncAvailableAt),
+  );
+
+  constructor() {
+    effect(() => {
+      const syncing = this.emailService.syncingGmail();
+      if (this.wasSyncingGmail && !syncing) this.refreshConnections();
+      this.wasSyncingGmail = syncing;
+    });
+    effect(() => {
+      const syncing = this.emailService.syncingOutlook();
+      if (this.wasSyncingOutlook && !syncing) this.refreshConnections();
+      this.wasSyncingOutlook = syncing;
+    });
+  }
+
   ngOnInit() {
+    this.tickInterval = setInterval(() => this.now.set(Date.now()), 1000);
     this.emailService.getConnections().subscribe({
       next: (conns) => { this.emailConnections.set(conns); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
+  }
+
+  ngOnDestroy() {
+    if (this.tickInterval) clearInterval(this.tickInterval);
+  }
+
+  private refreshConnections() {
+    this.emailService.getConnections().subscribe({
+      next: (conns) => this.emailConnections.set(conns),
+    });
+  }
+
+  private remainingMs(nextSyncAvailableAt: string | null | undefined): number {
+    if (!nextSyncAvailableAt) return 0;
+    return Math.max(0, new Date(nextSyncAvailableAt).getTime() - this.now());
+  }
+
+  formatCountdown(ms: number): string {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}min`;
+    if (m > 0) return `${m}min ${String(s).padStart(2, '0')}s`;
+    return `${s}s`;
   }
 
   connectGmail() {
@@ -52,10 +103,12 @@ export class EmailComponent implements OnInit {
   }
 
   syncGmail() {
+    if (this.gmailSyncRemainingMs() > 0) return;
     this.emailService.startGmailSync();
   }
 
   syncOutlook() {
+    if (this.outlookSyncRemainingMs() > 0) return;
     this.emailService.startOutlookSync();
   }
 
