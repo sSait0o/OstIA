@@ -448,6 +448,34 @@ html {
   .ant-tag-purple  { background: rgba(114,46,209,.12); border-color: rgba(114,46,209,.25); color: rgba(190,140,255,.9); }
   .ant-tag-default { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); color: rgba(255,255,255,.45); }
 
+  .ant-alert {
+    border-radius: 10px;
+    align-items: center;
+  }
+  .ant-alert-message { color: $text; font-weight: 500; }
+  .ant-alert-description { color: $text-muted; }
+
+  .ant-alert-info {
+    background: rgba(24,144,255,.08);
+    border: 1px solid rgba(24,144,255,.25);
+    .ant-alert-icon { color: #1677ff; }
+  }
+  .ant-alert-warning {
+    background: rgba(250,173,20,.08);
+    border: 1px solid rgba(250,173,20,.25);
+    .ant-alert-icon { color: #faad14; }
+  }
+  .ant-alert-success {
+    background: rgba(82,196,26,.08);
+    border: 1px solid rgba(82,196,26,.25);
+    .ant-alert-icon { color: #52c41a; }
+  }
+  .ant-alert-error {
+    background: rgba(255,77,79,.08);
+    border: 1px solid rgba(255,77,79,.25);
+    .ant-alert-icon { color: #ff4d4f; }
+  }
+
   nz-pagination ul,
   .ant-pagination ul {
     display: flex !important;
