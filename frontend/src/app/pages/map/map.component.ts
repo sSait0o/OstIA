@@ -10,7 +10,10 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { from, of } from 'rxjs';
+import { mergeMap, map, catchError, timeout, finalize } from 'rxjs/operators';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
@@ -26,7 +29,7 @@ import { MapService, MapApplication } from '../../core/services/map.service';
 
 const STATUS_COLORS: Record<string, string> = {
   APPLIED: 'rgba(200,200,200,0.9)',
-  ACKNOWLEDGED: 'rgba(100,180,255,0.9)',
+  ACKNOWLEDGED: 'rgba(200,200,200,0.9)',
   TECHNICAL: 'rgba(179,127,235,0.9)',
   INTERVIEW: 'rgba(255,210,80,0.9)',
   OFFER: 'rgba(100,230,120,0.9)',
@@ -34,12 +37,12 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_TAG: Record<string, string> = {
-  APPLIED: 'default', ACKNOWLEDGED: 'blue', TECHNICAL: 'purple', INTERVIEW: 'orange',
+  APPLIED: 'default', ACKNOWLEDGED: 'default', TECHNICAL: 'purple', INTERVIEW: 'orange',
   OFFER: 'green', REJECTED: 'red',
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  APPLIED: 'Envoyée', ACKNOWLEDGED: 'Reçue', TECHNICAL: 'Test technique', INTERVIEW: 'Entretien',
+  APPLIED: 'Envoyée', ACKNOWLEDGED: 'Envoyée', TECHNICAL: 'Test technique', INTERVIEW: 'Entretien',
   OFFER: 'Offre', REJECTED: 'Refusé',
 };
 
@@ -49,7 +52,7 @@ const STATUS_LABELS: Record<string, string> = {
   imports: [
     DatePipe, FormsModule, NzModalModule,
     NzCardModule, NzTagModule, NzButtonModule, NzInputModule,
-    NzIconModule, NzSpinModule, NzEmptyModule,
+    NzIconModule, NzSpinModule, NzEmptyModule, NzToolTipModule,
   ],
   templateUrl: './map.component.html',
   styleUrl: './map.component.scss',
@@ -228,28 +231,43 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.vectorSource.addFeatures(features);
   }
 
+  private findKnownCoordinates(company: string) {
+    const normalized = company.trim().toLowerCase();
+    const match = this.allApps().find(
+      (a) => a.company.trim().toLowerCase() === normalized && a.lat !== null && a.lon !== null,
+    );
+    return match ? { lat: match.lat, lon: match.lon, resolvedLocation: match.resolvedLocation } : null;
+  }
+
   private geocodeMissing(apps: MapApplication[]) {
     if (!apps.length) return;
     this.geocoding.set(true);
-    let remaining = apps.length;
-    for (const app of apps) {
-      this.mapService.geocode(app.company, app.jobTitle, app.location ?? '').subscribe({
-        next: (result) => {
-          if (result.lat !== null && result.lon !== null) {
-            this.mapService.saveCoordinates(app.id, result.lat, result.lon, result.resolvedLocation ?? '').subscribe();
-            this.allApps.update((list) =>
-              list.map((a) => a.id === app.id
-                ? { ...a, lat: result.lat, lon: result.lon, resolvedLocation: result.resolvedLocation }
-                : a,
-              ),
-            );
-            this.updateMarkers();
-          }
-          if (--remaining === 0) this.geocoding.set(false);
-        },
-        error: () => { if (--remaining === 0) this.geocoding.set(false); },
+
+    from(apps)
+      .pipe(
+        mergeMap((app) => {
+          const known = this.findKnownCoordinates(app.company);
+          if (known) return of({ app, result: known });
+          return this.mapService.geocode(app.company, app.jobTitle, app.location ?? '').pipe(
+            timeout(20000),
+            map((result) => ({ app, result })),
+            catchError(() => of({ app, result: null })),
+          );
+        }, 3),
+        finalize(() => this.geocoding.set(false)),
+      )
+      .subscribe(({ app, result }) => {
+        if (result && result.lat !== null && result.lon !== null) {
+          this.mapService.saveCoordinates(app.id, result.lat, result.lon, result.resolvedLocation ?? '').subscribe();
+          this.allApps.update((list) =>
+            list.map((a) => a.id === app.id
+              ? { ...a, lat: result.lat, lon: result.lon, resolvedLocation: result.resolvedLocation }
+              : a,
+            ),
+          );
+          this.updateMarkers();
+        }
       });
-    }
   }
 
   saveManualLocation(app: MapApplication) {

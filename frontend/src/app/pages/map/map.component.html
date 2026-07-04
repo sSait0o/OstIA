@@ -23,6 +23,14 @@
     <span class="map-count">
       <strong>{{ locatedApps().length }}</strong> / {{ allApps().length }}
     </span>
+    <span
+      nz-icon
+      nzType="info-circle"
+      class="ai-hint-icon"
+      nz-tooltip
+      nzTooltipTitle="Localisation déduite par l'IA : une candidature peut apparaître au mauvais endroit sur la carte."
+      [nzTooltipOverlayStyle]="{ maxWidth: '260px' }"
+    ></span>
   </div>
 
   <div class="map-panel" [class.map-panel--open]="drawerVisible && activeTab() === 'map'">
