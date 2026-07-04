@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddEmailConnectionLastSyncedAt1783220000000
-  implements MigrationInterface
-{
+export class AddEmailConnectionLastSyncedAt1783220000000 implements MigrationInterface {
   name = 'AddEmailConnectionLastSyncedAt1783220000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
