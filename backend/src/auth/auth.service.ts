@@ -106,16 +106,11 @@ export class AuthService {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
     await this.usersService.setVerificationToken(user.id, token, expires);
-    try {
-      await this.mailService.sendVerificationEmail(
-        user.email,
-        user.firstName,
-        token,
-      );
-    } catch {
-      // MailService already logged the failure. Don't fail registration/resend
-      // over a mail-provider hiccup — the user can request another send once
-      // the mail service is reachable.
-    }
+    // Fire-and-forget: the token is already persisted, so a slow/unreachable
+    // mail provider must never block the HTTP response. MailService logs
+    // failures itself; the user can request another send via resendVerification.
+    void this.mailService
+      .sendVerificationEmail(user.email, user.firstName, token)
+      .catch(() => {});
   }
 }
