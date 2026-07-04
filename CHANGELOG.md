@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-07-04
+
+### Changed
+
+- Backend: normalized prettier formatting across several services/controllers and the generated migrations; `EmailService` now logs through the shared NestJS `Logger` instead of raw `console.error`/`console.warn` calls.
+- Core: removed dead code — an unused logger in the `cv`/`matching` routers and an unused `Request` import in `main.py`.
+
 ## [1.0.2] - 2026-07-04
 
 ### Fixed
