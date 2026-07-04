@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -17,6 +18,8 @@ const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -111,6 +114,10 @@ export class AuthService {
     // failures itself; the user can request another send via resendVerification.
     void this.mailService
       .sendVerificationEmail(user.email, user.firstName, token)
-      .catch(() => {});
+      .catch((err) => {
+        this.logger.warn(
+          `Envoi de l'email de vérification différé/échoué pour l'utilisateur ${user.id} (${user.email}): ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
   }
 }
