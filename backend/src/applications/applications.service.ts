@@ -246,13 +246,6 @@ export class ApplicationsService {
       return { month: label, count };
     });
 
-    const bySource = {
-      EMAIL: apps.filter((a) => a.source === ApplicationSource.EMAIL).length,
-      MANUAL: apps.filter((a) => a.source === ApplicationSource.MANUAL).length,
-      JOB_BOARD: apps.filter((a) => a.source === ApplicationSource.JOB_BOARD)
-        .length,
-    };
-
-    return { total, byStatus, responseRate, byMonth, bySource };
+    return { total, byStatus, responseRate, byMonth };
   }
 }
