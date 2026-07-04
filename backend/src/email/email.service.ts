@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
@@ -100,6 +100,7 @@ const STATUS_TO_SUBLABEL: Partial<Record<ApplicationStatus, string>> = {
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private readonly googleOAuth2Client: OAuth2Client;
 
   constructor(
@@ -538,7 +539,7 @@ export class EmailService {
         );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(
+        this.logger.error(
           `[EmailSync] Failed to create application for message ${msgId}: ${msg}`,
         );
         await this.syncRecordsService.upsert(
@@ -584,7 +585,7 @@ export class EmailService {
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.warn(
+        this.logger.warn(
           `[EmailSync] Failed to remove OstIA labels from message ${msgId}: ${msg}`,
         );
       }
@@ -610,7 +611,7 @@ export class EmailService {
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(
+      this.logger.warn(
         `[EmailSync] Failed to apply label to message ${msgId}: ${msg}`,
       );
     }
@@ -1105,7 +1106,7 @@ export class EmailService {
         );
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(
+        this.logger.error(
           `[OutlookSync] Failed to create application for message ${msgId}: ${errMsg}`,
         );
         await this.syncRecordsService.upsert(
@@ -1302,7 +1303,7 @@ export class EmailService {
           ok++;
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.warn(
+          this.logger.warn(
             `[EmailReset] Failed to strip sublabels from message ${id}: ${msg}`,
           );
         }
