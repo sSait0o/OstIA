@@ -8,8 +8,7 @@ export type ApplicationStatus =
   | 'TECHNICAL'
   | 'INTERVIEW'
   | 'OFFER'
-  | 'REJECTED'
-  | 'WITHDRAWN';
+  | 'REJECTED';
 
 export interface Application {
   id: string;
@@ -35,7 +34,6 @@ export interface KanbanBoard {
   INTERVIEW: Application[];
   OFFER: Application[];
   REJECTED: Application[];
-  WITHDRAWN: Application[];
 }
 
 export interface ApplicationStats {

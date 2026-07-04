@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_RETRIES = 3
 _RETRY_DELAY = 2.0
+_MAX_RATE_LIMIT_WAIT = 8.0
 _GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 _SSL_CTX = ssl.create_default_context(cafile=certifi.where())
 
@@ -21,6 +22,16 @@ def _build_messages(prompt: str, system: str | None) -> list[dict]:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
     return messages
+
+
+def _rate_limit_wait(resp: aiohttp.ClientResponse, attempt: int) -> float:
+    header = resp.headers.get("retry-after")
+    if header:
+        try:
+            return min(max(float(header), 0.5), _MAX_RATE_LIMIT_WAIT)
+        except ValueError:
+            pass
+    return min(_RETRY_DELAY * (attempt + 1), _MAX_RATE_LIMIT_WAIT)
 
 
 async def _call_groq(messages: list[dict], max_tokens: int, response_format: dict | None = None) -> dict:
@@ -46,9 +57,13 @@ async def _call_groq(messages: list[dict], max_tokens: int, response_format: dic
                     timeout=aiohttp.ClientTimeout(total=30),
                 ) as resp:
                     if resp.status == 429:
-                        logger.warning("Groq rate limit hit, attempt %d/%d", attempt + 1, _MAX_RETRIES)
+                        wait = _rate_limit_wait(resp, attempt)
+                        logger.warning(
+                            "Groq rate limit hit, attempt %d/%d, waiting %.1fs",
+                            attempt + 1, _MAX_RETRIES, wait,
+                        )
                         if attempt < _MAX_RETRIES - 1:
-                            await asyncio.sleep(_RETRY_DELAY * (attempt + 1))
+                            await asyncio.sleep(wait)
                         continue
                     if resp.status >= 400:
                         text = await resp.text()

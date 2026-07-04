@@ -27,6 +27,7 @@
   font-size: 20px;
   letter-spacing: 0.05em;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
 
   @media (max-width: 767px) {
     width: auto;
@@ -34,15 +35,9 @@
   }
 }
 
-.logo-text {
-  font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-
-  @media (max-width: 767px) {
-    display: none;
-  }
+.logo-img {
+  height: 64px;
+  width: auto;
 }
 
 .header-bar {
@@ -81,6 +76,7 @@
 }
 
 .sync-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -94,6 +90,7 @@
   border-bottom: 2px solid rgba(255, 255, 255, 0.25);
   background: transparent;
   cursor: pointer;
+  overflow: hidden;
   transition: color .25s, border-color .25s, box-shadow .25s, background .25s;
 
   &:hover {
@@ -102,6 +99,34 @@
     background: rgba(255, 255, 255, 0.04);
     box-shadow: 0 0 5px rgba(255, 255, 255, 0.15), 0 0 20px rgba(180, 180, 180, 0.06);
   }
+
+  &--active {
+    color: #fff;
+    border-bottom-color: transparent;
+  }
+}
+
+.sync-percent {
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+  text-align: right;
+  color: rgba(90, 200, 250, 0.95);
+}
+
+.sync-btn-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sync-btn-fill {
+  display: block;
+  height: 100%;
+  background: rgba(90, 200, 250, 0.9);
+  transition: width .3s ease;
 }
 
 .sync-accounts {
@@ -210,6 +235,33 @@
 
 ::ng-deep .ant-layout-sider-zero-width-trigger {
   display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  ::ng-deep .body-layout > .ant-layout-sider {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    z-index: 100;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+  }
 }
 
 ::ng-deep .ant-menu-item .ant-menu-title-content {

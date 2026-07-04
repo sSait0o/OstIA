@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { In, Repository } from 'typeorm';
@@ -72,8 +72,27 @@ interface FranceTravailSearchResponse {
   resultats?: FranceTravailOffer[];
 }
 
+// "APP"/"PRO" aren't valid typeContrat codes on France Travail's side;
+// apprenticeship/professionalization are exposed via the natureContrat param instead.
+const FT_NATURE_CONTRAT_MAP: Record<string, string> = {
+  APP: 'E2',
+  PRO: 'FS',
+};
+
+// Adzuna only supports "permanent"/"contract"; these types have no equivalent there.
+const ADZUNA_UNSUPPORTED_CONTRACT_TYPES = new Set(['APP', 'PRO', 'SAI']);
+
+// France Travail rejects the "whole city" commune code from geo.api.gouv.fr for
+// Paris/Lyon/Marseille (split into arrondissements in FT's own reference data).
+const FT_ARRONDISSEMENT_CITY_DEPARTEMENTS: Record<string, string> = {
+  '75056': '75',
+  '69123': '69',
+  '13055': '13',
+};
+
 @Injectable()
 export class JobsService {
+  private readonly logger = new Logger(JobsService.name);
   private franceTravailToken: string | null = null;
   private tokenExpiry: Date | null = null;
 
@@ -83,6 +102,13 @@ export class JobsService {
     private readonly configService: ConfigService,
     private readonly aiService: AiService,
   ) {}
+
+  private describeAxiosError(reason: unknown): string {
+    if (axios.isAxiosError(reason)) {
+      return `${reason.message} — ${JSON.stringify(reason.response?.data)}`;
+    }
+    return reason instanceof Error ? reason.message : String(reason);
+  }
 
   private async getFranceTravailToken(): Promise<string> {
     if (
@@ -156,14 +182,15 @@ export class JobsService {
     const page = params.page || 1;
     const start = (page - 1) * perPage;
 
-    const minCreationDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+    const toFranceTravailDate = (date: Date) => `${date.toISOString().split('.')[0]}Z`;
+    const minCreationDate = toFranceTravailDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    const maxCreationDate = toFranceTravailDate(new Date());
 
     const queryParams: Record<string, string> = {
       motsCles: params.keywords || '',
       range: `${start}-${start + perPage - 1}`,
       minCreationDate,
+      maxCreationDate,
     };
 
     if (params.location) {
@@ -172,13 +199,28 @@ export class JobsService {
         queryParams['departement'] = params.location;
       } else {
         const inseeCode = await this.resolveToInseeCode(params.location);
-        if (inseeCode) {
+        const fallbackDept = inseeCode
+          ? FT_ARRONDISSEMENT_CITY_DEPARTEMENTS[inseeCode]
+          : undefined;
+        if (fallbackDept) {
+          queryParams['departement'] = fallbackDept;
+        } else if (inseeCode) {
           queryParams['commune'] = inseeCode;
         }
       }
     }
-    if (params.contractTypes?.length)
-      queryParams['typeContrat'] = params.contractTypes.join(',');
+    if (params.contractTypes?.length) {
+      const typeContratValues = params.contractTypes.filter(
+        (c) => !FT_NATURE_CONTRAT_MAP[c],
+      );
+      const natureContratValues = params.contractTypes
+        .map((c) => FT_NATURE_CONTRAT_MAP[c])
+        .filter((v): v is string => !!v);
+      if (typeContratValues.length)
+        queryParams['typeContrat'] = typeContratValues.join(',');
+      if (natureContratValues.length)
+        queryParams['natureContrat'] = natureContratValues.join(',');
+    }
     if (params.experience) queryParams['experience'] = params.experience;
     if (params.distance) queryParams['distance'] = String(params.distance);
     if (params.fullTime === true) queryParams['tempsPlein'] = 'true';
@@ -240,6 +282,13 @@ export class JobsService {
       queryParams['sort_by'] = 'relevance';
 
     if (params.contractTypes?.length) {
+      const isExpressible = params.contractTypes.some(
+        (c) => !ADZUNA_UNSUPPORTED_CONTRACT_TYPES.has(c),
+      );
+      // No Adzuna equivalent for apprenticeship/professionalization/seasonal work;
+      // better to return nothing than unfiltered offers.
+      if (!isExpressible) return { offers: [], total: 0 };
+
       const hasPermanent = params.contractTypes.includes('CDI');
       const hasContract = params.contractTypes.some((c) =>
         ['CDD', 'MIS'].includes(c),
@@ -320,13 +369,21 @@ export class JobsService {
 
     if (ftResult.status === 'fulfilled') {
       ({ offers: ftOffers, total: ftTotal } = ftResult.value);
+    } else {
+      this.logger.error(
+        `France Travail search failed: ${this.describeAxiosError(ftResult.reason)}`,
+      );
     }
     if (adzunaResult.status === 'fulfilled') {
       ({ offers: adzunaOffers } = adzunaResult.value);
+    } else if (hasAdzuna) {
+      this.logger.error(
+        `Adzuna search failed: ${this.describeAxiosError(adzunaResult.reason)}`,
+      );
     }
 
     const allOffers = [...ftOffers, ...adzunaOffers];
-    const total = ftTotal;
+    const total = Math.max(ftTotal, allOffers.length);
 
     const externalIds = allOffers.map((o) => o.externalId);
     const existingJobs = await this.jobRepo.find({

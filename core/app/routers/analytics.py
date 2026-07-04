@@ -14,7 +14,11 @@ router = APIRouter()
 
 _NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 _NOMINATIM_HEADERS = {"User-Agent": "Ostia-App/1.0"}
+_NOMINATIM_MIN_INTERVAL = 1.1
 _http_client = httpx.AsyncClient(timeout=5, headers=_NOMINATIM_HEADERS)
+_nominatim_lock = asyncio.Lock()
+_last_nominatim_call = 0.0
+_geocode_ai_semaphore = asyncio.Semaphore(3)
 
 
 class Application(BaseModel):
@@ -81,22 +85,29 @@ def compute_stats(req: AnalyticsRequest):
 
 
 async def _nominatim_search(query: str) -> dict | None:
-    try:
-        res = await _http_client.get(
-            _NOMINATIM_URL,
-            params={"q": query, "format": "json", "limit": 1},
-        )
-        res.raise_for_status()
-        data = res.json()
-        if data:
-            return data[0]
-    except httpx.TimeoutException:
-        logger.warning("Nominatim timeout for query: %s", query)
-    except httpx.HTTPStatusError as e:
-        logger.warning("Nominatim HTTP error %s for query: %s", e.response.status_code, query)
-    except Exception as e:
-        logger.error("Nominatim unexpected error: %s", e)
-    return None
+    global _last_nominatim_call
+    async with _nominatim_lock:
+        wait = _last_nominatim_call + _NOMINATIM_MIN_INTERVAL - asyncio.get_event_loop().time()
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _last_nominatim_call = asyncio.get_event_loop().time()
+
+        try:
+            res = await _http_client.get(
+                _NOMINATIM_URL,
+                params={"q": query, "format": "json", "limit": 1},
+            )
+            res.raise_for_status()
+            data = res.json()
+            if data:
+                return data[0]
+        except httpx.TimeoutException:
+            logger.warning("Nominatim timeout for query: %s", query)
+        except httpx.HTTPStatusError as e:
+            logger.warning("Nominatim HTTP error %s for query: %s", e.response.status_code, query)
+        except Exception as e:
+            logger.error("Nominatim unexpected error: %s", e)
+        return None
 
 
 @router.post("/geocode")
@@ -105,6 +116,7 @@ async def geocode(req: GeocodeRequest):
 
     result = await _nominatim_search(query)
     if result:
+        logger.info("Geocode success via Nominatim for %r", query)
         return {
             "lat": float(result["lat"]),
             "lon": float(result["lon"]),
@@ -112,26 +124,29 @@ async def geocode(req: GeocodeRequest):
             "confidence": "geocoded",
         }
 
-    if not req.location:
-        prompt = f"""You are a geography expert. Given the company "{req.company}" and job title "{req.jobTitle}", identify the city and country of the company's main office.
+    location_hint = f' The recorded location text is "{req.location}" — normalize it into a real city and country if possible.' if req.location else ""
+    prompt = f"""You are a geography expert. Given the company "{req.company}" and job title "{req.jobTitle}", identify the city and country of the company's main office.{location_hint}
 
 Return ONLY a JSON object:
 {{"city": "London", "country": "United Kingdom"}}
 
 If unknown, return {{"city": null, "country": null}}"""
 
+    async with _geocode_ai_semaphore:
         ai_result = await asyncio.to_thread(complete_json, prompt, 64)
-        city = ai_result.get("city")
-        country = ai_result.get("country")
+    city = ai_result.get("city")
+    country = ai_result.get("country")
 
-        if city and country:
-            fallback = await _nominatim_search(f"{city}, {country}")
-            if fallback:
-                return {
-                    "lat": float(fallback["lat"]),
-                    "lon": float(fallback["lon"]),
-                    "resolvedLocation": f"{city}, {country}",
-                    "confidence": "ai_guess",
-                }
+    if city and country:
+        fallback = await _nominatim_search(f"{city}, {country}")
+        if fallback:
+            logger.info("Geocode success via AI fallback for company=%r location=%r -> %s, %s", req.company, req.location, city, country)
+            return {
+                "lat": float(fallback["lat"]),
+                "lon": float(fallback["lon"]),
+                "resolvedLocation": f"{city}, {country}",
+                "confidence": "ai_guess",
+            }
 
+    logger.warning("Geocode failed for company=%r location=%r", req.company, req.location)
     return {"lat": None, "lon": None, "resolvedLocation": None, "confidence": "failed"}

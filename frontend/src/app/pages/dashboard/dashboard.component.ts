@@ -39,7 +39,7 @@ export class DashboardComponent implements OnInit {
 
   private readonly STATUS_LABELS: Record<string, string> = {
     APPLIED: 'Envoyée', ACKNOWLEDGED: 'Envoyée', INTERVIEW: 'Entretien',
-    TECHNICAL: 'Test technique', OFFER: 'Offre', REJECTED: 'Refusé', WITHDRAWN: 'Retirée',
+    TECHNICAL: 'Test technique', OFFER: 'Offre', REJECTED: 'Refusé',
   };
 
   private readonly STATUS_COLORS: Record<string, string> = {
@@ -49,7 +49,6 @@ export class DashboardComponent implements OnInit {
     TECHNICAL: '#b37feb',
     OFFER: '#52c41a',
     REJECTED: '#ff4d4f',
-    WITHDRAWN: '#8c8c8c',
   };
 
   ngOnInit() {

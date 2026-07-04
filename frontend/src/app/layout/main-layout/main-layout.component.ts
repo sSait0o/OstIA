@@ -24,11 +24,16 @@ import { EmailService, EmailConnection } from '../../core/services/email.service
 export class MainLayoutComponent implements OnInit {
   auth = inject(AuthService);
   mapService = inject(MapService);
-  private emailService = inject(EmailService);
+  emailService = inject(EmailService);
   private router = inject(Router);
   readonly dots = Array(24);
   isCollapsed = signal(false);
   emailConnections = signal<EmailConnection[]>([]);
+
+  isSyncing = computed(() => this.emailService.syncingGmail() || this.emailService.syncingOutlook());
+  syncPercent = computed(() =>
+    this.emailService.syncingGmail() ? this.emailService.gmailSyncPercent() : this.emailService.outlookSyncPercent(),
+  );
 
   private currentUrl = toSignal(
     this.router.events.pipe(

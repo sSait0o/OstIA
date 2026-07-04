@@ -16,6 +16,10 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface MessageResponse {
+  message: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly TOKEN_KEY = 'ostia_token';
@@ -35,9 +39,22 @@ export class AuthService {
   }
 
   register(firstName: string, lastName: string, email: string, password: string) {
-    return this.http
-      .post<AuthResponse>(`${environment.apiUrl}/auth/register`, { firstName, lastName, email, password })
-      .pipe(tap((res) => this.handleAuth(res)));
+    return this.http.post<MessageResponse>(`${environment.apiUrl}/auth/register`, {
+      firstName,
+      lastName,
+      email,
+      password,
+    });
+  }
+
+  verifyEmail(token: string) {
+    return this.http.get<MessageResponse>(`${environment.apiUrl}/auth/verify-email`, {
+      params: { token },
+    });
+  }
+
+  resendVerification(email: string) {
+    return this.http.post<MessageResponse>(`${environment.apiUrl}/auth/resend-verification`, { email });
   }
 
   logout() {

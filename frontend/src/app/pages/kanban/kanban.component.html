@@ -1,5 +1,15 @@
 <div class="kanban-header">
-  <h2>Mes candidatures</h2>
+  <h2>
+    Candidatures
+    <span
+      nz-icon
+      nzType="info-circle"
+      class="ai-hint-icon"
+      nz-tooltip
+      nzTooltipTitle="Statut détecté par l'IA depuis tes emails : elle peut se tromper de colonne. Glisse-dépose pour corriger."
+      [nzTooltipOverlayStyle]="{ maxWidth: '260px' }"
+    ></span>
+  </h2>
   <div class="kanban-header-actions">
     <nz-input-group [nzPrefix]="searchIcon" class="search-input">
       <input nz-input placeholder="Rechercher…" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()" />

@@ -11,6 +11,8 @@ import {
   EmailConnection,
   EmailProvider,
 } from './entities/email-connection.entity';
+import { EmailSyncStatus } from './entities/email-sync-record.entity';
+import { EmailSyncRecordsService } from './email-sync-records.service';
 import { User } from '../users/entities/user.entity';
 import { AiService } from '../ai/ai.service';
 import { ApplicationsService } from '../applications/applications.service';
@@ -20,14 +22,30 @@ import {
 } from '../applications/entities/application.entity';
 import { CreateApplicationDto } from '../applications/dto/create-application.dto';
 import { EncryptionService } from '../common/encryption.service';
+import { detectStatusByKeywords } from './status-keywords';
+import { stripQuotedReply } from './quote-stripper';
 
 export interface SyncProgress {
   percent: number;
   done?: boolean;
+  current?: number;
+  total?: number;
+  estimatedSecondsRemaining?: number;
   synced?: number;
   created?: number;
+  updated?: number;
   skipped?: number;
   failed?: number;
+  aiUnavailable?: number;
+}
+
+export interface SyncResult {
+  synced: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  aiUnavailable: number;
 }
 
 interface MicrosoftTokenResponse {
@@ -51,25 +69,33 @@ interface OutlookMessage {
   body?: { content?: string };
   internetMessageId?: string;
   id?: string;
+  conversationId?: string;
+  receivedDateTime?: string;
+  from?: { emailAddress?: { address?: string } };
 }
+
+// Spaces out AI calls to stay under Groq's free-tier requests/minute limit.
+const AI_REQUEST_DELAY_MS = 2100;
+
+// Only syncs recent mail to keep sync duration reasonable.
+const EMAIL_SYNC_LOOKBACK_MONTHS = 2;
 
 const OSTIA_LABEL = 'OstIA';
 const OSTIA_SUBLABELS = [
   'Accepté',
-  'Archivé',
-  'Autre',
   'Entretien',
   'Envoyé',
-  'Refus',
+  'Refusé',
+  'Test Technique',
 ];
 
 const STATUS_TO_SUBLABEL: Partial<Record<ApplicationStatus, string>> = {
   [ApplicationStatus.APPLIED]: 'Envoyé',
-  [ApplicationStatus.ACKNOWLEDGED]: 'Archivé',
-  [ApplicationStatus.TECHNICAL]: 'Autre',
+  [ApplicationStatus.ACKNOWLEDGED]: 'Envoyé',
+  [ApplicationStatus.TECHNICAL]: 'Test Technique',
   [ApplicationStatus.INTERVIEW]: 'Entretien',
   [ApplicationStatus.OFFER]: 'Accepté',
-  [ApplicationStatus.REJECTED]: 'Refus',
+  [ApplicationStatus.REJECTED]: 'Refusé',
 };
 
 @Injectable()
@@ -83,6 +109,7 @@ export class EmailService {
     private readonly encryptionService: EncryptionService,
     private readonly aiService: AiService,
     private readonly applicationsService: ApplicationsService,
+    private readonly syncRecordsService: EmailSyncRecordsService,
   ) {
     this.googleOAuth2Client = new google.auth.OAuth2(
       this.configService.get('GOOGLE_CLIENT_ID'),
@@ -174,12 +201,7 @@ export class EmailService {
     return this.connectionRepo.save(connection);
   }
 
-  async syncGmailEmails(userId: string): Promise<{
-    synced: number;
-    created: number;
-    skipped: number;
-    failed: number;
-  }> {
+  async syncGmailEmails(userId: string): Promise<SyncResult> {
     return this.doGmailSync(userId, () => {});
   }
 
@@ -200,12 +222,7 @@ export class EmailService {
   private async doGmailSync(
     userId: string,
     onProgress: (p: SyncProgress) => void,
-  ): Promise<{
-    synced: number;
-    created: number;
-    skipped: number;
-    failed: number;
-  }> {
+  ): Promise<SyncResult> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
     });
@@ -229,22 +246,52 @@ export class EmailService {
     const labelMap = await this.ensureOstiaLabels(gmail);
     const ostiaLabelId = labelMap.get(OSTIA_LABEL);
 
-    if (!ostiaLabelId) return { synced: 0, created: 0, skipped: 0, failed: 0 };
+    if (!ostiaLabelId)
+      return {
+        synced: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        aiUnavailable: 0,
+      };
 
-    const messages = await gmail.users.messages.list({
-      userId: 'me',
-      labelIds: [ostiaLabelId],
-      maxResults: 50,
-    });
+    const cutoff = this.getSyncCutoffDate();
+    const cutoffQuery = `after:${cutoff.getFullYear()}/${String(
+      cutoff.getMonth() + 1,
+    ).padStart(2, '0')}/${String(cutoff.getDate()).padStart(2, '0')}`;
 
-    if (!messages.data.messages)
-      return { synced: 0, created: 0, skipped: 0, failed: 0 };
+    const allMessages: gmail_v1.Schema$Message[] = [];
+    let messagesPageToken: string | undefined;
+    do {
+      const page = await gmail.users.messages.list({
+        userId: 'me',
+        labelIds: [ostiaLabelId],
+        q: cutoffQuery,
+        maxResults: 100,
+        pageToken: messagesPageToken,
+      });
+      allMessages.push(...(page.data.messages ?? []));
+      messagesPageToken = page.data.nextPageToken ?? undefined;
+    } while (messagesPageToken);
 
-    const msgList = messages.data.messages.filter((m) => !!m.id);
+    if (allMessages.length === 0)
+      return {
+        synced: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        aiUnavailable: 0,
+      };
+
+    const msgList = allMessages.filter((m) => !!m.id);
     const total = msgList.length;
     let created = 0;
+    let updated = 0;
     let skipped = 0;
     let failed = 0;
+    let aiUnavailable = 0;
     const user = { id: userId } as User;
 
     onProgress({ percent: 5 });
@@ -258,59 +305,210 @@ export class EmailService {
         const headers: gmail_v1.Schema$MessagePartHeader[] =
           full.data?.payload?.headers ?? [];
         const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
+        const from = this.extractEmailAddress(
+          headers.find((h) => h.name === 'From')?.value ?? '',
+        );
         const body = this.extractGmailBody(full.data?.payload);
-        return { msgId: msg.id!, subject, body };
+        const threadId = full.data?.threadId ?? undefined;
+        const internalDate = Number(full.data?.internalDate ?? 0);
+        return { msgId: msg.id!, subject, from, body, threadId, internalDate };
       }),
     );
+    fetched.sort((a, b) => a.internalDate - b.internalDate);
     onProgress({ percent: 15 });
 
+    const syncStartedAt = Date.now();
     for (let i = 0; i < fetched.length; i++) {
-      const { msgId, subject, body } = fetched[i];
-      onProgress({ percent: 15 + Math.round(((i + 1) / total) * 70) });
+      const { msgId, subject, from, body, threadId } = fetched[i];
+      onProgress({
+        percent: 15 + Math.round(((i + 1) / total) * 70),
+        current: i + 1,
+        total,
+        estimatedSecondsRemaining: this.estimateSecondsRemaining(
+          syncStartedAt,
+          i,
+          total,
+        ),
+      });
 
-      const existing = await this.applicationsService.findDuplicate(
+      const existingRecord = await this.syncRecordsService.find(
         userId,
+        EmailProvider.GMAIL,
         msgId,
       );
-      if (existing) {
-        if (!existing.emailBody && body) {
-          await this.applicationsService.update(userId, existing.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          });
-        }
-        await this.applyGmailSublabel(gmail, msgId, existing.status, labelMap);
+      if (this.syncRecordsService.shouldSkip(existingRecord)) {
         skipped++;
         continue;
       }
 
-      const parsed = await this.aiService.parseEmailForApplication(
-        subject,
-        this.stripHtml(body),
+      const isSelfSent = !!from && from === connection.email.toLowerCase();
+      const cleanBody = this.stripHtml(body);
+      const freshBody = stripQuotedReply(cleanBody);
+      const fullText = `${subject} ${cleanBody}`;
+      const keywordStatus = isSelfSent
+        ? null
+        : detectStatusByKeywords(`${subject} ${freshBody}`);
+
+      const byEmailId = await this.applicationsService.findByEmailId(
+        userId,
         msgId,
       );
+      if (byEmailId) {
+        if (!byEmailId.emailBody && body) {
+          await this.applicationsService.update(userId, byEmailId.id, {
+            emailSubject: subject,
+            emailBody: body.slice(0, 50000),
+          });
+        }
+        await this.applyGmailSublabel(gmail, msgId, byEmailId.status, labelMap);
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.DUPLICATE,
+          { applicationId: byEmailId.id },
+        );
+        skipped++;
+        continue;
+      }
 
-      if (!parsed || !parsed.company || !parsed.jobTitle) {
+      const dossier = await this.applicationsService.findDossierForEmail(
+        userId,
+        { threadId, text: fullText },
+      );
+
+      if (dossier) {
+        // A rejected application has reached the end of its lifecycle; skip
+        // further mails in the same thread to avoid a needless AI call.
+        if (dossier.status === ApplicationStatus.REJECTED) {
+          await this.syncRecordsService.upsert(
+            userId,
+            EmailProvider.GMAIL,
+            msgId,
+            EmailSyncStatus.DUPLICATE,
+            { applicationId: dossier.id },
+          );
+          skipped++;
+          continue;
+        }
+
+        let newStatus: ApplicationStatus | null;
+        if (isSelfSent) {
+          newStatus = null;
+        } else if (keywordStatus) {
+          newStatus = keywordStatus;
+        } else {
+          await this.sleep(AI_REQUEST_DELAY_MS);
+          newStatus = (await this.aiService.detectStatusUpdate(
+            subject,
+            freshBody,
+            dossier.company,
+            dossier.jobTitle,
+            dossier.status,
+          )) as ApplicationStatus | null;
+        }
+
+        const updates: {
+          emailSubject?: string;
+          emailBody?: string;
+          threadId?: string;
+          status?: ApplicationStatus;
+        } = {};
+        if (!dossier.emailBody && body) {
+          updates.emailSubject = subject;
+          updates.emailBody = body.slice(0, 50000);
+        }
+        if (!dossier.threadId && threadId) updates.threadId = threadId;
+        const statusChanged = !!newStatus && newStatus !== dossier.status;
+        if (statusChanged) updates.status = newStatus!;
+
+        if (Object.keys(updates).length > 0) {
+          await this.applicationsService.update(userId, dossier.id, updates);
+        }
+        await this.applyGmailSublabel(
+          gmail,
+          msgId,
+          newStatus ?? dossier.status,
+          labelMap,
+        );
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.DUPLICATE,
+          { applicationId: dossier.id },
+        );
+        if (statusChanged) updated++;
+        else skipped++;
+        continue;
+      }
+
+      if (isSelfSent) {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.NOT_RELEVANT,
+          { reason: 'Self-sent message' },
+        );
         failed++;
         continue;
       }
 
-      const duplicate = await this.applicationsService.findDuplicate(
-        userId,
-        undefined,
-        parsed.company,
-        parsed.jobTitle,
+      await this.sleep(AI_REQUEST_DELAY_MS);
+      const parseResult = await this.aiService.parseEmailForApplication(
+        subject,
+        cleanBody,
+        msgId,
       );
 
-      if (duplicate) {
-        if (!duplicate.emailBody && body) {
-          await this.applicationsService.update(userId, duplicate.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          });
-        }
-        await this.applyGmailSublabel(gmail, msgId, duplicate.status, labelMap);
-        skipped++;
+      if (parseResult.kind === 'not-relevant') {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.NOT_RELEVANT,
+          { reason: parseResult.reason },
+        );
+        failed++;
+        continue;
+      }
+
+      if (parseResult.kind === 'unavailable') {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.FAILED,
+          { reason: parseResult.reason },
+        );
+        aiUnavailable++;
+        continue;
+      }
+
+      if (parseResult.kind === 'failed') {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.FAILED,
+          { reason: parseResult.reason },
+        );
+        failed++;
+        continue;
+      }
+
+      const parsed = parseResult.data;
+
+      if (!parsed.company || !parsed.jobTitle) {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.NOT_RELEVANT,
+          { reason: 'Missing company or jobTitle' },
+        );
+        failed++;
         continue;
       }
 
@@ -318,10 +516,12 @@ export class EmailService {
         const dto: CreateApplicationDto = {
           company: parsed.company,
           jobTitle: parsed.jobTitle,
-          status: parsed.status as ApplicationStatus,
+          status: (keywordStatus ?? parsed.status) as ApplicationStatus,
           source: ApplicationSource.EMAIL,
           emailSubject: subject,
           emailBody: body.slice(0, 50000),
+          emailId: msgId,
+          threadId,
           location: parsed.location ?? undefined,
           appliedAt: parsed.appliedAt ?? undefined,
           notes: parsed.notes ?? undefined,
@@ -329,16 +529,30 @@ export class EmailService {
         const app = await this.applicationsService.create(user, dto);
         created++;
         await this.applyGmailSublabel(gmail, msgId, app.status, labelMap);
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.CREATED,
+          { applicationId: app.id },
+        );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(
           `[EmailSync] Failed to create application for message ${msgId}: ${msg}`,
         );
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.GMAIL,
+          msgId,
+          EmailSyncStatus.FAILED,
+          { reason: msg },
+        );
         failed++;
       }
     }
 
-    return { synced: total, created, skipped, failed };
+    return { synced: total, created, updated, skipped, failed, aiUnavailable };
   }
 
   private async applyGmailSublabel(
@@ -348,7 +562,35 @@ export class EmailService {
     labelMap: Map<string, string>,
   ): Promise<void> {
     const sublabel = STATUS_TO_SUBLABEL[status];
-    if (!sublabel) return;
+
+    if (!sublabel) {
+      // Safety net if a status has no sublabel: strip the OstIA labels rather
+      // than leave the mail mistagged. Shouldn't happen as long as
+      // STATUS_TO_SUBLABEL covers every status (the mail would otherwise stay
+      // invisible to future syncs).
+      const sublabelIds = OSTIA_SUBLABELS.map((sub) =>
+        labelMap.get(`${OSTIA_LABEL}/${sub}`),
+      );
+      const allOstiaLabelIds = [
+        labelMap.get(OSTIA_LABEL),
+        ...sublabelIds,
+      ].filter((id): id is string => !!id);
+      if (allOstiaLabelIds.length === 0) return;
+      try {
+        await gmail.users.messages.modify({
+          userId: 'me',
+          id: msgId,
+          requestBody: { removeLabelIds: allOstiaLabelIds },
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[EmailSync] Failed to remove OstIA labels from message ${msgId}: ${msg}`,
+        );
+      }
+      return;
+    }
+
     const targetSublabelName = `${OSTIA_LABEL}/${sublabel}`;
     const targetSublabelId = labelMap.get(targetSublabelName);
     if (!targetSublabelId) return;
@@ -379,32 +621,72 @@ export class EmailService {
   ): Promise<Map<string, string>> {
     const labelMap = new Map<string, string>();
     const { data } = await gmail.users.labels.list({ userId: 'me' });
-    const existingLabels: gmail_v1.Schema$Label[] = data.labels ?? [];
+    let existingLabels: gmail_v1.Schema$Label[] = data.labels ?? [];
 
-    let parentId = existingLabels.find((l) => l.name === OSTIA_LABEL)?.id;
-    if (!parentId) {
-      const res = await gmail.users.labels.create({
-        userId: 'me',
-        requestBody: { name: OSTIA_LABEL },
-      });
-      parentId = res.data.id ?? undefined;
-    }
+    const getOrCreateLabel = async (
+      name: string,
+    ): Promise<string | undefined> => {
+      const found = existingLabels.find((l) => l.name === name)?.id;
+      if (found) return found;
+
+      try {
+        const res = await gmail.users.labels.create({
+          userId: 'me',
+          requestBody: { name },
+        });
+        return res.data.id ?? undefined;
+      } catch (err: unknown) {
+        const status =
+          (err as { code?: number })?.code ??
+          (err as { response?: { status?: number } })?.response?.status;
+        if (status !== 409) throw err;
+
+        const refreshed = await gmail.users.labels.list({ userId: 'me' });
+        existingLabels = refreshed.data.labels ?? [];
+        return existingLabels.find((l) => l.name === name)?.id ?? undefined;
+      }
+    };
+
+    const parentId = await getOrCreateLabel(OSTIA_LABEL);
     if (parentId) labelMap.set(OSTIA_LABEL, parentId);
 
     for (const sub of OSTIA_SUBLABELS) {
       const fullName = `${OSTIA_LABEL}/${sub}`;
-      let labelId = existingLabels.find((l) => l.name === fullName)?.id;
-      if (!labelId) {
-        const res = await gmail.users.labels.create({
-          userId: 'me',
-          requestBody: { name: fullName },
-        });
-        labelId = res.data.id ?? undefined;
-      }
+      const labelId = await getOrCreateLabel(fullName);
       if (labelId) labelMap.set(fullName, labelId);
     }
 
     return labelMap;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private estimateSecondsRemaining(
+    startedAt: number,
+    processedCount: number,
+    total: number,
+  ): number {
+    const remaining = total - processedCount;
+    // Before any email is processed, fall back to the AI rate-limit delay
+    // since there's no average yet.
+    const avgMsPerItem =
+      processedCount > 0
+        ? (Date.now() - startedAt) / processedCount
+        : AI_REQUEST_DELAY_MS;
+    return Math.round((avgMsPerItem * remaining) / 1000);
+  }
+
+  private getSyncCutoffDate(): Date {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - EMAIL_SYNC_LOOKBACK_MONTHS);
+    return cutoff;
+  }
+
+  private extractEmailAddress(raw: string): string {
+    const match = raw.match(/<([^>]+)>/);
+    return (match ? match[1] : raw).trim().toLowerCase();
   }
 
   private stripHtml(html: string): string {
@@ -523,12 +805,28 @@ export class EmailService {
     return this.connectionRepo.save(connection);
   }
 
-  async syncOutlookEmails(userId: string): Promise<{
-    synced: number;
-    created: number;
-    skipped: number;
-    failed: number;
-  }> {
+  async syncOutlookEmails(userId: string): Promise<SyncResult> {
+    return this.doOutlookSync(userId, () => {});
+  }
+
+  syncOutlookStream(userId: string): Observable<MessageEvent> {
+    return new Observable((subscriber) => {
+      const emit = (data: SyncProgress) =>
+        subscriber.next({ data } as unknown as MessageEvent);
+
+      this.doOutlookSync(userId, emit)
+        .then((result) => {
+          emit({ percent: 100, done: true, ...result });
+          subscriber.complete();
+        })
+        .catch((err: unknown) => subscriber.error(err));
+    });
+  }
+
+  private async doOutlookSync(
+    userId: string,
+    onProgress: (p: SyncProgress) => void,
+  ): Promise<SyncResult> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.OUTLOOK },
     });
@@ -538,6 +836,7 @@ export class EmailService {
     const token = await this.refreshMicrosoftTokenIfNeeded(connection);
     const headers = { Authorization: `Bearer ${token}` };
 
+    onProgress({ percent: 5 });
     const foldersRes = await axios.get<{ value: OutlookFolder[] }>(
       'https://graph.microsoft.com/v1.0/me/mailFolders?$top=50',
       { headers },
@@ -547,50 +846,237 @@ export class EmailService {
     );
 
     if (!ostiaFolder?.id)
-      return { synced: 0, created: 0, skipped: 0, failed: 0 };
+      return {
+        synced: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        aiUnavailable: 0,
+      };
 
-    const messagesRes = await axios.get<{ value: OutlookMessage[] }>(
+    const cutoff = this.getSyncCutoffDate();
+    const allMessages: OutlookMessage[] = [];
+    let messagesUrl: string | undefined =
       `https://graph.microsoft.com/v1.0/me/mailFolders/${ostiaFolder.id}/messages` +
-        `?$top=50&$select=subject,body,internetMessageId,receivedDateTime`,
-      { headers },
-    );
+      `?$top=100&$select=subject,body,internetMessageId,receivedDateTime,conversationId,from` +
+      `&$filter=${encodeURIComponent(`receivedDateTime ge ${cutoff.toISOString()}`)}`;
+    while (messagesUrl) {
+      const page: {
+        data: { value: OutlookMessage[]; '@odata.nextLink'?: string };
+      } = await axios.get(messagesUrl, { headers });
+      allMessages.push(...(page.data.value ?? []));
+      messagesUrl = page.data['@odata.nextLink'];
+    }
 
-    const messages = messagesRes.data.value ?? [];
+    const messages = allMessages.sort(
+      (a, b) =>
+        new Date(a.receivedDateTime ?? 0).getTime() -
+        new Date(b.receivedDateTime ?? 0).getTime(),
+    );
+    const total = messages.length;
     let created = 0;
+    let updated = 0;
     let skipped = 0;
     let failed = 0;
+    let aiUnavailable = 0;
     const user = { id: userId } as User;
 
-    for (const msg of messages) {
+    onProgress({ percent: 15 });
+
+    const syncStartedAt = Date.now();
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      onProgress({
+        percent: 15 + Math.round(((i + 1) / total) * 70),
+        current: i + 1,
+        total,
+        estimatedSecondsRemaining: this.estimateSecondsRemaining(
+          syncStartedAt,
+          i,
+          total,
+        ),
+      });
+
       const subject = msg.subject ?? '';
       const body = msg.body?.content ?? '';
       const msgId = msg.internetMessageId ?? msg.id ?? '';
+      const threadId = msg.conversationId;
+      const from = this.extractEmailAddress(
+        msg.from?.emailAddress?.address ?? '',
+      );
 
-      const parsed = await this.aiService.parseEmailForApplication(
-        subject,
-        this.stripHtml(body),
+      const existingRecord = await this.syncRecordsService.find(
+        userId,
+        EmailProvider.OUTLOOK,
         msgId,
       );
-      if (!parsed) {
-        failed++;
+      if (this.syncRecordsService.shouldSkip(existingRecord)) {
+        skipped++;
         continue;
       }
 
-      const duplicate = await this.applicationsService.findDuplicate(
+      const isSelfSent = !!from && from === connection.email.toLowerCase();
+      const cleanBody = this.stripHtml(body);
+      const freshBody = stripQuotedReply(cleanBody);
+      const fullText = `${subject} ${cleanBody}`;
+      const keywordStatus = isSelfSent
+        ? null
+        : detectStatusByKeywords(`${subject} ${freshBody}`);
+
+      const byEmailId = await this.applicationsService.findByEmailId(
         userId,
         msgId,
-        parsed.company,
-        parsed.jobTitle,
       );
-
-      if (duplicate) {
-        if (!duplicate.emailBody && body) {
-          await this.applicationsService.update(userId, duplicate.id, {
+      if (byEmailId) {
+        if (!byEmailId.emailBody && body) {
+          await this.applicationsService.update(userId, byEmailId.id, {
             emailSubject: subject,
             emailBody: body.slice(0, 50000),
           });
         }
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.DUPLICATE,
+          { applicationId: byEmailId.id },
+        );
         skipped++;
+        continue;
+      }
+
+      const dossier = await this.applicationsService.findDossierForEmail(
+        userId,
+        { threadId, text: fullText },
+      );
+
+      if (dossier) {
+        // A rejected application has reached the end of its lifecycle; skip
+        // further mails in the same thread to avoid a needless AI call.
+        if (dossier.status === ApplicationStatus.REJECTED) {
+          await this.syncRecordsService.upsert(
+            userId,
+            EmailProvider.OUTLOOK,
+            msgId,
+            EmailSyncStatus.DUPLICATE,
+            { applicationId: dossier.id },
+          );
+          skipped++;
+          continue;
+        }
+
+        let newStatus: ApplicationStatus | null;
+        if (isSelfSent) {
+          newStatus = null;
+        } else if (keywordStatus) {
+          newStatus = keywordStatus;
+        } else {
+          await this.sleep(AI_REQUEST_DELAY_MS);
+          newStatus = (await this.aiService.detectStatusUpdate(
+            subject,
+            freshBody,
+            dossier.company,
+            dossier.jobTitle,
+            dossier.status,
+          )) as ApplicationStatus | null;
+        }
+
+        const updates: {
+          emailSubject?: string;
+          emailBody?: string;
+          threadId?: string;
+          status?: ApplicationStatus;
+        } = {};
+        if (!dossier.emailBody && body) {
+          updates.emailSubject = subject;
+          updates.emailBody = body.slice(0, 50000);
+        }
+        if (!dossier.threadId && threadId) updates.threadId = threadId;
+        const statusChanged = !!newStatus && newStatus !== dossier.status;
+        if (statusChanged) updates.status = newStatus!;
+
+        if (Object.keys(updates).length > 0) {
+          await this.applicationsService.update(userId, dossier.id, updates);
+        }
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.DUPLICATE,
+          { applicationId: dossier.id },
+        );
+        if (statusChanged) updated++;
+        else skipped++;
+        continue;
+      }
+
+      if (isSelfSent) {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.NOT_RELEVANT,
+          { reason: 'Self-sent message' },
+        );
+        failed++;
+        continue;
+      }
+
+      await this.sleep(AI_REQUEST_DELAY_MS);
+      const parseResult = await this.aiService.parseEmailForApplication(
+        subject,
+        cleanBody,
+        msgId,
+      );
+
+      if (parseResult.kind === 'not-relevant') {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.NOT_RELEVANT,
+          { reason: parseResult.reason },
+        );
+        failed++;
+        continue;
+      }
+
+      if (parseResult.kind === 'unavailable') {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.FAILED,
+          { reason: parseResult.reason },
+        );
+        aiUnavailable++;
+        continue;
+      }
+
+      if (parseResult.kind === 'failed') {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.FAILED,
+          { reason: parseResult.reason },
+        );
+        failed++;
+        continue;
+      }
+
+      const parsed = parseResult.data;
+
+      if (!parsed.company || !parsed.jobTitle) {
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.NOT_RELEVANT,
+          { reason: 'Missing company or jobTitle' },
+        );
+        failed++;
         continue;
       }
 
@@ -598,26 +1084,49 @@ export class EmailService {
         const dto: CreateApplicationDto = {
           company: parsed.company,
           jobTitle: parsed.jobTitle,
-          status: parsed.status as ApplicationStatus,
+          status: (keywordStatus ?? parsed.status) as ApplicationStatus,
           source: ApplicationSource.EMAIL,
           emailSubject: subject,
           emailBody: body.slice(0, 50000),
+          emailId: msgId,
+          threadId,
           location: parsed.location ?? undefined,
           appliedAt: parsed.appliedAt ?? undefined,
           notes: parsed.notes ?? undefined,
         };
-        await this.applicationsService.create(user, dto);
+        const app = await this.applicationsService.create(user, dto);
         created++;
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.CREATED,
+          { applicationId: app.id },
+        );
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         console.error(
           `[OutlookSync] Failed to create application for message ${msgId}: ${errMsg}`,
         );
+        await this.syncRecordsService.upsert(
+          userId,
+          EmailProvider.OUTLOOK,
+          msgId,
+          EmailSyncStatus.FAILED,
+          { reason: errMsg },
+        );
         failed++;
       }
     }
 
-    return { synced: messages.length, created, skipped, failed };
+    return {
+      synced: messages.length,
+      created,
+      updated,
+      skipped,
+      failed,
+      aiUnavailable,
+    };
   }
 
   private async refreshMicrosoftTokenIfNeeded(
@@ -700,5 +1209,138 @@ export class EmailService {
     });
     if (!conn) throw new NotFoundException('Connexion non trouvée');
     await this.connectionRepo.remove(conn);
+  }
+
+  async resetGmailData(userId: string): Promise<{
+    applicationsRemoved: number;
+    syncRecordsRemoved: number;
+    labelsStripped: number;
+    labelsRemaining: number;
+  }> {
+    const result = await this.resetProviderData(userId, EmailProvider.GMAIL);
+    const { stripped, remaining } = await this.stripGmailSublabels(userId);
+    return {
+      ...result,
+      labelsStripped: stripped,
+      labelsRemaining: remaining,
+    };
+  }
+
+  private async listGmailMessageIds(
+    gmail: gmail_v1.Gmail,
+    labelIds: string[],
+  ): Promise<string[]> {
+    const ids: string[] = [];
+    let pageToken: string | undefined;
+    do {
+      const res = await gmail.users.messages.list({
+        userId: 'me',
+        labelIds,
+        maxResults: 100,
+        pageToken,
+      });
+      ids.push(
+        ...(res.data.messages ?? [])
+          .map((m) => m.id)
+          .filter((id): id is string => !!id),
+      );
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken);
+    return ids;
+  }
+
+  private async stripGmailSublabels(
+    userId: string,
+  ): Promise<{ stripped: number; remaining: number }> {
+    const connection = await this.connectionRepo.findOne({
+      where: { user: { id: userId }, provider: EmailProvider.GMAIL },
+    });
+    if (!connection) return { stripped: 0, remaining: 0 };
+
+    this.googleOAuth2Client.setCredentials({
+      access_token: this.encryptionService.decrypt(connection.accessToken),
+      ...(connection.refreshToken
+        ? {
+            refresh_token: this.encryptionService.decrypt(
+              connection.refreshToken,
+            ),
+          }
+        : {}),
+    });
+
+    const gmail = google.gmail({
+      version: 'v1',
+      auth: this.googleOAuth2Client,
+    });
+    const labelMap = await this.ensureOstiaLabels(gmail);
+    const sublabelIds = OSTIA_SUBLABELS.map((sub) =>
+      labelMap.get(`${OSTIA_LABEL}/${sub}`),
+    ).filter((id): id is string => !!id);
+    if (sublabelIds.length === 0) return { stripped: 0, remaining: 0 };
+
+    // Matches mails by sublabel rather than parent label, so a mail that lost
+    // its parent label (past bug) is still caught via its sublabel.
+    const collectLabeledIds = async (): Promise<string[]> => {
+      const ids = new Set<string>();
+      for (const subLabelId of sublabelIds) {
+        (await this.listGmailMessageIds(gmail, [subLabelId])).forEach((id) =>
+          ids.add(id),
+        );
+      }
+      return Array.from(ids);
+    };
+
+    const stripIds = async (ids: string[]): Promise<number> => {
+      let ok = 0;
+      for (const id of ids) {
+        try {
+          await gmail.users.messages.modify({
+            userId: 'me',
+            id,
+            requestBody: { removeLabelIds: sublabelIds },
+          });
+          ok++;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(
+            `[EmailReset] Failed to strip sublabels from message ${id}: ${msg}`,
+          );
+        }
+      }
+      return ok;
+    };
+
+    let stripped = await stripIds(await collectLabeledIds());
+
+    // Verify: recount what's still actually labeled and retry once to catch
+    // transient failures (quota, network).
+    let remainingIds = await collectLabeledIds();
+    if (remainingIds.length > 0) {
+      stripped += await stripIds(remainingIds);
+      remainingIds = await collectLabeledIds();
+    }
+
+    return { stripped, remaining: remainingIds.length };
+  }
+
+  async resetOutlookData(
+    userId: string,
+  ): Promise<{ applicationsRemoved: number; syncRecordsRemoved: number }> {
+    return this.resetProviderData(userId, EmailProvider.OUTLOOK);
+  }
+
+  private async resetProviderData(
+    userId: string,
+    provider: EmailProvider,
+  ): Promise<{ applicationsRemoved: number; syncRecordsRemoved: number }> {
+    const applicationsRemoved =
+      await this.applicationsService.removeAllEmailSourced(userId);
+    const records = await this.syncRecordsService.findAllForProvider(
+      userId,
+      provider,
+    );
+    const syncRecordsRemoved =
+      await this.syncRecordsService.removeRecords(records);
+    return { applicationsRemoved, syncRecordsRemoved };
   }
 }

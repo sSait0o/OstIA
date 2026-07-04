@@ -6,18 +6,25 @@
 
 <div class="main-layout">
   <div class="app-header">
-    <div class="logo">
-      <span nz-icon nzType="compass" nzTheme="outline"></span>
-      <span class="logo-text">OstIA</span>
+    <div class="logo" routerLink="/">
+      <img src="/favicon.ico" alt="OstIA" class="logo-img" />
     </div>
     <div class="header-bar">
       <div class="header-left">
         <button class="menu-trigger" (click)="toggleSidebar()">
           <span nz-icon [nzType]="isCollapsed() ? 'menu' : 'menu-fold'" nzTheme="outline"></span>
         </button>
-        <a routerLink="/email" class="sync-btn">
-          <span nz-icon nzType="sync" nzTheme="outline"></span>
+        <a routerLink="/email" class="sync-btn" [class.sync-btn--active]="isSyncing()">
+          <span nz-icon [nzType]="isSyncing() ? 'loading' : 'sync'" nzTheme="outline"></span>
           <span class="sync-label">Sync email</span>
+          @if (isSyncing()) {
+            <span class="sync-percent">{{ syncPercent() }}%</span>
+          }
+          @if (isSyncing()) {
+            <span class="sync-btn-track">
+              <span class="sync-btn-fill" [style.width.%]="syncPercent()"></span>
+            </span>
+          }
         </a>
         @if (emailConnections().length > 0) {
           <span class="sync-accounts">
@@ -51,6 +58,9 @@
     </div>
   </div>
   <nz-layout class="body-layout" [class.body-layout--map]="isMapRoute()">
+    @if (!isCollapsed()) {
+      <div class="sidebar-backdrop" (click)="toggleSidebar()"></div>
+    }
     <nz-sider nzTheme="dark"
               [nzCollapsed]="isCollapsed()"
               (nzCollapsedChange)="isCollapsed.set($event)"

@@ -86,6 +86,27 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
     }
 
 
+async def detect_status_update(
+    subject: str, body: str, company: str, job_title: str, current_status: str
+) -> str | None:
+    clean_body = _strip_html(body)[:MAX_EMAIL_LENGTH]
+
+    prompt = f"""This email is a follow-up in an ongoing job application to "{company}" for the position "{job_title}".
+Current tracked status: {current_status}
+
+SUBJECT: {subject}
+CONTENT: {clean_body}
+
+Does this email clearly indicate a NEW status for this application? Reply with exactly this JSON (no surrounding text):
+{{"status": "APPLIED" | "ACKNOWLEDGED" | "INTERVIEW" | "TECHNICAL" | "OFFER" | "REJECTED" | null}}
+
+Return null if the email does not clearly indicate one of these statuses (e.g. a scheduling detail, a generic reply, an out-of-office)."""
+
+    result = await complete_json(prompt, max_tokens=60, system=_SYSTEM_EMAIL)
+    status = result.get("status") if result else None
+    return status if status in VALID_STATUSES else None
+
+
 async def extract_cv(text: str) -> dict:
     if len(text) > MAX_CV_LENGTH:
         logger.warning("CV text truncated from %d to %d characters", len(text), MAX_CV_LENGTH)

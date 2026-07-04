@@ -24,6 +24,30 @@ export class UsersService {
     return this.userRepo.findOne({ where: { id } });
   }
 
+  async findByVerificationToken(token: string): Promise<User | null> {
+    return this.userRepo.findOne({ where: { emailVerificationToken: token } });
+  }
+
+  async setVerificationToken(
+    userId: string,
+    token: string,
+    expires: Date,
+  ): Promise<void> {
+    await this.userRepo.update(userId, {
+      emailVerificationToken: token,
+      emailVerificationExpires: expires,
+    });
+  }
+
+  async markEmailAsVerified(userId: string): Promise<User> {
+    await this.userRepo.update(userId, {
+      isEmailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationExpires: null,
+    });
+    return (await this.findById(userId))!;
+  }
+
   async updateCv(userId: string, cvData: Record<string, any>): Promise<User> {
     const user = await this.findById(userId);
     if (!user) throw new NotFoundException('Utilisateur non trouvé');
