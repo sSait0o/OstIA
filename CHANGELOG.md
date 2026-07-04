@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-07-04
+
+### Fixed
+
+- The prior IPv4/DNS mail fixes still left verification-email failures undiagnosable in production: `auth.service` silently swallowed the send error, and `MailService` never surfaced the underlying SMTP response. The transporter now logs raw SMTP protocol traffic, verifies the connection on boot, and failures include the response code/command; `auth.service` also logs a warning naming the affected user.
+
 ## [1.0.8] - 2026-07-04
 
 ### Fixed
