@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as net from 'net';
 import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
@@ -19,12 +20,18 @@ export class MailService {
       'FRONTEND_URL',
       'http://localhost:4200',
     );
-    // `family` isn't in @types/nodemailer but nodemailer forwards it to the
-    // underlying socket connect() call; some networks resolve Gmail's AAAA
-    // record but have no working IPv6 route, causing ENETUNREACH.
-    const transportOptions: SMTPTransport.Options & { family?: number } = {
-      host: this.configService.get<string>('SMTP_HOST'),
-      port: this.configService.get<number>('SMTP_PORT', 587),
+    const host = this.configService.get<string>('SMTP_HOST');
+    const port = this.configService.get<number>('SMTP_PORT', 587);
+
+    // nodemailer's own DNS resolution (lib/shared/index.js) resolves both
+    // A and AAAA records and picks a RANDOM address to connect to, ignoring
+    // any `family` option (that field is dead code in nodemailer 9.x). Some
+    // networks resolve Gmail's AAAA record but have no working IPv6 route,
+    // causing an intermittent ENETUNREACH. `getSocket` bypasses nodemailer's
+    // resolver entirely by handing it an already-connected IPv4 socket.
+    const transportOptions: SMTPTransport.Options = {
+      host,
+      port,
       secure: this.configService.get('SMTP_SECURE', 'false') === 'true',
       auth: {
         user: this.configService.get<string>('SMTP_USER'),
@@ -33,7 +40,11 @@ export class MailService {
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 10_000,
-      family: 4,
+      getSocket: (_options, callback) => {
+        const socket = net.connect({ host, port, family: 4 });
+        socket.once('connect', () => callback(null, { connection: socket }));
+        socket.once('error', (err) => callback(err, null));
+      },
     };
     this.transporter = nodemailer.createTransport(transportOptions);
   }
