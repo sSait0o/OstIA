@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-07-04
+
+### Fixed
+
+- The v1.0.6 IPv6 mail fix didn't actually work: nodemailer's own resolver looks up both A and AAAA records for the SMTP host and picks a random address to connect to, ignoring the `family` option entirely. Verification emails could still fail with `ENETUNREACH` whenever that random pick landed on an IPv6 address. The transporter now connects via a hand-supplied IPv4 socket (`getSocket`), bypassing nodemailer's resolver.
+
 ## [1.0.7] - 2026-07-04
 
 ### Fixed
