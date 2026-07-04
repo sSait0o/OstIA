@@ -1,9 +1,7 @@
-import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services import cv_parser
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 

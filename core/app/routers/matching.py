@@ -1,9 +1,7 @@
-import logging
 from fastapi import APIRouter
 from pydantic import BaseModel
 from app.services import job_matcher
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
