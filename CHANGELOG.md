@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-07-04
+
+### Fixed
+
+- Verification emails never reached users in production: Railway (like most PaaS providers) blocks outbound SMTP ports (25/465/587) entirely, so every SMTP fix attempt (IPv4 forcing, DNS workarounds, timeouts) was doomed regardless of the mail server config, since the traffic never left the container (`connect ETIMEDOUT`). Replaced the SMTP transport with Resend's HTTP API, which isn't subject to that egress block.
+
 ## [1.0.9] - 2026-07-04
 
 ### Fixed

@@ -212,18 +212,29 @@ html {
     }
   }
 
-  .ant-input::placeholder  { color: #444; }
+  .ant-input::placeholder  { color: rgba(255, 255, 255, .55); opacity: 1; }
   .ant-input-prefix        { color: $text-muted; }
+
+  .ant-input-status-error:not(.ant-input-disabled):not(.ant-input-borderless).ant-input,
+  .ant-input-status-error:not(.ant-input-disabled):not(.ant-input-borderless).ant-input:hover,
+  .ant-input-status-error:not(.ant-input-disabled):not(.ant-input-borderless).ant-input:focus,
+  .ant-input-status-error:not(.ant-input-disabled):not(.ant-input-borderless).ant-input-focused {
+    background: $surface-2;
+    border-color: $color-error;
+    color: $text;
+  }
 
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus,
   input:-webkit-autofill:active,
+  input:autofill,
   textarea:-webkit-autofill {
-    -webkit-text-fill-color: $text;
-    -webkit-box-shadow: 0 0 0 1000px $surface-2 inset;
-    box-shadow: 0 0 0 1000px $surface-2 inset;
-    caret-color: $text;
+    -webkit-text-fill-color: $text !important;
+    -webkit-box-shadow: 0 0 0 1000px $surface-2 inset !important;
+    box-shadow: 0 0 0 1000px $surface-2 inset !important;
+    background-color: $surface-2 !important;
+    caret-color: $text !important;
     transition: background-color 5000s ease-in-out 0s;
   }
 
@@ -263,7 +274,7 @@ html {
     .ant-input-number-input {
       background: transparent !important;
       color: $text !important;
-      &::placeholder { color: #444; }
+      &::placeholder { color: rgba(255, 255, 255, .55); }
     }
 
     .ant-input-number-handler-wrap { background: $surface-2; border-color: $border; }
@@ -291,7 +302,7 @@ html {
     .ant-picker-input > input {
       background: transparent;
       color: $text;
-      &::placeholder { color: #444; }
+      &::placeholder { color: rgba(255, 255, 255, .55); }
     }
 
     .ant-picker-suffix,
@@ -360,7 +371,7 @@ html {
   }
 
   .ant-select-arrow            { color: $text-muted; }
-  .ant-select-selection-placeholder { color: #444; }
+  .ant-select-selection-placeholder { color: rgba(255, 255, 255, .55); }
 
   .ant-btn {
     background: transparent;
