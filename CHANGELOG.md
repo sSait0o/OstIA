@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-07-04
+
+### Fixed
+
+- CI had been failing on `main` since before v1.0.5 (backend eslint `no-require-imports`, then `core` ruff formatting), so CD was silently skipped and the v1.0.6 IPv6 mail fix never actually reached production. Also fixed 15 `core` tests left broken by an earlier async migration (`parse_email`/`extract_cv`/`score_cv_job` calls weren't awaited), which the formatting failure had been masking by preventing the Test step from ever running.
+
 ## [1.0.6] - 2026-07-04
 
 ### Fixed
