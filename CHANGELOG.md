@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-07-04
+
+### Fixed
+
+- Registration permanently blocked an email address if a signup was abandoned before verifying: it now reclaims accounts left unverified past their token's expiry and lets the address register again.
+- Registration and resend-verification returned a 500 when the mail provider was unreachable, even though the account/token was already persisted; the failure is now logged and swallowed so the user can retry the send.
+
 ## [1.0.3] - 2026-07-04
 
 ### Changed
