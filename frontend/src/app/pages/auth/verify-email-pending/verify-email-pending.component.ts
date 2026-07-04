@@ -4,6 +4,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { AuthService } from '../../../core/services/auth.service';
+import { extractErrorMessage } from '../../../shared/utils/http-error.utils';
 
 @Component({
   selector: 'app-verify-email-pending',
@@ -29,7 +30,7 @@ export class VerifyEmailPendingComponent {
         this.resending = false;
       },
       error: (err) => {
-        this.message.error(err.error?.message || "Impossible de renvoyer l'email");
+        this.message.error(extractErrorMessage(err, "Impossible de renvoyer l'email"));
         this.resending = false;
       },
     });
