@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-05
+
+### Added
+
+- Forgot/reset password flow: users can request a reset link by email and set a new password via a time-limited token, mirroring the existing email-verification flow.
+- First-login guided tour highlighting the sync button and main navigation items, replayable anytime via the header's "?" icon.
+- Gmail/Outlook sync is now rate-limited to once per hour in production, with a live countdown in the UI, to keep sync usage under the Groq free-tier quota.
+
+### Changed
+
+- `resend-verification` and `forgot-password` now share a single `EmailDto`, replacing the old `ResendVerificationDto`.
+
+### Removed
+
+- Unused `JwtQueryStrategy`/`JwtQueryGuard` (never wired to any route).
+- Unused `bySource` field from application stats.
+
 ## [1.0.10] - 2026-07-04
 
 ### Fixed
