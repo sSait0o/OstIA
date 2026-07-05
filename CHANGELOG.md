@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-05
+
+### Added
+
+- CV parsing now extracts the candidate's city, used to prefill the job search location (100km radius) by default.
+- Groq API calls now rotate across a pool of keys (`GROQ_API_KEYS`) with per-key cooldown on rate limiting, instead of stalling on a single key's free-tier limit.
+- `GET /email/sync/status` exposes in-progress sync state, so the UI can resume tracking a sync after a page reload.
+
+### Changed
+
+- Gmail/Outlook sync no longer auto-creates the "OstIA" label/folder; users must create it themselves, and the email page now explains the manual setup with a walkthrough panel.
+- CV experience and education entries are now sorted most-recent first.
+- Job search location default switched from CV-derived keywords to the CV's city.
+- Groq health check now uses a plain-text completion instead of a JSON one, avoiding false "degraded" reports from transient JSON-formatting hiccups.
+
+### Removed
+
+- Automatic keyword prefill from CV experience/skills in job search.
+
 ## [1.1.1] - 2026-07-05
 
 ### Fixed
