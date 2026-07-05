@@ -1,4 +1,4 @@
-import { Component, HostListener, computed, effect, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { TutorialService } from '../../../core/services/tutorial.service';
 
 interface HighlightRect {
@@ -23,6 +23,8 @@ const MARGIN = 16;
 })
 export class TutorialOverlayComponent {
   readonly tutorial = inject(TutorialService);
+
+  @ViewChild('tooltipEl') tooltipEl?: ElementRef<HTMLDivElement>;
 
   readonly highlightRect = signal<HighlightRect | null>(null);
   readonly tooltipTop = signal(0);
@@ -110,17 +112,24 @@ export class TutorialOverlayComponent {
     };
     this.highlightRect.set(highlight);
 
+    setTimeout(() => this.positionTooltip(highlight), 0);
+  }
+
+  private positionTooltip(highlight: HighlightRect) {
+    const tooltipHeight = this.tooltipEl?.nativeElement.offsetHeight || TOOLTIP_HEIGHT;
+    const tooltipWidth = this.tooltipEl?.nativeElement.offsetWidth || TOOLTIP_WIDTH;
+
     const spaceBelow = window.innerHeight - (highlight.top + highlight.height);
-    const placeBelow = spaceBelow > TOOLTIP_HEIGHT + MARGIN || highlight.top < TOOLTIP_HEIGHT + MARGIN;
+    const placeBelow = spaceBelow > tooltipHeight + MARGIN || highlight.top < tooltipHeight + MARGIN;
 
     const rawTooltipTop = placeBelow
       ? highlight.top + highlight.height + 14
-      : highlight.top - TOOLTIP_HEIGHT - 14;
+      : highlight.top - tooltipHeight - 14;
     this.tooltipTop.set(
-      Math.min(Math.max(rawTooltipTop, MARGIN), window.innerHeight - TOOLTIP_HEIGHT - MARGIN),
+      Math.min(Math.max(rawTooltipTop, MARGIN), Math.max(window.innerHeight - tooltipHeight - MARGIN, MARGIN)),
     );
     this.tooltipLeft.set(
-      Math.min(Math.max(highlight.left, MARGIN), window.innerWidth - TOOLTIP_WIDTH - MARGIN),
+      Math.min(Math.max(highlight.left, MARGIN), Math.max(window.innerWidth - tooltipWidth - MARGIN, MARGIN)),
     );
   }
 }

@@ -25,6 +25,8 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
   padding: 18px 20px;
   color: #fff;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   transition: top 0.25s ease, left 0.25s ease;
 
   @media (max-width: 575px) {
