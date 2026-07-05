@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, inject, computed, effect, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -9,15 +10,18 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { EmailService, EmailConnection } from '../../core/services/email.service';
 
 @Component({
   selector: 'app-email',
   standalone: true,
   imports: [
+    RouterLink,
     NzCardModule, NzButtonModule, NzIconModule, NzTagModule,
     NzDividerModule, NzProgressModule, NzSpinModule, NzPopconfirmModule,
-    NzAlertModule,
+    NzAlertModule, NzGridModule, NzModalModule,
   ],
   templateUrl: './email.component.html',
   styleUrl: './email.component.scss',
@@ -29,6 +33,7 @@ export class EmailComponent implements OnInit, OnDestroy {
   loading = signal(true);
   emailConnections = signal<EmailConnection[]>([]);
   now = signal(Date.now());
+  imageModalVisible = false;
 
   private tickInterval?: ReturnType<typeof setInterval>;
   private wasSyncingGmail = false;
