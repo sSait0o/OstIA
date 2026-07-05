@@ -7,7 +7,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.routers import cv, matching, analytics
 from app.config import settings
-from app.services.ai_client import complete_json
+from app.services.ai_client import complete
 
 logging.config.dictConfig(
     {
@@ -50,8 +50,8 @@ app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 async def health():
     groq_status = "ok"
     try:
-        result = await complete_json('{"test": true}', 10)
-        if not isinstance(result, dict):
+        result = await complete("Reply with OK", 200)
+        if not result:
             groq_status = "degraded"
     except Exception:
         groq_status = "unavailable"
