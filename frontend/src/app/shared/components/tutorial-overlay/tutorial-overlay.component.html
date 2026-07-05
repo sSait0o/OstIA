@@ -10,7 +10,7 @@
       [style.height.px]="rect.height"
     ></div>
 
-    <div class="tutorial-tooltip" [style.top.px]="tooltipTop()" [style.left.px]="tooltipLeft()">
+    <div #tooltipEl class="tutorial-tooltip" [style.top.px]="tooltipTop()" [style.left.px]="tooltipLeft()">
       <div class="tutorial-step-count">Étape {{ tutorial.stepIndex() + 1 }} / {{ tutorial.steps.length }}</div>
       <h4 class="tutorial-title">{{ step.title }}</h4>
       <p class="tutorial-description">{{ step.description }}</p>
