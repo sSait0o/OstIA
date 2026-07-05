@@ -35,6 +35,12 @@ export class EmailController {
     return this.emailService.getConnections(req.user.id);
   }
 
+  @Get('sync/status')
+  @ApiOperation({ summary: 'Récupérer la progression de synchronisation en cours' })
+  getSyncStatus(@Request() req: { user: { id: string } }) {
+    return this.emailService.getSyncStatus(req.user.id);
+  }
+
   @Get('google/auth')
   @ApiOperation({ summary: "Démarrer l'authentification Gmail" })
   googleAuth(@Request() req: { user: { id: string } }) {

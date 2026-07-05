@@ -19,6 +19,13 @@ export interface SyncProgress {
   aiUnavailable?: number;
   rateLimited?: boolean;
   retryAfterSeconds?: number;
+  error?: boolean;
+  labelMissing?: boolean;
+}
+
+export interface SyncStatus {
+  gmail: SyncProgress | null;
+  outlook: SyncProgress | null;
 }
 
 export interface EmailConnection {
@@ -49,10 +56,118 @@ export class EmailService {
     private readonly http: HttpClient,
     private readonly authService: AuthService,
     private readonly message: NzMessageService,
-  ) {}
+  ) {
+    this.resumeActiveSyncs();
+  }
 
   getConnections() {
     return this.http.get<EmailConnection[]>(`${this.base}/connections`);
+  }
+
+  getSyncStatus() {
+    return this.http.get<SyncStatus>(`${this.base}/sync/status`);
+  }
+
+  private resumeActiveSyncs() {
+    if (!this.authService.getToken()) return;
+    this.getSyncStatus().subscribe({
+      next: (status) => {
+        if (status.gmail && !status.gmail.done) {
+          this.syncingGmail.set(true);
+          this.applyGmailStatus(status.gmail);
+          this.pollGmailSync();
+        }
+        if (status.outlook && !status.outlook.done) {
+          this.syncingOutlook.set(true);
+          this.applyOutlookStatus(status.outlook);
+          this.pollOutlookSync();
+        }
+      },
+    });
+  }
+
+  private applyGmailStatus(p: SyncProgress) {
+    this.gmailSyncPercent.set(p.percent);
+    if (p.current) this.gmailSyncCurrent.set(p.current);
+    if (p.total) this.gmailSyncTotal.set(p.total);
+    this.gmailSyncEtaSeconds.set(p.done ? 0 : (p.estimatedSecondsRemaining ?? 0));
+  }
+
+  private applyOutlookStatus(p: SyncProgress) {
+    this.outlookSyncPercent.set(p.percent);
+    if (p.current) this.outlookSyncCurrent.set(p.current);
+    if (p.total) this.outlookSyncTotal.set(p.total);
+    this.outlookSyncEtaSeconds.set(p.done ? 0 : (p.estimatedSecondsRemaining ?? 0));
+  }
+
+  private pollGmailSync() {
+    const tick = () => {
+      if (!this.syncingGmail()) return;
+      this.getSyncStatus().subscribe({
+        next: (status) => {
+          if (!status.gmail) { this.syncingGmail.set(false); return; }
+          this.applyGmailStatus(status.gmail);
+          if (status.gmail.done) {
+            this.reportSyncResult(status.gmail, 'Gmail');
+            this.syncingGmail.set(false);
+            return;
+          }
+          setTimeout(tick, 1000);
+        },
+        error: () => { this.message.error('Erreur de synchronisation Gmail'); this.syncingGmail.set(false); },
+      });
+    };
+    setTimeout(tick, 1000);
+  }
+
+  private pollOutlookSync() {
+    const tick = () => {
+      if (!this.syncingOutlook()) return;
+      this.getSyncStatus().subscribe({
+        next: (status) => {
+          if (!status.outlook) { this.syncingOutlook.set(false); return; }
+          this.applyOutlookStatus(status.outlook);
+          if (status.outlook.done) {
+            this.reportSyncResult(status.outlook, 'Outlook');
+            this.syncingOutlook.set(false);
+            return;
+          }
+          setTimeout(tick, 1000);
+        },
+        error: () => { this.message.error('Erreur de synchronisation Outlook'); this.syncingOutlook.set(false); },
+      });
+    };
+    setTimeout(tick, 1000);
+  }
+
+  private reportSyncResult(p: SyncProgress, providerLabel: string) {
+    if (p.error) {
+      this.message.error(`Erreur de synchronisation ${providerLabel}`);
+      return;
+    }
+    if (p.rateLimited) {
+      this.message.warning(
+        `Synchronisation limitée à une fois par heure. Réessayez dans ${this.formatRetryDelay(p.retryAfterSeconds ?? 0)}.`,
+      );
+      return;
+    }
+    if (p.labelMissing) {
+      const noun = providerLabel === 'Outlook' ? 'dossier' : 'libellé';
+      this.message.warning(
+        `Aucun ${noun} "OstIA" trouvé dans ${providerLabel}. Créez-le vous-même et déplacez-y vos emails de candidature, puis relancez la synchronisation.`,
+      );
+      return;
+    }
+    const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
+    if (p.updated) parts.push(`${p.updated} mise(s) à jour`);
+    if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
+    if (p.failed) parts.push(`${p.failed} non reconnu(s) par l'IA`);
+    this.message.success(parts.join(', '));
+    if (p.aiUnavailable) {
+      this.message.warning(
+        `${p.aiUnavailable} email(s) non traité(s) : service IA indisponible (limite de débit atteinte). Relancez la synchronisation dans quelques minutes pour les récupérer.`,
+      );
+    }
   }
 
   getGoogleAuthUrl() {
@@ -94,28 +209,9 @@ export class EmailService {
     this.gmailSyncEtaSeconds.set(0);
     this.syncGmailStream(token).subscribe({
       next: (p) => {
-        this.gmailSyncPercent.set(p.percent);
-        if (p.current) this.gmailSyncCurrent.set(p.current);
-        if (p.total) this.gmailSyncTotal.set(p.total);
-        this.gmailSyncEtaSeconds.set(p.done ? 0 : (p.estimatedSecondsRemaining ?? 0));
+        this.applyGmailStatus(p);
         if (p.done) {
-          if (p.rateLimited) {
-            this.message.warning(
-              `Synchronisation limitée à une fois par heure. Réessayez dans ${this.formatRetryDelay(p.retryAfterSeconds ?? 0)}.`,
-            );
-            this.syncingGmail.set(false);
-            return;
-          }
-          const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
-          if (p.updated) parts.push(`${p.updated} mise(s) à jour`);
-          if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
-          if (p.failed) parts.push(`${p.failed} non reconnu(s) par l'IA`);
-          this.message.success(parts.join(', '));
-          if (p.aiUnavailable) {
-            this.message.warning(
-              `${p.aiUnavailable} email(s) non traité(s) : service IA indisponible (limite de débit atteinte). Relancez la synchronisation dans quelques minutes pour les récupérer.`,
-            );
-          }
+          this.reportSyncResult(p, 'Gmail');
           this.syncingGmail.set(false);
         }
       },
@@ -133,28 +229,9 @@ export class EmailService {
     this.outlookSyncEtaSeconds.set(0);
     this.syncOutlookStream(token).subscribe({
       next: (p) => {
-        this.outlookSyncPercent.set(p.percent);
-        if (p.current) this.outlookSyncCurrent.set(p.current);
-        if (p.total) this.outlookSyncTotal.set(p.total);
-        this.outlookSyncEtaSeconds.set(p.done ? 0 : (p.estimatedSecondsRemaining ?? 0));
+        this.applyOutlookStatus(p);
         if (p.done) {
-          if (p.rateLimited) {
-            this.message.warning(
-              `Synchronisation limitée à une fois par heure. Réessayez dans ${this.formatRetryDelay(p.retryAfterSeconds ?? 0)}.`,
-            );
-            this.syncingOutlook.set(false);
-            return;
-          }
-          const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
-          if (p.updated) parts.push(`${p.updated} mise(s) à jour`);
-          if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
-          if (p.failed) parts.push(`${p.failed} non reconnu(s) par l'IA`);
-          this.message.success(parts.join(', '));
-          if (p.aiUnavailable) {
-            this.message.warning(
-              `${p.aiUnavailable} email(s) non traité(s) : service IA indisponible (limite de débit atteinte). Relancez la synchronisation dans quelques minutes pour les récupérer.`,
-            );
-          }
+          this.reportSyncResult(p, 'Outlook');
           this.syncingOutlook.set(false);
         }
       },
