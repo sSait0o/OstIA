@@ -18,6 +18,7 @@ import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzAutocompleteModule } from 'ng-zorro-antd/auto-complete';
 import { JobsService, Job, JobSearchParams } from '../../core/services/jobs.service';
+import { CvService } from '../../core/services/cv.service';
 import { JobCardComponent } from '../../shared/components/job-card/job-card.component';
 
 interface CityOption { name: string; dept: string }
@@ -40,6 +41,7 @@ interface GeoCommune { nom: string; codeDepartement: string }
 })
 export class JobsComponent implements OnInit {
   private readonly jobsService = inject(JobsService);
+  private readonly cvService = inject(CvService);
   private readonly message = inject(NzMessageService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -66,6 +68,7 @@ export class JobsComponent implements OnInit {
   sortBy = '';
 
   readonly pageSize = 9;
+  private readonly DEFAULT_CV_LOCATION_DISTANCE = 100;
 
   readonly contractTypeOptions = [
     { label: 'CDI', value: 'CDI' },
@@ -150,6 +153,24 @@ export class JobsComponent implements OnInit {
     this.sortBy = qp['sortBy'] ?? '';
     const page = +(qp['page'] ?? 1);
 
+    if (this.location) {
+      this.initSearch(page);
+    } else {
+      this.cvService.getCv().subscribe({
+        next: ({ cvData }) => {
+          if (cvData?.city) {
+            this.location = cvData.city;
+            this.distance ??= this.DEFAULT_CV_LOCATION_DISTANCE;
+            this.updateUrl(page);
+          }
+          this.initSearch(page);
+        },
+        error: () => this.initSearch(page),
+      });
+    }
+  }
+
+  private initSearch(page: number) {
     const cached = this.jobsService.cachedState();
     const paramsKey = this.serializeParams(page);
     const cachedKey = cached

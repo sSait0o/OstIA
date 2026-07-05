@@ -139,16 +139,6 @@ export class JobsService {
     return this.franceTravailToken;
   }
 
-  private extractKeywordsFromCv(cvData: Record<string, unknown>): string {
-    const experience = cvData.experience as
-      | Array<{ title?: string }>
-      | undefined;
-    if (experience?.length && experience[0].title) return experience[0].title;
-    const skills = cvData.skills as string[] | undefined;
-    if (skills?.length) return skills[0];
-    return '';
-  }
-
   private async resolveToInseeCode(cityName: string): Promise<string | null> {
     try {
       const response = await axios.get<Array<{ code: string }>>(
@@ -344,9 +334,6 @@ export class JobsService {
     const hasCv = cvData && Object.keys(cvData).length > 0;
 
     const resolvedParams = { ...params };
-    if (!resolvedParams.keywords && hasCv) {
-      resolvedParams.keywords = this.extractKeywordsFromCv(cvData);
-    }
 
     let ftOffers: JobOffer[] = [];
     let ftTotal = 0;

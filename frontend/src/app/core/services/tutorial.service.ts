@@ -26,8 +26,15 @@ export class TutorialService {
       id: 'sync-btn',
       target: '[data-tutorial="sync-btn"]',
       title: 'Synchronisez vos emails',
-      description: 'Cliquez sur "Sync email" pour connecter votre boîte mail. OstIA crée automatiquement le libellé "OstIA" et ses sous-libellés (Envoyé, Entretien, Test Technique, Accepté, Refusé) pour classer vos candidatures détectées.',
+      description: 'Cliquez sur "Sync email" pour accéder à la page de connexion de votre boîte mail.',
       requiresClick: true,
+    },
+    {
+      id: 'email-page',
+      target: '[data-tutorial="email-page"]',
+      title: 'Connectez votre boîte mail',
+      description: 'Connectez votre compte Gmail ou Outlook, puis créez vous-même le libellé "OstIA" dans Gmail (ou un dossier "OstIA" dans Outlook) et déplacez-y vos emails de candidature. OstIA les analysera et créera automatiquement les sous-libellés (Envoyé, Entretien, Test Technique, Offre, Refusé) pour classer chaque candidature dans votre Kanban.',
+      requiresClick: false,
     },
     {
       id: 'nav-kanban',

@@ -9,6 +9,8 @@ interface HighlightRect {
 }
 
 const MEASURE_DELAY_MS = 260;
+const MEASURE_MAX_RETRIES = 15;
+const MEASURE_RETRY_DELAY_MS = 150;
 const TOOLTIP_WIDTH = 320;
 const TOOLTIP_HEIGHT = 170;
 const MARGIN = 16;
@@ -48,7 +50,7 @@ export class TutorialOverlayComponent {
       const active = this.tutorial.active();
       if (active && step) {
         const target = step.target;
-        setTimeout(() => this.measure(target), MEASURE_DELAY_MS);
+        setTimeout(() => this.measure(target, MEASURE_MAX_RETRIES), MEASURE_DELAY_MS);
       } else {
         this.highlightRect.set(null);
       }
@@ -87,9 +89,13 @@ export class TutorialOverlayComponent {
     this.tutorial.skip();
   }
 
-  private measure(selector: string) {
+  private measure(selector: string, retriesLeft = 0) {
     const el = document.querySelector(selector);
     if (!el) {
+      if (retriesLeft > 0) {
+        setTimeout(() => this.measure(selector, retriesLeft - 1), MEASURE_RETRY_DELAY_MS);
+        return;
+      }
       this.tutorial.next();
       return;
     }
@@ -107,8 +113,11 @@ export class TutorialOverlayComponent {
     const spaceBelow = window.innerHeight - (highlight.top + highlight.height);
     const placeBelow = spaceBelow > TOOLTIP_HEIGHT + MARGIN || highlight.top < TOOLTIP_HEIGHT + MARGIN;
 
+    const rawTooltipTop = placeBelow
+      ? highlight.top + highlight.height + 14
+      : highlight.top - TOOLTIP_HEIGHT - 14;
     this.tooltipTop.set(
-      placeBelow ? highlight.top + highlight.height + 14 : highlight.top - TOOLTIP_HEIGHT - 14,
+      Math.min(Math.max(rawTooltipTop, MARGIN), window.innerHeight - TOOLTIP_HEIGHT - MARGIN),
     );
     this.tooltipLeft.set(
       Math.min(Math.max(highlight.left, MARGIN), window.innerWidth - TOOLTIP_WIDTH - MARGIN),

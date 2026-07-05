@@ -45,6 +45,13 @@ export interface SyncProgress {
   aiUnavailable?: number;
   rateLimited?: boolean;
   retryAfterSeconds?: number;
+  error?: boolean;
+  labelMissing?: boolean;
+}
+
+export interface SyncStatus {
+  gmail: SyncProgress | null;
+  outlook: SyncProgress | null;
 }
 
 export class SyncRateLimitedException extends HttpException {
@@ -63,6 +70,7 @@ export interface SyncResult {
   skipped: number;
   failed: number;
   aiUnavailable: number;
+  labelMissing?: boolean;
 }
 
 interface MicrosoftTokenResponse {
@@ -121,6 +129,7 @@ const STATUS_TO_SUBLABEL: Partial<Record<ApplicationStatus, string>> = {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly googleOAuth2Client: OAuth2Client;
+  private readonly activeSyncs = new Map<string, SyncProgress>();
 
   constructor(
     @InjectRepository(EmailConnection)
@@ -225,10 +234,29 @@ export class EmailService {
     return this.doGmailSync(userId, () => {});
   }
 
+  getSyncStatus(userId: string): SyncStatus {
+    return {
+      gmail:
+        this.activeSyncs.get(this.syncKey(userId, EmailProvider.GMAIL)) ??
+        null,
+      outlook:
+        this.activeSyncs.get(this.syncKey(userId, EmailProvider.OUTLOOK)) ??
+        null,
+    };
+  }
+
+  private syncKey(userId: string, provider: EmailProvider): string {
+    return `${userId}:${provider}`;
+  }
+
   syncGmailStream(userId: string): Observable<MessageEvent> {
+    const key = this.syncKey(userId, EmailProvider.GMAIL);
     return new Observable((subscriber) => {
-      const emit = (data: SyncProgress) =>
+      const emit = (data: SyncProgress) => {
+        this.activeSyncs.set(key, data);
         subscriber.next({ data } as unknown as MessageEvent);
+      };
+      emit({ percent: 0 });
 
       this.doGmailSync(userId, emit)
         .then((result) => {
@@ -246,6 +274,7 @@ export class EmailService {
             subscriber.complete();
             return;
           }
+          emit({ percent: 100, done: true, error: true });
           subscriber.error(err);
         });
     });
@@ -287,6 +316,7 @@ export class EmailService {
         skipped: 0,
         failed: 0,
         aiUnavailable: 0,
+        labelMissing: true,
       };
 
     const cutoff = this.getSyncCutoffDate();
@@ -647,6 +677,10 @@ export class EmailService {
     const { data } = await gmail.users.labels.list({ userId: 'me' });
     let existingLabels: gmail_v1.Schema$Label[] = data.labels ?? [];
 
+    const parentId = existingLabels.find((l) => l.name === OSTIA_LABEL)?.id;
+    if (!parentId) return labelMap;
+    labelMap.set(OSTIA_LABEL, parentId);
+
     const getOrCreateLabel = async (
       name: string,
     ): Promise<string | undefined> => {
@@ -670,9 +704,6 @@ export class EmailService {
         return existingLabels.find((l) => l.name === name)?.id ?? undefined;
       }
     };
-
-    const parentId = await getOrCreateLabel(OSTIA_LABEL);
-    if (parentId) labelMap.set(OSTIA_LABEL, parentId);
 
     for (const sub of OSTIA_SUBLABELS) {
       const fullName = `${OSTIA_LABEL}/${sub}`;
@@ -878,9 +909,13 @@ export class EmailService {
   }
 
   syncOutlookStream(userId: string): Observable<MessageEvent> {
+    const key = this.syncKey(userId, EmailProvider.OUTLOOK);
     return new Observable((subscriber) => {
-      const emit = (data: SyncProgress) =>
+      const emit = (data: SyncProgress) => {
+        this.activeSyncs.set(key, data);
         subscriber.next({ data } as unknown as MessageEvent);
+      };
+      emit({ percent: 0 });
 
       this.doOutlookSync(userId, emit)
         .then((result) => {
@@ -898,6 +933,7 @@ export class EmailService {
             subscriber.complete();
             return;
           }
+          emit({ percent: 100, done: true, error: true });
           subscriber.error(err);
         });
     });
@@ -934,6 +970,7 @@ export class EmailService {
         skipped: 0,
         failed: 0,
         aiUnavailable: 0,
+        labelMissing: true,
       };
 
     const cutoff = this.getSyncCutoffDate();
