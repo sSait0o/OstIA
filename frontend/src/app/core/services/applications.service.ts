@@ -1,21 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-
-export type ApplicationStatus =
-  | 'APPLIED'
-  | 'ACKNOWLEDGED'
-  | 'TECHNICAL'
-  | 'INTERVIEW'
-  | 'OFFER'
-  | 'REJECTED';
+import { ApplicationStatus, ApplicationSource } from '../../shared/models/application.model';
 
 export interface Application {
   id: string;
   company: string;
   jobTitle: string;
   status: ApplicationStatus;
-  source: 'EMAIL' | 'MANUAL' | 'JOB_BOARD';
+  source: ApplicationSource;
   jobUrl?: string;
   location?: string;
   salary?: string;
@@ -47,7 +40,7 @@ export interface CreateApplicationDto {
   company: string;
   jobTitle: string;
   status?: ApplicationStatus;
-  source?: 'EMAIL' | 'MANUAL' | 'JOB_BOARD';
+  source?: ApplicationSource;
   jobUrl?: string;
   location?: string;
   salary?: string;

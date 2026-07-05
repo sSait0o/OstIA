@@ -17,8 +17,9 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
 import { FormsModule } from '@angular/forms';
-import { ApplicationsService, Application, ApplicationStatus, CreateApplicationDto } from '../../core/services/applications.service';
+import { ApplicationsService, Application, CreateApplicationDto } from '../../core/services/applications.service';
 import { MapService } from '../../core/services/map.service';
+import { ApplicationStatus } from '../../shared/models/application.model';
 
 interface Column {
   key: ApplicationStatus;
