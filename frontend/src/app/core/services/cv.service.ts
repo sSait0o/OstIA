@@ -19,6 +19,7 @@ export interface CvData {
   firstName: string;
   lastName: string;
   email: string;
+  city?: string;
   skills: string[];
   languages: string[];
   experience: CvExperience[];

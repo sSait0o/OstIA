@@ -126,11 +126,18 @@ Return ONLY a valid JSON object:
   "lastName": "",
   "email": "",
   "phone": "",
+  "city": "",
   "skills": ["skill1"],
   "languages": ["language1"],
   "experience": [{{"title": "", "company": "", "duration": "", "description": ""}}],
   "education": [{{"degree": "", "school": "", "year": ""}}],
   "summary": "profile summary"
-}}"""
+}}
 
-    return await complete_json(prompt, max_tokens=1024)
+"city" is the candidate's current city (never a country or region), used to search nearby job offers:
+- Use the candidate's home/postal address city if the CV states one
+- Otherwise use the city of the most recent education entry (school/campus location)
+- Otherwise use the city of the most recent work experience
+- Return "" if none of these can be determined"""
+
+    return await complete_json(prompt, max_tokens=3000)
