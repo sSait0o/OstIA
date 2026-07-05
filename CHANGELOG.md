@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-07-05
+
+### Fixed
+
+- Tutorial overlay tooltip now measures its actual rendered size instead of relying on fixed constants, preventing it from overflowing the viewport when content is taller/wider than assumed.
+
+### Changed
+
+- Frontend `ApplicationStatus`/`ApplicationSource` types deduplicated into `shared/models/application.model.ts`, shared between the applications and map services instead of being redefined in each.
+
 ## [1.2.0] - 2026-07-05
 
 ### Added

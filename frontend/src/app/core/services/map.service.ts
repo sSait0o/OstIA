@@ -1,17 +1,18 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { ApplicationStatus, ApplicationSource } from '../../shared/models/application.model';
 
 export interface MapApplication {
   id: string;
   company: string;
   jobTitle: string;
-  status: string;
+  status: ApplicationStatus;
   location: string | null;
   resolvedLocation: string | null;
   lat: number | null;
   lon: number | null;
-  source: string | null;
+  source: ApplicationSource | null;
   emailSubject: string | null;
   emailBody: string | null;
   emailId: string | null;
