@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-07-07
+
+### Fixed
+
+- Dashboard stat numbers now actually get the intended responsive font-size on mobile (the previous CSS targeted a class the template never rendered).
+- Kanban email modal header no longer clips the company name or status selector on narrow screens.
+- Email page's "how it works" card no longer stays sticky and overlapping content once the layout stacks on tablet/mobile.
+- Login/Register pages no longer clip the form with no way to scroll on short/landscape mobile viewports.
+- Map view's floating nav and info pills no longer risk overlapping on narrow phone screens.
+
 ## [1.2.1] - 2026-07-05
 
 ### Fixed

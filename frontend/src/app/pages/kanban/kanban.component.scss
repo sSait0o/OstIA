@@ -289,12 +289,28 @@ $card-bg: rgba(13,13,13,.95);
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .email-company {
   font-size: 13px;
   font-weight: 700;
   color: #fff;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-status-select {
+  width: 160px;
+  max-width: 100%;
+  flex-shrink: 0;
+
+  @media (max-width: 575px) {
+    width: 100%;
+  }
 }
 
 .email-subject {

@@ -92,7 +92,7 @@
           <div class="email-header-top">
             <span class="email-company">{{ app.company }}</span>
             <nz-select [ngModel]="app.status" (ngModelChange)="updateEmailAppStatus(app, $event)"
-                       style="width: 160px" nzSize="small">
+                       class="email-status-select" nzSize="small">
               @for (s of statusOptions; track s.value) {
                 <nz-option [nzValue]="s.value" [nzLabel]="s.label"></nz-option>
               }
