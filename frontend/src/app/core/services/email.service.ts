@@ -35,6 +35,7 @@ export interface EmailConnection {
   isActive: boolean;
   createdAt: string;
   nextSyncAvailableAt: string | null;
+  syncAttemptsRemaining: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -147,7 +148,7 @@ export class EmailService {
     }
     if (p.rateLimited) {
       this.message.warning(
-        `Synchronisation limitée à une fois par heure. Réessayez dans ${this.formatRetryDelay(p.retryAfterSeconds ?? 0)}.`,
+        `Limite de synchronisation atteinte (3 essais). Réessayez dans ${this.formatRetryDelay(p.retryAfterSeconds ?? 0)}.`,
       );
       return;
     }
@@ -257,7 +258,10 @@ export class EmailService {
   }
 
   private formatRetryDelay(seconds: number): string {
-    const minutes = Math.ceil(seconds / 60);
-    return minutes <= 1 ? '1 minute' : `${minutes} minutes`;
+    const totalMinutes = Math.ceil(seconds / 60);
+    if (totalMinutes < 60) return totalMinutes <= 1 ? '1 minute' : `${totalMinutes} minutes`;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return minutes > 0 ? `${hours}h${String(minutes).padStart(2, '0')}` : `${hours}h`;
   }
 }

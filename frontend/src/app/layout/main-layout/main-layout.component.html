@@ -47,19 +47,6 @@
           <span nz-icon nzType="down" class="user-chevron"></span>
         </div>
       </div>
-      <nz-dropdown-menu #userMenu="nzDropdownMenu">
-        <div class="user-dropdown">
-          <div class="user-dropdown-header">
-            <div class="user-dropdown-name">{{ auth.currentUser()?.firstName }} {{ auth.currentUser()?.lastName }}</div>
-            <div class="user-dropdown-email">{{ auth.currentUser()?.email }}</div>
-          </div>
-          <div class="user-dropdown-divider"></div>
-          <div class="user-dropdown-item" (click)="auth.logout()">
-            <span nz-icon nzType="logout"></span>
-            Déconnexion
-          </div>
-        </div>
-      </nz-dropdown-menu>
     </div>
   </div>
   <nz-layout class="body-layout" [class.body-layout--map]="isMapRoute()">
@@ -117,5 +104,50 @@
     </nz-layout>
   </nz-layout>
 </div>
+
+<nz-dropdown-menu #userMenu="nzDropdownMenu">
+  <div class="user-dropdown">
+    <div class="user-dropdown-header">
+      <div class="user-dropdown-name">{{ auth.currentUser()?.firstName }} {{ auth.currentUser()?.lastName }}</div>
+      <div class="user-dropdown-email">{{ auth.currentUser()?.email }}</div>
+    </div>
+    <div class="user-dropdown-divider"></div>
+    <div class="user-dropdown-item" [class.user-dropdown-item--disabled]="exportingData()" (click)="exportMyData()">
+      <span nz-icon [nzType]="exportingData() ? 'loading' : 'download'"></span>
+      Exporter mes données
+    </div>
+    <div class="user-dropdown-item" (click)="auth.logout()">
+      <span nz-icon nzType="logout"></span>
+      Déconnexion
+    </div>
+    <div class="user-dropdown-divider"></div>
+    <div class="user-dropdown-item user-dropdown-item--danger" (click)="deleteAccountModalVisible.set(true)">
+      <span nz-icon nzType="delete"></span>
+      Supprimer mon compte et mes données
+    </div>
+  </div>
+</nz-dropdown-menu>
+
+<nz-modal
+  [nzVisible]="deleteAccountModalVisible()"
+  nzTitle="Supprimer mon compte"
+  [nzFooter]="deleteAccountModalFooter"
+  (nzOnCancel)="deleteAccountModalVisible.set(false)"
+>
+  <ng-container *nzModalContent>
+    <p>
+      Cette action est <strong>définitive et irréversible</strong>. Toutes vos données seront
+      immédiatement et complètement supprimées : profil, CV, candidatures, offres sauvegardées
+      et connexions email.
+    </p>
+    <p>Voulez-vous vraiment continuer ?</p>
+  </ng-container>
+</nz-modal>
+<ng-template #deleteAccountModalFooter>
+  <button nz-button nzType="default" (click)="deleteAccountModalVisible.set(false)">Annuler</button>
+  <button nz-button nzType="primary" nzDanger [nzLoading]="deletingAccount()" (click)="confirmDeleteAccount()">
+    Supprimer définitivement
+  </button>
+</ng-template>
 
 <app-tutorial-overlay />

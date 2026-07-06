@@ -10,7 +10,7 @@
   z-index: 10001;
   border-radius: 10px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78);
-  border: 2px solid rgba(90, 200, 250, 0.9);
+  border: 2px solid var(--accent-cyan);
   pointer-events: none;
   transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
 }
@@ -19,7 +19,7 @@
   position: fixed;
   z-index: 10002;
   width: 320px;
-  background: #0d0d0d;
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
@@ -40,7 +40,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(90, 200, 250, 0.9);
+  color: var(--accent-cyan);
   margin-bottom: 8px;
 }
 
@@ -61,7 +61,7 @@
 .tutorial-hint {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(90, 200, 250, 0.9);
+  color: var(--accent-cyan);
   margin: 0 0 16px;
 }
 
@@ -106,7 +106,7 @@
   }
 
   &--primary {
-    background: rgba(90, 200, 250, 0.9);
+    background: var(--accent-cyan);
     color: #04141c;
 
     &:hover {

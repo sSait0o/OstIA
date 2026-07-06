@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch
+from fastapi import HTTPException
 from app.services.job_matcher import _keyword_overlap_score, score_cv_job
 
 
@@ -102,6 +103,20 @@ class TestScoreCvJob:
             result = await score_cv_job(self._cv(["Python"]), "Dev", "Python role")
 
         assert 0 <= result["score"] <= 100
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_keyword_score_when_ai_raises(self):
+        with patch("app.services.job_matcher.complete_json") as mock:
+            mock.side_effect = HTTPException(status_code=503, detail="AI service unavailable")
+            result = await score_cv_job(
+                self._cv(["Python"]),
+                "Backend Developer",
+                "We need Python developers",
+            )
+
+        assert isinstance(result["score"], int)
+        assert result["score"] > 0
+        assert "keyword overlap" in result["summary"].lower()
 
     @pytest.mark.asyncio
     async def test_handles_empty_skills_gracefully(self):

@@ -1,7 +1,7 @@
 import { Component, OnInit, DestroyRef, inject, signal, computed } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { Router, ActivatedRoute, RouterLink, Params } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subject, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
@@ -18,7 +18,7 @@ import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzAutocompleteModule } from 'ng-zorro-antd/auto-complete';
 import { JobsService, Job, JobSearchParams } from '../../core/services/jobs.service';
-import { CvService } from '../../core/services/cv.service';
+import { CvService, CvData } from '../../core/services/cv.service';
 import { JobCardComponent } from '../../shared/components/job-card/job-card.component';
 
 interface CityOption { name: string; dept: string }
@@ -56,6 +56,7 @@ export class JobsComponent implements OnInit {
   total = signal(0);
   currentPage = signal(1);
   searched = false;
+  mode = signal<'feed' | 'search'>('feed');
 
   keywords = '';
   location = '';
@@ -120,8 +121,8 @@ export class JobsComponent implements OnInit {
   );
 
   filteredJobs = computed(() => {
-    const filter = this._scoreFilter();
-    const threshold = filter === 'good' ? 70 : filter === 'medium' ? 40 : 0;
+    if (this.mode() === 'feed') return this.jobs();
+    const threshold = this.scoreThreshold(this._scoreFilter());
     return [...this.jobs()]
       .filter((j) => (j.matchScore ?? 0) >= threshold)
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
@@ -142,50 +143,55 @@ export class JobsComponent implements OnInit {
     ).subscribe(results => this.citySuggestions.set(results.map(r => ({ name: r.nom, dept: r.codeDepartement }))));
 
     const qp = this.route.snapshot.queryParams;
-    this.keywords = qp['keywords'] ?? '';
-    this.location = qp['location'] ?? '';
-    this.contractTypes = qp['contractTypes'] ? (qp['contractTypes'] as string).split(',') : [];
-    this.experience = qp['experience'] ?? '';
-    this.distance = qp['distance'] ? +qp['distance'] : null;
-    this.workingTime = qp['workingTime'] ?? '';
-    this.remote = qp['remote'] ?? '';
-    this.salaryMin = qp['salaryMin'] ? +qp['salaryMin'] : null;
-    this.sortBy = qp['sortBy'] ?? '';
     const page = +(qp['page'] ?? 1);
 
-    if (this.location) {
-      this.initSearch(page);
+    if (this.hasExplicitSearchParams(qp)) {
+      this.mode.set('search');
+      this.keywords = qp['keywords'] ?? '';
+      this.location = qp['location'] ?? '';
+      this.contractTypes = qp['contractTypes'] ? (qp['contractTypes'] as string).split(',') : [];
+      this.experience = qp['experience'] ?? '';
+      this.distance = qp['distance'] ? +qp['distance'] : null;
+      this.workingTime = qp['workingTime'] ?? '';
+      this.remote = qp['remote'] ?? '';
+      this.salaryMin = qp['salaryMin'] ? +qp['salaryMin'] : null;
+      this.sortBy = qp['sortBy'] ?? '';
+      this.currentPage.set(page);
+      this.fetchSearch(page);
     } else {
+      this.mode.set('feed');
+      this.currentPage.set(page);
+      this.fetchFeed(page);
+
       this.cvService.getCv().subscribe({
         next: ({ cvData }) => {
-          if (cvData?.city) {
+          if (!this.location && cvData?.city) {
             this.location = cvData.city;
             this.distance ??= this.DEFAULT_CV_LOCATION_DISTANCE;
-            this.updateUrl(page);
           }
-          this.initSearch(page);
+          if (!this.keywords) {
+            const defaultKeywords = this.defaultKeywordsFromCv(cvData);
+            if (defaultKeywords) this.keywords = defaultKeywords;
+          }
         },
-        error: () => this.initSearch(page),
+        error: () => {},
       });
     }
   }
 
-  private initSearch(page: number) {
-    const cached = this.jobsService.cachedState();
-    const paramsKey = this.serializeParams(page);
-    const cachedKey = cached
-      ? this.serializeParams(cached.page ?? 1, cached)
-      : null;
+  private hasExplicitSearchParams(qp: Params): boolean {
+    return !!(
+      qp['keywords'] || qp['location'] || qp['contractTypes'] || qp['experience'] ||
+      qp['distance'] || qp['workingTime'] || qp['remote'] || qp['salaryMin'] || qp['sortBy']
+    );
+  }
 
-    if (cached && paramsKey === cachedKey) {
-      this.jobs.set(cached.jobs);
-      this.total.set(cached.total);
-      this.currentPage.set(page);
-      this.searched = true;
-    } else {
-      this.currentPage.set(page);
-      this.fetch(page);
-    }
+  private defaultKeywordsFromCv(cvData: CvData | null): string {
+    return cvData?.skills?.[0]?.trim() ?? '';
+  }
+
+  private scoreThreshold(filter: string): number {
+    return filter === 'good' ? 70 : filter === 'medium' ? 40 : 0;
   }
 
   onLocationInput(value: string) {
@@ -198,32 +204,40 @@ export class JobsComponent implements OnInit {
   }
 
   search() {
+    this.mode.set('search');
     this.currentPage.set(1);
     this.updateUrl(1);
-    this.fetch(1);
+    this.fetchSearch(1);
   }
 
   onPageChange(page: number) {
     this.currentPage.set(page);
-    this.updateUrl(page);
-    this.fetch(page);
+    if (this.mode() === 'search') {
+      this.updateUrl(page);
+      this.fetchSearch(page);
+    } else {
+      this.fetchFeed(page);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  onScoreFilterChange() {
+    if (this.mode() === 'feed') {
+      this.currentPage.set(1);
+      this.fetchFeed(1);
+    }
   }
 
   onJobApplied(jobId: string) {
     this.jobs.update((list) => list.map((j) => (j.id === jobId ? { ...j, isApplied: true } : j)));
-    this.jobsService.cachedState.update((s) =>
-      s ? { ...s, jobs: s.jobs.map((j) => (j.id === jobId ? { ...j, isApplied: true } : j)) } : s
-    );
+    this.jobsService.patchJob(jobId, { isApplied: true });
   }
 
   toggleSave(job: Job) {
     this.jobsService.toggleSave(job.id).subscribe({
       next: (updated) => {
         this.jobs.update((list) => list.map((j) => (j.id === updated.id ? updated : j)));
-        this.jobsService.cachedState.update((s) =>
-          s ? { ...s, jobs: s.jobs.map((j) => (j.id === updated.id ? updated : j)) } : s
-        );
+        this.jobsService.patchJob(updated.id, updated);
       },
     });
   }
@@ -243,23 +257,7 @@ export class JobsComponent implements OnInit {
     };
   }
 
-  private serializeParams(page: number, override?: Partial<JobSearchParams>): string {
-    const p = override ?? this.buildParams(page);
-    return JSON.stringify({
-      keywords: p.keywords ?? '',
-      location: p.location ?? '',
-      contractTypes: (p.contractTypes ?? []).join(','),
-      experience: p.experience ?? '',
-      distance: p.distance ?? '',
-      fullTime: p.fullTime ?? '',
-      remote: p.remote ?? '',
-      salaryMin: p.salaryMin ?? '',
-      sortBy: p.sortBy ?? '',
-      page,
-    });
-  }
-
-  private fetch(page: number) {
+  private fetchSearch(page: number) {
     this.loading.set(true);
     this.searched = true;
     this.jobsService.search(this.buildParams(page)).subscribe({
@@ -270,6 +268,28 @@ export class JobsComponent implements OnInit {
       },
       error: () => {
         this.message.error('Erreur lors de la recherche');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  private fetchFeed(page: number) {
+    this.loading.set(true);
+    this.searched = true;
+    this.jobsService.getFeed({
+      page,
+      pageSize: this.pageSize,
+      minScore: this.scoreThreshold(this._scoreFilter()) || undefined,
+      sortBy: this.sortBy || undefined,
+    }).subscribe({
+      next: ({ jobs, total, syncing }) => {
+        this.jobs.set(jobs);
+        this.total.set(total);
+        this.loading.set(false);
+        if (syncing) this.message.info('Actualisation de vos offres en arrière-plan…');
+      },
+      error: () => {
+        this.message.error('Erreur lors du chargement des offres');
         this.loading.set(false);
       },
     });

@@ -10,6 +10,8 @@ import {
   ApplicationSource,
   ApplicationStatus,
 } from './entities/application.entity';
+import { ApplicationEmail } from './entities/application-email.entity';
+import { ApplicationEmailsService } from './application-emails.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { User } from '../users/entities/user.entity';
@@ -19,6 +21,7 @@ export class ApplicationsService {
   constructor(
     @InjectRepository(Application)
     private readonly appRepo: Repository<Application>,
+    private readonly applicationEmailsService: ApplicationEmailsService,
   ) {}
 
   async create(user: User, dto: CreateApplicationDto): Promise<Application> {
@@ -91,6 +94,19 @@ export class ApplicationsService {
     if (!app) throw new NotFoundException('Candidature non trouvée');
     if (app.user.id !== userId) throw new ForbiddenException();
     await this.appRepo.remove(app);
+  }
+
+  async findEmailsForApplication(
+    userId: string,
+    id: string,
+  ): Promise<ApplicationEmail[]> {
+    const app = await this.appRepo.findOne({
+      where: { id },
+      relations: { user: true },
+    });
+    if (!app) throw new NotFoundException('Candidature non trouvée');
+    if (app.user.id !== userId) throw new ForbiddenException();
+    return this.applicationEmailsService.findForApplication(userId, id);
   }
 
   async findForMap(userId: string) {

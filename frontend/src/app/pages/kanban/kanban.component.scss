@@ -1,5 +1,7 @@
+@use 'mixins' as mx;
+
 $col-border: rgba(255,255,255,.07);
-$card-bg: rgba(13,13,13,.95);
+$card-bg: rgba(var(--surface-rgb), .95);
 
 .kanban-header-actions {
   display: flex;
@@ -26,13 +28,13 @@ $card-bg: rgba(13,13,13,.95);
     &:focus { border-color: rgba(255,255,255,.3); }
   }
 
-  @media (max-width: 575px) {
+  @include mx.mobile {
     width: 100%;
   }
 }
 
 .kanban-header-actions {
-  @media (max-width: 575px) {
+  @include mx.mobile {
     width: 100%;
     flex-wrap: wrap;
 
@@ -113,7 +115,7 @@ $card-bg: rgba(13,13,13,.95);
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,.08) transparent;
 
-  @media (max-width: 767px) {
+  @include mx.tablet {
     height: auto;
     flex-direction: column;
     overflow-x: visible;
@@ -136,7 +138,7 @@ $card-bg: rgba(13,13,13,.95);
     border-color: rgba(255,255,255,.14);
   }
 
-  @media (max-width: 767px) {
+  @include mx.tablet {
     min-width: unset;
     flex: none;
   }
@@ -280,7 +282,7 @@ $card-bg: rgba(13,13,13,.95);
 
 .email-header {
   padding: 20px 24px 16px;
-  background: #111;
+  background: var(--surface-2);
   border-bottom: 1px solid rgba(255,255,255,.07);
 }
 
@@ -289,12 +291,28 @@ $card-bg: rgba(13,13,13,.95);
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .email-company {
   font-size: 13px;
   font-weight: 700;
   color: #fff;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-status-select {
+  width: 160px;
+  max-width: 100%;
+  flex-shrink: 0;
+
+  @include mx.mobile {
+    width: 100%;
+  }
 }
 
 .email-subject {
@@ -310,6 +328,75 @@ $card-bg: rgba(13,13,13,.95);
   color: rgba(255,255,255,.25);
   line-height: 1.4;
   margin-top: 2px;
+}
+
+.email-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  background: var(--surface-2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px 24px;
+  column-gap: 32px;
+  row-gap: 12px;
+
+  @include mx.mobile {
+    grid-template-columns: 1fr;
+    padding: 12px 16px;
+  }
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  &--full {
+    grid-column: 1 / -1;
+  }
+}
+
+.meta-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.meta-value {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+
+  &--notes {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 12px;
+  }
+}
+
+.meta-link {
+  font-size: 13px;
+  color: #4fa3e8;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+
+  &:hover { color: #7bbdf5; text-decoration: underline; }
+}
+
+.meta-value-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-hint-icon {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: help;
 }
 
 .email-body-block {
@@ -334,6 +421,30 @@ $card-bg: rgba(13,13,13,.95);
   }
 }
 
+.email-history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.email-history-subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,.8);
+}
+
+.email-history-date {
+  font-size: 11px;
+  color: rgba(255,255,255,.3);
+  flex-shrink: 0;
+}
+
 .email-no-body {
   display: flex;
   align-items: center;
@@ -347,7 +458,7 @@ $card-bg: rgba(13,13,13,.95);
 
 .cdk-drag-preview {
   border-radius: 16px;
-  background: rgba(13,13,13,.97);
+  background: rgba(var(--surface-rgb), .97);
   border: 1px solid rgba(255,255,255,.25);
   box-shadow: 0 12px 40px rgba(0,0,0,.8);
   padding: 12px 14px;

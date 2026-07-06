@@ -57,7 +57,7 @@ Status definitions:
 Company examples: "BNP Paribas", "Thales", "Capgemini" (not "HR team of BNP", not "the recruitment team")
 JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager Apprenticeship" """
 
-    result = await complete_json(prompt, max_tokens=400, system=_SYSTEM_EMAIL)
+    result = await complete_json(prompt, max_tokens=1024, system=_SYSTEM_EMAIL)
 
     if not result or result.get("not_recruitment"):
         return None
@@ -104,7 +104,7 @@ Does this email clearly indicate a NEW status for this application? Reply with e
 
 Return null if the email does not clearly indicate one of these statuses (e.g. a scheduling detail, a generic reply, an out-of-office)."""
 
-    result = await complete_json(prompt, max_tokens=60, system=_SYSTEM_EMAIL)
+    result = await complete_json(prompt, max_tokens=1024, system=_SYSTEM_EMAIL)
     status = result.get("status") if result else None
     return status if status in VALID_STATUSES else None
 

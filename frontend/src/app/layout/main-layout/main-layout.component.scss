@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .main-layout {
   height: 100vh;
   overflow: hidden;
@@ -86,8 +88,7 @@
   text-decoration: none;
   padding: 6px 14px;
   border-radius: 6px;
-  border: none;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.25);
   background: transparent;
   cursor: pointer;
   overflow: hidden;
@@ -95,14 +96,22 @@
 
   &:hover {
     color: #fff;
-    border-bottom-color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.8);
     background: rgba(255, 255, 255, 0.04);
-    box-shadow: 0 0 5px rgba(255, 255, 255, 0.15), 0 0 20px rgba(180, 180, 180, 0.06);
+    @include mx.glow(3px, .08, 10px, .03);
   }
 
   &--active {
     color: #fff;
-    border-bottom-color: transparent;
+    border-color: transparent;
+  }
+}
+
+.sync-label {
+  white-space: nowrap;
+
+  @media (max-width: 575px) {
+    display: none;
   }
 }
 
@@ -110,7 +119,7 @@
   font-variant-numeric: tabular-nums;
   min-width: 30px;
   text-align: right;
-  color: rgba(90, 200, 250, 0.95);
+  color: var(--accent-cyan);
 }
 
 .sync-btn-track {
@@ -125,7 +134,7 @@
 .sync-btn-fill {
   display: block;
   height: 100%;
-  background: rgba(90, 200, 250, 0.9);
+  background: var(--accent-cyan);
   transition: width .3s ease;
 }
 
@@ -213,8 +222,8 @@
 }
 
 .user-dropdown {
-  min-width: 200px;
-  background: #0d0d0d;
+  width: 260px;
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   overflow: hidden;
@@ -257,6 +266,20 @@
     background: rgba(255, 255, 255, 0.05);
     color: #fff;
   }
+
+  &--disabled {
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  &--danger {
+    color: var(--color-error);
+
+    &:hover {
+      background: rgba(255, 77, 79, 0.1);
+      color: var(--color-error);
+    }
+  }
 }
 
 ::ng-deep .ant-layout-sider-zero-width-trigger {
@@ -298,7 +321,7 @@
 
 .nav-badge {
   margin-left: auto;
-  background: rgba(255, 100, 70, 0.9);
+  background: var(--accent-alert);
   color: #fff;
   border-radius: 10px;
   font-size: 10px;

@@ -14,37 +14,22 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { from, of } from 'rxjs';
 import { mergeMap, map, catchError, timeout, finalize } from 'rxjs/operators';
-import Map from 'ol/Map';
+import OlMap from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
+import Cluster from 'ol/source/Cluster';
 import XYZ from 'ol/source/XYZ';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
+import { Coordinate } from 'ol/coordinate';
 import { fromLonLat } from 'ol/proj';
+import { easeOut } from 'ol/easing';
 import { Style, Circle, Fill, Stroke, Text } from 'ol/style';
 import Overlay from 'ol/Overlay';
 import { MapService, MapApplication } from '../../core/services/map.service';
-
-const STATUS_COLORS: Record<string, string> = {
-  APPLIED: 'rgba(200,200,200,0.9)',
-  ACKNOWLEDGED: 'rgba(200,200,200,0.9)',
-  TECHNICAL: 'rgba(179,127,235,0.9)',
-  INTERVIEW: 'rgba(255,210,80,0.9)',
-  OFFER: 'rgba(100,230,120,0.9)',
-  REJECTED: 'rgba(255,100,100,0.9)',
-};
-
-const STATUS_TAG: Record<string, string> = {
-  APPLIED: 'default', ACKNOWLEDGED: 'default', TECHNICAL: 'purple', INTERVIEW: 'orange',
-  OFFER: 'green', REJECTED: 'red',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  APPLIED: 'Envoyée', ACKNOWLEDGED: 'Envoyée', TECHNICAL: 'Test technique', INTERVIEW: 'Entretien',
-  OFFER: 'Offre', REJECTED: 'Refusé',
-};
+import { getStatusTag, getStatusLabel, getStatusMarkerColor } from '../../shared/utils/status-colors.utils';
 
 @Component({
   selector: 'app-map',
@@ -64,10 +49,17 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly message = inject(NzMessageService);
   private readonly sanitizer = inject(DomSanitizer);
 
-  private olMap?: Map;
+  private olMap?: OlMap;
+  private clusterLayer?: VectorLayer;
   private vectorSource = new VectorSource();
+  private clusterSource = new Cluster({ distance: 45, source: this.vectorSource });
   private tooltip?: Overlay;
+  private pulseFrame?: number;
   private tooltipEl!: HTMLDivElement;
+
+  private static readonly SPLIT_DURATION = 700;
+  private prevClusterSnapshot = new Map<string, Coordinate>();
+  private splitAnimations = new Map<string, { from: Coordinate; to: Coordinate; start: number }>();
 
   allApps = signal<MapApplication[]>([]);
   geocoding = signal(false);
@@ -103,8 +95,8 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       .sort((a, b) => b.apps.length - a.apps.length);
   });
 
-  getStatusTag(s: string) { return STATUS_TAG[s] ?? 'default'; }
-  getStatusLabel(s: string) { return STATUS_LABELS[s] ?? s; }
+  getStatusTag = getStatusTag;
+  getStatusLabel = getStatusLabel;
 
   private shortCity(location: string): string {
     return location.split(',')[0].trim();
@@ -136,21 +128,41 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     this.initMap();
+    this.startPulseLoop();
   }
 
   ngOnDestroy() {
+    if (this.pulseFrame !== undefined) cancelAnimationFrame(this.pulseFrame);
     this.olMap?.setTarget(undefined);
+  }
+
+  private startPulseLoop() {
+    const loop = () => {
+      this.clusterLayer?.changed();
+      this.pulseFrame = requestAnimationFrame(loop);
+    };
+    this.pulseFrame = requestAnimationFrame(loop);
+  }
+
+  private pulsePhase(period = 1600): number {
+    return (Date.now() % period) / period;
   }
 
   private initMap() {
     this.tooltipEl = document.createElement('div');
     this.tooltipEl.style.cssText =
-      'background:#fff;border:1px solid rgba(0,0,0,0.1);padding:8px 12px;border-radius:8px;' +
-      'font-size:12px;color:#1a1a1a;pointer-events:none;white-space:nowrap;display:none;' +
-      'box-shadow:0 4px 16px rgba(0,0,0,0.15);';
+      'background:rgba(10,10,10,0.85);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.12);' +
+      'padding:8px 12px;border-radius:8px;font-size:12px;color:#fff;pointer-events:none;white-space:nowrap;' +
+      'box-shadow:0 8px 24px rgba(0,0,0,0.35);opacity:0;transform:translateY(2px) scale(0.96);' +
+      'transition:opacity 0.12s ease-out, transform 0.12s ease-out;';
     this.tooltip = new Overlay({ element: this.tooltipEl, offset: [12, 0], positioning: 'center-left' });
 
-    this.olMap = new Map({
+    this.clusterLayer = new VectorLayer({
+      source: this.clusterSource,
+      style: (f) => this.clusterStyle(f as Feature),
+    });
+
+    this.olMap = new OlMap({
       target: this.mapContainer.nativeElement,
       controls: [],
       layers: [
@@ -160,19 +172,21 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             attributions: '© CARTO © OpenStreetMap',
           }),
         }),
-        new VectorLayer({
-          source: this.vectorSource,
-          style: (f) => this.markerStyle(f as Feature),
-        }),
+        this.clusterLayer,
       ],
-      view: new View({ center: fromLonLat([2.3522, 46.5]), zoom: 5.5 }),
+      view: new View({ center: fromLonLat([2.3522, 46.5]), zoom: 5.5, minZoom: 4.5, maxZoom: 18 }),
       overlays: [this.tooltip!],
     });
 
+    this.clusterSource.on('change', () => this.trackClusterSplit());
+
     this.olMap.on('click', (evt) => {
       const feature = this.olMap!.forEachFeatureAtPixel(evt.pixel, (f) => f);
-      if (feature) {
-        const app = (feature as Feature).get('app') as MapApplication;
+      if (!feature) return;
+      const clustered = feature.get('features') as Feature[];
+
+      if (clustered.length === 1) {
+        const app = clustered[0].get('app') as MapApplication;
         const city = app.resolvedLocation ?? app.location ?? 'Inconnue';
         const group = this.cityGroups().find((g) => g.city === city);
         if (group) {
@@ -183,44 +197,185 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.drawerApps = [app];
         }
         this.drawerVisible = true;
+        return;
+      }
+
+      const apps = clustered.map((f) => f.get('app') as MapApplication);
+      const cities = new Set(apps.map((a) => a.resolvedLocation ?? a.location ?? 'Inconnue'));
+      if (cities.size === 1) {
+        this.drawerCity = this.shortCity([...cities][0]);
+        this.drawerApps = apps;
+        this.drawerVisible = true;
+      } else {
+        const view = this.olMap!.getView();
+        view.animate({ zoom: (view.getZoom() ?? 5.5) + 2, center: evt.coordinate, duration: 250 });
       }
     });
 
     this.olMap.on('pointermove', (evt) => {
       const feature = this.olMap!.forEachFeatureAtPixel(evt.pixel, (f) => f);
       if (feature) {
-        const app = (feature as Feature).get('app') as MapApplication;
-        const label = STATUS_LABELS[app.status] ?? app.status;
-        this.tooltipEl.innerHTML =
-          `<strong style="color:#1a1a1a">${app.company}</strong><br>` +
-          `<span style="color:rgba(0,0,0,0.45)">${app.jobTitle}</span><br>` +
-          `<span style="color:${STATUS_COLORS[app.status]};font-size:11px">● ${label}</span>`;
-        this.tooltipEl.style.display = 'block';
+        const clustered = feature.get('features') as Feature[];
+        if (clustered.length === 1) {
+          const app = clustered[0].get('app') as MapApplication;
+          const label = getStatusLabel(app.status);
+          this.tooltipEl.innerHTML =
+            `<strong style="color:#fff">${app.company}</strong><br>` +
+            `<span style="color:rgba(255,255,255,0.5)">${app.jobTitle}</span><br>` +
+            `<span style="color:${getStatusMarkerColor(app.status)};font-size:11px">● ${label}</span>`;
+        } else {
+          const apps = clustered.map((f) => f.get('app') as MapApplication);
+          const cities = new Set(apps.map((a) => a.resolvedLocation ?? a.location ?? 'Inconnue'));
+          const cityLabel = cities.size === 1 ? this.shortCity([...cities][0]) : `${cities.size} villes`;
+          this.tooltipEl.innerHTML =
+            `<strong style="color:#fff">${clustered.length} candidatures</strong><br>` +
+            `<span style="color:rgba(255,255,255,0.5)">${cityLabel}</span>`;
+        }
+        this.tooltipEl.style.opacity = '1';
+        this.tooltipEl.style.transform = 'translateY(0) scale(1)';
         this.tooltip!.setPosition(evt.coordinate);
         this.mapContainer.nativeElement.style.cursor = 'pointer';
       } else {
-        this.tooltipEl.style.display = 'none';
+        this.tooltipEl.style.opacity = '0';
+        this.tooltipEl.style.transform = 'translateY(2px) scale(0.96)';
         this.tooltip!.setPosition(undefined);
         this.mapContainer.nativeElement.style.cursor = '';
       }
     });
   }
 
-  private markerStyle(feature: Feature) {
+  private static readonly MARKER_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+  private clusterKey(clustered: Feature[]): string {
+    return clustered.map((f) => (f.get('app') as MapApplication).id).sort().join(',');
+  }
+
+  private trackClusterSplit() {
+    const features = this.clusterSource.getFeatures();
+    if (features.length === 0 && this.prevClusterSnapshot.size > 0) return;
+
+    const now = performance.now();
+    const nextSnapshot = new Map<string, Coordinate>();
+
+    for (const feature of features) {
+      const clustered = feature.get('features') as Feature[];
+      const key = this.clusterKey(clustered);
+      const coord = (feature.getGeometry() as Point).getCoordinates();
+      nextSnapshot.set(key, coord);
+
+      if (this.prevClusterSnapshot.has(key)) continue;
+
+      let bestOverlap = 0;
+      let bestFrom: Coordinate | null = null;
+      for (const [prevKey, prevCoord] of this.prevClusterSnapshot) {
+        const prevMembers = new Set(prevKey.split(','));
+        const overlap = clustered.reduce(
+          (n, f) => n + (prevMembers.has((f.get('app') as MapApplication).id) ? 1 : 0),
+          0,
+        );
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap;
+          bestFrom = prevCoord;
+        }
+      }
+      if (bestFrom && (bestFrom[0] !== coord[0] || bestFrom[1] !== coord[1])) {
+        this.splitAnimations.set(key, { from: bestFrom, to: coord, start: now });
+      }
+    }
+
+    this.prevClusterSnapshot = nextSnapshot;
+  }
+
+  private animatedCoordinate(key: string, trueCoord: Coordinate): Coordinate {
+    const anim = this.splitAnimations.get(key);
+    if (!anim) return trueCoord;
+
+    const elapsed = performance.now() - anim.start;
+    if (elapsed >= MapComponent.SPLIT_DURATION) {
+      this.splitAnimations.delete(key);
+      return trueCoord;
+    }
+
+    const t = easeOut(elapsed / MapComponent.SPLIT_DURATION);
+    return [
+      anim.from[0] + (anim.to[0] - anim.from[0]) * t,
+      anim.from[1] + (anim.to[1] - anim.from[1]) * t,
+    ];
+  }
+
+  private static readonly SINGLE_REVEAL_ZOOM = 9;
+
+  private clusterStyle(feature: Feature) {
+    const clustered = feature.get('features') as Feature[];
+    const key = this.clusterKey(clustered);
+    const trueCoord = (feature.getGeometry() as Point).getCoordinates();
+    const coord = this.animatedCoordinate(key, trueCoord);
+    const zoom = this.olMap?.getView().getZoom() ?? 0;
+
+    if (clustered.length === 1 && zoom >= MapComponent.SINGLE_REVEAL_ZOOM) {
+      return this.markerStyle(clustered[0], coord);
+    }
+
+    return this.badgeStyle(clustered.length, coord);
+  }
+
+  private badgeStyle(count: number, coord: Coordinate) {
+    const radius = Math.min(14 + Math.sqrt(count) * 4, 26);
+    const t = this.pulsePhase();
+    const point = new Point(coord);
+
+    return [
+      new Style({
+        geometry: point,
+        image: new Circle({
+          radius: radius + t * 14,
+          fill: new Fill({ color: `rgba(90,200,250,${0.28 * (1 - t)})` }),
+        }),
+      }),
+      new Style({
+        geometry: point,
+        image: new Circle({
+          radius,
+          fill: new Fill({ color: 'rgba(13,13,13,0.92)' }),
+          stroke: new Stroke({ color: 'rgba(90,200,250,0.95)', width: 2 }),
+        }),
+        text: new Text({
+          text: String(count),
+          fill: new Fill({ color: '#fff' }),
+          font: `700 12px ${MapComponent.MARKER_FONT}`,
+        }),
+      }),
+    ];
+  }
+
+  private markerStyle(feature: Feature, coord: Coordinate) {
     const app = feature.get('app') as MapApplication;
-    const color = STATUS_COLORS[app.status] ?? 'rgba(200,200,200,0.9)';
-    return new Style({
-      image: new Circle({
-        radius: 10,
-        fill: new Fill({ color }),
-        stroke: new Stroke({ color: 'rgba(0,0,0,0.6)', width: 2 }),
+    const color = getStatusMarkerColor(app.status);
+    const t = this.pulsePhase();
+    const point = new Point(coord);
+
+    return [
+      new Style({
+        geometry: point,
+        image: new Circle({
+          radius: 9 + t * 9,
+          fill: new Fill({ color: getStatusMarkerColor(app.status, 0.3 * (1 - t)) }),
+        }),
       }),
-      text: new Text({
-        text: app.company.slice(0, 1).toUpperCase(),
-        fill: new Fill({ color: '#000' }),
-        font: 'bold 10px sans-serif',
+      new Style({
+        geometry: point,
+        image: new Circle({
+          radius: 9,
+          fill: new Fill({ color }),
+          stroke: new Stroke({ color: 'rgba(255,255,255,0.85)', width: 1.5 }),
+        }),
+        text: new Text({
+          text: app.company.slice(0, 1).toUpperCase(),
+          fill: new Fill({ color: '#fff' }),
+          font: `700 10px ${MapComponent.MARKER_FONT}`,
+        }),
       }),
-    });
+    ];
   }
 
   private updateMarkers() {
@@ -241,31 +396,55 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private geocodeMissing(apps: MapApplication[]) {
     if (!apps.length) return;
+    console.log(`[map] géocodage de ${apps.length} candidature(s) sans coordonnées`, apps.map((a) => a.company));
     this.geocoding.set(true);
 
     from(apps)
       .pipe(
         mergeMap((app) => {
           const known = this.findKnownCoordinates(app.company);
-          if (known) return of({ app, result: known });
+          if (known) {
+            console.log(`[map] ${app.company} : coordonnées déjà connues (autre candidature)`, known);
+            return of({ app, result: known });
+          }
+          console.log(`[map] ${app.company} (${app.jobTitle}) : appel geocode...`);
           return this.mapService.geocode(app.company, app.jobTitle, app.location ?? '').pipe(
             timeout(20000),
             map((result) => ({ app, result })),
-            catchError(() => of({ app, result: null })),
+            catchError((err) => {
+              console.warn(`[map] ${app.company} : échec du geocode`, err);
+              return of({ app, result: null });
+            }),
           );
         }, 3),
-        finalize(() => this.geocoding.set(false)),
+        finalize(() => {
+          this.geocoding.set(false);
+          console.log('[map] géocodage terminé');
+        }),
       )
       .subscribe(({ app, result }) => {
         if (result && result.lat !== null && result.lon !== null) {
-          this.mapService.saveCoordinates(app.id, result.lat, result.lon, result.resolvedLocation ?? '').subscribe();
+          const confidence = 'confidence' in result ? result.confidence : 'known';
+          console.log(`[map] ${app.company} : localisé via "${confidence}"`, result);
+          const jobUrl = 'jobUrl' in result && !app.jobUrl ? (result.jobUrl ?? undefined) : undefined;
+          this.mapService
+            .saveCoordinates(app.id, result.lat, result.lon, result.resolvedLocation ?? '', jobUrl)
+            .subscribe();
           this.allApps.update((list) =>
             list.map((a) => a.id === app.id
-              ? { ...a, lat: result.lat, lon: result.lon, resolvedLocation: result.resolvedLocation }
+              ? {
+                  ...a,
+                  lat: result.lat,
+                  lon: result.lon,
+                  resolvedLocation: result.resolvedLocation,
+                  jobUrl: jobUrl ?? a.jobUrl,
+                }
               : a,
             ),
           );
           this.updateMarkers();
+        } else {
+          console.log(`[map] ${app.company} : aucune localisation trouvée`);
         }
       });
   }
@@ -276,10 +455,20 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mapService.geocode(app.company, app.jobTitle, locationStr).subscribe({
       next: (result) => {
         if (result.lat !== null && result.lon !== null) {
-          this.mapService.saveCoordinates(app.id, result.lat, result.lon, result.resolvedLocation ?? locationStr).subscribe();
+          const jobUrl = !app.jobUrl ? (result.jobUrl ?? undefined) : undefined;
+          this.mapService
+            .saveCoordinates(app.id, result.lat, result.lon, result.resolvedLocation ?? locationStr, jobUrl)
+            .subscribe();
           this.allApps.update((list) =>
             list.map((a) => a.id === app.id
-              ? { ...a, lat: result.lat, lon: result.lon, resolvedLocation: result.resolvedLocation, location: locationStr }
+              ? {
+                  ...a,
+                  lat: result.lat,
+                  lon: result.lon,
+                  resolvedLocation: result.resolvedLocation,
+                  location: locationStr,
+                  jobUrl: jobUrl ?? a.jobUrl,
+                }
               : a,
             ),
           );

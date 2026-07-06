@@ -20,6 +20,14 @@ export interface Application {
   updatedAt: string;
 }
 
+export interface ApplicationEmail {
+  id: string;
+  subject: string | null;
+  body: string | null;
+  statusDetected: ApplicationStatus | null;
+  receivedAt: string | null;
+}
+
 export interface KanbanBoard {
   APPLIED: Application[];
   ACKNOWLEDGED: Application[];
@@ -66,6 +74,10 @@ export class ApplicationsService {
 
   getStats() {
     return this.http.get<ApplicationStats>(`${this.base}/stats`);
+  }
+
+  getEmails(id: string) {
+    return this.http.get<ApplicationEmail[]>(`${this.base}/${id}/emails`);
   }
 
   create(dto: CreateApplicationDto) {

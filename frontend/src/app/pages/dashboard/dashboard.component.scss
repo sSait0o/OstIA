@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .page-title {
   font-size: 22px;
   font-weight: 700;
@@ -23,31 +25,21 @@
   &:hover {
     transform: translateY(-4px);
   }
-}
 
-.stat-value {
-  font-size: 36px;
-  font-weight: 800;
-  color: #fff;
-  line-height: 1;
-  margin-bottom: 4px;
+  ::ng-deep .ant-statistic-content {
+    font-size: 36px;
+    line-height: 1;
 
-  @media (max-width: 575px) {
-    font-size: 28px;
+    @include mx.mobile {
+      font-size: 28px;
+    }
   }
-}
-
-.stat-label {
-  font-size: 11px;
-  color: rgba(255,255,255,.35);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .chart {
   height: 300px;
 
-  @media (max-width: 767px) {
+  @include mx.tablet {
     height: 220px;
   }
 }

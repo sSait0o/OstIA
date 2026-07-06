@@ -13,16 +13,31 @@ export class EncryptionService {
 
   constructor(private readonly configService: ConfigService) {
     const encKey = this.configService.get<string>('ENCRYPTION_KEY');
-    if (!encKey && this.configService.get('NODE_ENV') === 'production') {
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    const isProduction = this.configService.get('NODE_ENV') === 'production';
+
+    if (!encKey && jwtSecret && isProduction) {
       this.logger.warn(
         'ENCRYPTION_KEY is not set — falling back to JWT_SECRET for encryption. Set a dedicated ENCRYPTION_KEY in production.',
       );
     }
-    const secret =
-      encKey ||
-      this.configService.get<string>('JWT_SECRET') ||
-      'fallback-dev-only-key-change-me';
-    this.key = crypto.createHash('sha256').update(secret).digest();
+
+    const secret = encKey || jwtSecret;
+    if (!secret) {
+      if (isProduction) {
+        throw new Error(
+          'ENCRYPTION_KEY (or JWT_SECRET) must be set in production — refusing to start with an unencrypted fallback key.',
+        );
+      }
+      this.logger.warn(
+        'ENCRYPTION_KEY is not set — using an insecure dev-only key. Never use this in production.',
+      );
+    }
+
+    this.key = crypto
+      .createHash('sha256')
+      .update(secret || 'fallback-dev-only-key-change-me')
+      .digest();
   }
 
   encrypt(plaintext: string): string {

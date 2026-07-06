@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from fastapi import HTTPException
 from app.services.ai_client import complete_json
 from app.constants import MAX_JOB_TEXT_LENGTH
 
@@ -67,7 +68,11 @@ Return ONLY a valid JSON object:
   "summary": "1-2 sentence compatibility summary"
 }}"""
 
-    result = await complete_json(prompt, max_tokens=512)
+    try:
+        result = await complete_json(prompt, max_tokens=1024)
+    except HTTPException:
+        result = None
+
     if not result or "score" not in result:
         logger.warning(
             "AI matching returned no usable result, falling back to keyword score"

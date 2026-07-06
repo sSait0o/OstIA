@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
   Delete,
   Param,
   Query,
@@ -51,18 +50,6 @@ export class EmailController {
   @ApiOperation({ summary: "Démarrer l'authentification Outlook" })
   microsoftAuth(@Request() req: { user: { id: string } }) {
     return { url: this.emailService.getMicrosoftAuthUrl(req.user.id) };
-  }
-
-  @Post('sync/gmail')
-  @ApiOperation({ summary: 'Synchroniser les emails Gmail (dossier Ostia)' })
-  syncGmail(@Request() req: { user: { id: string } }) {
-    return this.emailService.syncGmailEmails(req.user.id);
-  }
-
-  @Post('sync/outlook')
-  @ApiOperation({ summary: 'Synchroniser les emails Outlook (dossier Ostia)' })
-  syncOutlook(@Request() req: { user: { id: string } }) {
-    return this.emailService.syncOutlookEmails(req.user.id);
   }
 
   @Delete('gmail/data')

@@ -12,6 +12,7 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { ApplicationsService, ApplicationStats } from '../../core/services/applications.service';
 import { JobsService, Job } from '../../core/services/jobs.service';
 import { getScoreColor, scoreFormat } from '../../shared/utils/score.utils';
+import { getStatusHex, getStatusLabel } from '../../shared/utils/status-colors.utils';
 import type { EChartsOption } from 'echarts';
 
 @Component({
@@ -36,20 +37,6 @@ export class DashboardComponent implements OnInit {
   pieOptions = signal<EChartsOption>({});
   barOptions = signal<EChartsOption>({});
   funnelOptions = signal<EChartsOption>({});
-
-  private readonly STATUS_LABELS: Record<string, string> = {
-    APPLIED: 'Envoyée', ACKNOWLEDGED: 'Envoyée', INTERVIEW: 'Entretien',
-    TECHNICAL: 'Test technique', OFFER: 'Offre', REJECTED: 'Refusé',
-  };
-
-  private readonly STATUS_COLORS: Record<string, string> = {
-    APPLIED: '#4a9eff',
-    ACKNOWLEDGED: '#4a9eff',
-    INTERVIEW: '#ffc53d',
-    TECHNICAL: '#b37feb',
-    OFFER: '#52c41a',
-    REJECTED: '#ff4d4f',
-  };
 
   ngOnInit() {
     this.appsService.getStats().subscribe({
@@ -84,9 +71,9 @@ export class DashboardComponent implements OnInit {
     const data = Object.entries(s.byStatus)
       .filter(([, v]) => v > 0)
       .map(([k, v]) => ({
-        name: this.STATUS_LABELS[k] || k,
+        name: getStatusLabel(k),
         value: v,
-        itemStyle: { color: this.STATUS_COLORS[k] },
+        itemStyle: { color: getStatusHex(k) },
       }));
 
     this.pieOptions.set({
@@ -163,10 +150,10 @@ export class DashboardComponent implements OnInit {
 
   private buildFunnelChart(s: ApplicationStats) {
     const pipeline = [
-      { name: 'Envoyées',   value: (s.byStatus['APPLIED'] ?? 0) + (s.byStatus['ACKNOWLEDGED'] ?? 0), color: '#4a9eff' },
-      { name: 'Tests',      value: s.byStatus['TECHNICAL'] ?? 0,  color: '#b37feb' },
-      { name: 'Entretiens', value: s.byStatus['INTERVIEW'] ?? 0,  color: '#ffc53d' },
-      { name: 'Offres',     value: s.byStatus['OFFER'] ?? 0,      color: '#52c41a' },
+      { name: 'Envoyées',   value: (s.byStatus['APPLIED'] ?? 0) + (s.byStatus['ACKNOWLEDGED'] ?? 0), color: getStatusHex('APPLIED') },
+      { name: 'Tests',      value: s.byStatus['TECHNICAL'] ?? 0,  color: getStatusHex('TECHNICAL') },
+      { name: 'Entretiens', value: s.byStatus['INTERVIEW'] ?? 0,  color: getStatusHex('INTERVIEW') },
+      { name: 'Offres',     value: s.byStatus['OFFER'] ?? 0,      color: getStatusHex('OFFER') },
     ];
 
     this.funnelOptions.set({

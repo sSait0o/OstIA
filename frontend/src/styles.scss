@@ -1,47 +1,8 @@
+@use 'styles/tokens' as *;
+@use 'styles/mixins' as *;
+@use 'styles/buttons' as *;
+
 @import 'ng-zorro-antd/ng-zorro-antd.min.css';
-
-$bg: #060606;
-$surface: #0d0d0d;
-$surface-2: #111111;
-$border: rgba(255, 255, 255, 0.08);
-$border-hover: rgba(255, 255, 255, 0.35);
-$text: #e8e8e8;
-$text-muted: #555;
-$text-secondary: rgba(255, 255, 255, 0.3);
-$text-tertiary: rgba(255, 255, 255, 0.35);
-
-$color-success: #52c41a;
-$color-warning: #ffc53d;
-$color-error: #ff4d4f;
-$color-info: #4a9eff;
-
-$bp-sm: 576px;
-$bp-md: 768px;
-$bp-lg: 992px;
-
-@mixin mobile { @media (max-width: #{$bp-sm - 1px}) { @content; } }
-@mixin tablet { @media (max-width: #{$bp-md - 1px}) { @content; } }
-@mixin tablet-up { @media (min-width: $bp-md) { @content; } }
-
-@mixin page-title {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #fff;
-  margin: 0 0 4px;
-}
-
-@mixin subtitle {
-  color: $text-secondary;
-  font-size: 13px;
-  margin-bottom: 24px;
-}
-
-@mixin loading-center {
-  text-align: center;
-  padding: 80px;
-}
 
 .page-title { @include page-title; }
 .subtitle    { @include subtitle; }
@@ -178,13 +139,13 @@ html {
     background: $surface;
     border: 1px solid $border;
     border-radius: 20px;
-    box-shadow: 0 0 5px rgba(255,255,255,.04), 0 0 30px rgba(255,255,255,.02);
+    @include glow(5px, .04, 30px, .02, #fff, #fff);
     color: $text;
     transition: border-color .3s, box-shadow .3s;
 
     &:hover {
       border-color: rgba(255,255,255,.2);
-      box-shadow: 0 0 5px rgba(255,255,255,.12), 0 0 40px rgba(100,100,100,.12);
+      @include glow(5px, .12, 40px, .12, #fff, rgb(100,100,100));
     }
   }
 
@@ -373,74 +334,7 @@ html {
   .ant-select-arrow            { color: $text-muted; }
   .ant-select-selection-placeholder { color: rgba(255, 255, 255, .55); }
 
-  .ant-btn {
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid rgba(255,255,255,.25);
-    border-radius: 6px;
-    color: $text;
-    transition: all .3s;
-    box-shadow: none;
-
-    &:hover,
-    &:focus {
-      background: rgba(255,255,255,.06);
-      border-bottom-color: rgba(255,255,255,.7);
-      color: #fff;
-      box-shadow: 0 0 5px rgba(255,255,255,.2), 0 0 20px rgba(180,180,180,.1);
-    }
-
-    &:active {
-      background: rgba(255,255,255,.1);
-      border-bottom-color: #fff;
-      color: #fff;
-    }
-  }
-
-  .ant-btn-primary {
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid #fff;
-    border-radius: 6px;
-    color: #fff;
-    box-shadow: none;
-
-    &:hover,
-    &:focus {
-      background: rgba(243,243,243,.12);
-      box-shadow: 0 0 5px #fff, 0 0 30px #bbb, 0 0 60px #7a7a7a;
-    }
-
-    &:active {
-      background: rgba(243,243,243,.18);
-    }
-
-    &[disabled] {
-      border-bottom-color: rgba(255,255,255,.15);
-      color: $text-muted;
-    }
-  }
-
-  .ant-btn-dangerous {
-    border-bottom-color: rgba(255,90,90,.4);
-    color: rgba(255,100,100,.8);
-
-    &:hover,
-    &:focus {
-      border-bottom-color: rgba(255,90,90,.8);
-      color: #ff5a5a;
-      box-shadow: 0 0 14px rgba(255,90,90,.15);
-    }
-
-    &.ant-btn-primary {
-      background: transparent;
-
-      &:hover,
-      &:focus {
-        background: rgba(255,90,90,.12);
-      }
-    }
-  }
+  @include buttons;
 
   .ant-form-item-label > label { color: $text-muted; }
   .ant-form-item-explain-error  { color: #ff5a5a; }
@@ -464,7 +358,8 @@ html {
     align-items: center;
   }
   .ant-alert-message { color: $text; font-weight: 500; }
-  .ant-alert-description { color: $text-muted; }
+  .ant-alert-with-description .ant-alert-message { color: $text; }
+  .ant-alert-description { color: rgba(255, 255, 255, 0.65); }
 
   .ant-alert-info {
     background: rgba(24,144,255,.08);
@@ -573,30 +468,6 @@ html {
 
   .ant-popover-message-icon {
     color: $color-warning;
-  }
-
-  .ant-popover-buttons {
-    .ant-btn {
-      color: $text-muted;
-      border-bottom-color: rgba(255, 255, 255, 0.15);
-
-      &:hover,
-      &:focus {
-        color: $text;
-        border-bottom-color: rgba(255, 255, 255, 0.5);
-      }
-    }
-
-    .ant-btn-primary {
-      color: #fff;
-      border-bottom-color: rgba(255, 80, 80, 0.6);
-
-      &:hover,
-      &:focus {
-        border-bottom-color: #ff5a5a;
-        box-shadow: 0 0 10px rgba(255, 80, 80, 0.2);
-      }
-    }
   }
 
   .ant-modal-content {

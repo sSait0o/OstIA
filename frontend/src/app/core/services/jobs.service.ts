@@ -1,6 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs';
+import { of, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface Job {
@@ -43,20 +43,29 @@ export interface JobSearchParams {
   page?: number;
 }
 
-export interface JobsState extends JobSearchParams {
-  jobs: Job[];
-  total: number;
+export interface JobFeedParams {
+  page?: number;
+  pageSize?: number;
+  minScore?: number;
+  sortBy?: string;
+}
+
+export interface JobFeedResult extends JobSearchResult {
+  syncing: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class JobsService {
   private readonly base = `${environment.apiUrl}/jobs`;
-
-  readonly cachedState = signal<JobsState | null>(null);
+  private readonly pagesCache = new Map<string, JobSearchResult>();
 
   constructor(private readonly http: HttpClient) {}
 
   search(params: JobSearchParams) {
+    const cacheKey = this.cacheKey(params);
+    const cached = this.pagesCache.get(cacheKey);
+    if (cached) return of(cached);
+
     const httpParams: Record<string, string | number | boolean> = {};
 
     if (params.keywords) httpParams['keywords'] = params.keywords;
@@ -71,10 +80,29 @@ export class JobsService {
     if (params.page && params.page > 1) httpParams['page'] = params.page;
 
     return this.http.get<JobSearchResult>(`${this.base}/search`, { params: httpParams }).pipe(
-      tap((result) => {
-        this.cachedState.set({ ...params, jobs: result.jobs, total: result.total });
-      }),
+      tap((result) => this.pagesCache.set(cacheKey, result)),
     );
+  }
+
+  getFeed(params: JobFeedParams) {
+    const httpParams: Record<string, string | number> = {};
+    if (params.page && params.page > 1) httpParams['page'] = params.page;
+    if (params.pageSize) httpParams['pageSize'] = params.pageSize;
+    if (params.minScore) httpParams['minScore'] = params.minScore;
+    if (params.sortBy) httpParams['sortBy'] = params.sortBy;
+
+    return this.http.get<JobFeedResult>(`${this.base}/feed`, { params: httpParams });
+  }
+
+  patchJob(id: string, patch: Partial<Job>) {
+    for (const [key, result] of this.pagesCache) {
+      if (result.jobs.some((j) => j.id === id)) {
+        this.pagesCache.set(key, {
+          ...result,
+          jobs: result.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)),
+        });
+      }
+    }
   }
 
   getSaved() {
@@ -83,5 +111,20 @@ export class JobsService {
 
   toggleSave(id: string) {
     return this.http.patch<Job>(`${this.base}/${id}/save`, {});
+  }
+
+  private cacheKey(params: JobSearchParams): string {
+    return JSON.stringify({
+      keywords: params.keywords ?? '',
+      location: params.location ?? '',
+      contractTypes: (params.contractTypes ?? []).join(','),
+      experience: params.experience ?? '',
+      distance: params.distance ?? '',
+      fullTime: params.fullTime ?? '',
+      remote: params.remote ?? '',
+      salaryMin: params.salaryMin ?? '',
+      sortBy: params.sortBy ?? '',
+      page: params.page ?? 1,
+    });
   }
 }

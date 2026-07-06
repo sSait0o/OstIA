@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { ApplicationSource } from '../applications/entities/application.entity';
@@ -26,6 +26,8 @@ export interface CvMatchResult {
   missingSkills: string[];
   summary: string;
 }
+
+export const AI_MATCH_ERROR_SUMMARY = "Erreur d'analyse";
 
 @Injectable()
 export class AiService {
@@ -114,17 +116,26 @@ export class AiService {
         score: 0,
         matchedSkills: [],
         missingSkills: [],
-        summary: "Erreur d'analyse",
+        summary: AI_MATCH_ERROR_SUMMARY,
       };
     }
   }
 
   async extractCvData(text: string): Promise<Record<string, unknown>> {
-    const { data } = await axios.post<Record<string, unknown>>(
-      `${this.coreUrl}/cv/extract`,
-      { text },
-    );
-    return data;
+    try {
+      const { data } = await axios.post<Record<string, unknown>>(
+        `${this.coreUrl}/cv/extract`,
+        { text },
+      );
+      return data;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 503) {
+        throw new ServiceUnavailableException(
+          "Service d'analyse IA temporairement indisponible, réessayez plus tard",
+        );
+      }
+      throw err;
+    }
   }
 
   async computeAnalytics(

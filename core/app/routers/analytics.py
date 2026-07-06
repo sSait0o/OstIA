@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import httpx
 from app.services.ai_client import complete_json
+from app.services.web_search_service import search_web
 from app.constants import RESPONDED_STATUSES, INTERVIEW_STATUSES
 
 logger = logging.getLogger(__name__)
@@ -121,19 +122,106 @@ async def _nominatim_search(query: str) -> dict | None:
         return None
 
 
+async def _web_search_geocode(company: str, job_title: str) -> dict | None:
+    query = f"{company} {job_title} Lieu"
+    logger.info("[web_search] searching: %r", query)
+    results = await search_web(query, max_results=3)
+    logger.info("[web_search] %d search result(s) for %r", len(results), query)
+    if not results:
+        return None
+
+    sources = [
+        {"url": r["url"], "text": r["text"]} for r in results if r.get("text")
+    ]
+    logger.info(
+        "[web_search] %d/%d result(s) had usable content for %r",
+        len(sources),
+        len(results),
+        query,
+    )
+    if not sources:
+        return None
+
+    blocks = "\n\n".join(
+        f'Source {i + 1} ({s["url"]}):\n{s["text"][:1500]}'
+        for i, s in enumerate(sources)
+    )
+    prompt = f"""Given these web pages found while searching for the job "{job_title}" at company "{company}":
+
+{blocks}
+
+Identify the city and country where this job is located, and which Source URL above (if any) is the actual job posting page. Return ONLY a JSON object:
+{{"city": "Paris", "country": "France", "jobUrl": "https://exact-source-url"}}
+
+Use one of the exact Source URLs above for "jobUrl", or null if none is a job posting. If the location is unknown, return {{"city": null, "country": null, "jobUrl": null}}"""
+
+    try:
+        async with _geocode_ai_semaphore:
+            ai_result = await complete_json(prompt, 300)
+    except Exception as e:
+        logger.warning("[web_search] AI extraction failed for %r: %s", query, e)
+        return None
+    logger.info("[web_search] AI extraction result for %r: %s", query, ai_result)
+    city = ai_result.get("city")
+    country = ai_result.get("country")
+    if not (city and country):
+        logger.info("[web_search] no usable city/country extracted for %r", query)
+        return None
+
+    fallback = await _nominatim_search(f"{city}, {country}")
+    if not fallback:
+        logger.info(
+            "[web_search] Nominatim could not resolve %r, %r extracted for %r",
+            city,
+            country,
+            query,
+        )
+        return None
+
+    job_url = ai_result.get("jobUrl")
+    valid_urls = {s["url"] for s in sources}
+    return {
+        "lat": float(fallback["lat"]),
+        "lon": float(fallback["lon"]),
+        "resolvedLocation": f"{city}, {country}",
+        "jobUrl": job_url if job_url in valid_urls else None,
+    }
+
+
 @router.post("/geocode")
 async def geocode(req: GeocodeRequest):
-    query = req.location or req.company
+    logger.info(
+        "Geocode request: company=%r jobTitle=%r location=%r",
+        req.company,
+        req.jobTitle,
+        req.location,
+    )
+    if req.location:
+        result = await _nominatim_search(req.location)
+        if result:
+            logger.info("Geocode success via Nominatim for %r", req.location)
+            return {
+                "lat": float(result["lat"]),
+                "lon": float(result["lon"]),
+                "resolvedLocation": result.get("display_name", req.location),
+                "confidence": "geocoded",
+                "jobUrl": None,
+            }
+    else:
+        logger.info(
+            "No location text for company=%r, skipping Nominatim (company name is not an address)",
+            req.company,
+        )
 
-    result = await _nominatim_search(query)
-    if result:
-        logger.info("Geocode success via Nominatim for %r", query)
-        return {
-            "lat": float(result["lat"]),
-            "lon": float(result["lon"]),
-            "resolvedLocation": result.get("display_name", query),
-            "confidence": "geocoded",
-        }
+    web_result = await _web_search_geocode(req.company, req.jobTitle)
+    if web_result:
+        logger.info(
+            "Geocode success via web search for company=%r jobTitle=%r -> %s",
+            req.company,
+            req.jobTitle,
+            web_result["resolvedLocation"],
+        )
+        return {**web_result, "confidence": "web_search"}
 
     location_hint = (
         f' The recorded location text is "{req.location}" — normalize it into a real city and country if possible.'
@@ -167,9 +255,16 @@ If unknown, return {{"city": null, "country": null}}"""
                 "lon": float(fallback["lon"]),
                 "resolvedLocation": f"{city}, {country}",
                 "confidence": "ai_guess",
+                "jobUrl": None,
             }
 
     logger.warning(
         "Geocode failed for company=%r location=%r", req.company, req.location
     )
-    return {"lat": None, "lon": None, "resolvedLocation": None, "confidence": "failed"}
+    return {
+        "lat": None,
+        "lon": None,
+        "resolvedLocation": None,
+        "confidence": "failed",
+        "jobUrl": None,
+    }

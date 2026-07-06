@@ -51,6 +51,9 @@ export class User {
   @Column({ nullable: true, type: 'jsonb' })
   cvData: Record<string, any>;
 
+  @Column({ type: 'timestamp', nullable: true })
+  jobsLastSyncedAt: Date | null;
+
   @OneToMany(() => Application, (app) => app.user)
   applications: Application[];
 

@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .cv-page {
   max-width: 1100px;
   margin: 0 auto;
@@ -36,7 +38,7 @@
   &.dragover {
     border-color: rgba(255,255,255,.35);
     background: rgba(255,255,255,.04);
-    box-shadow: 0 0 5px rgba(255,255,255,.06), 0 0 30px rgba(180,180,180,.03);
+    @include mx.glow(5px, .06, 30px, .03);
   }
 
   @media (max-width: 575px) {
