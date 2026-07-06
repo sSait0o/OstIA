@@ -49,6 +49,13 @@ export class EmailComponent implements OnInit, OnDestroy {
     this.remainingMs(this.emailConnections().find((c) => c.provider === 'OUTLOOK')?.nextSyncAvailableAt),
   );
 
+  gmailSyncAttemptsRemaining = computed(
+    () => this.emailConnections().find((c) => c.provider === 'GMAIL')?.syncAttemptsRemaining ?? 3,
+  );
+  outlookSyncAttemptsRemaining = computed(
+    () => this.emailConnections().find((c) => c.provider === 'OUTLOOK')?.syncAttemptsRemaining ?? 3,
+  );
+
   constructor() {
     effect(() => {
       const syncing = this.emailService.syncingGmail();
@@ -93,6 +100,10 @@ export class EmailComponent implements OnInit, OnDestroy {
     if (h > 0) return `${h}h ${String(m).padStart(2, '0')}min`;
     if (m > 0) return `${m}min ${String(s).padStart(2, '0')}s`;
     return `${s}s`;
+  }
+
+  formatAttemptsRemaining(n: number): string {
+    return `Synchroniser (${n} essai${n > 1 ? 's' : ''} restant${n > 1 ? 's' : ''})`;
   }
 
   connectGmail() {

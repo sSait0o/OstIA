@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .map-page {
   position: relative;
   height: 100%;
@@ -24,7 +26,7 @@
   border-radius: 10px;
   padding: 4px;
 
-  @media (max-width: 575px) {
+  @include mx.mobile {
     top: 8px;
     left: 8px;
   }
@@ -56,7 +58,7 @@
 }
 
 .map-nav-badge {
-  background: rgba(255, 100, 70, 0.9);
+  background: var(--accent-alert);
   color: #fff;
   border-radius: 10px;
   font-size: 10px;
@@ -81,7 +83,7 @@
   border-radius: 10px;
   padding: 6px 14px;
 
-  @media (max-width: 575px) {
+  @include mx.mobile {
     top: 56px;
     right: 8px;
     padding: 4px 10px;
@@ -295,7 +297,7 @@
 
 .email-header {
   padding: 20px 24px 16px;
-  background: #111;
+  background: var(--surface-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -331,7 +333,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  background: #0e0e0e;
+  background: var(--surface-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 16px 24px;
   column-gap: 32px;
@@ -382,6 +384,18 @@
   text-decoration: none;
 
   &:hover { color: #7bbdf5; text-decoration: underline; }
+}
+
+.meta-value-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-hint-icon {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: help;
 }
 
 .email-body-block {

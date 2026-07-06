@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .page-title {
   font-size: 22px;
   font-weight: 700;
@@ -28,7 +30,7 @@
     font-size: 36px;
     line-height: 1;
 
-    @media (max-width: 575px) {
+    @include mx.mobile {
       font-size: 28px;
     }
   }
@@ -37,7 +39,7 @@
 .chart {
   height: 300px;
 
-  @media (max-width: 767px) {
+  @include mx.tablet {
     height: 220px;
   }
 }

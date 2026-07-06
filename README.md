@@ -78,6 +78,7 @@ L'app est disponible sur [http://localhost:4200](http://localhost:4200).
 | Variable | Description |
 |----------|-------------|
 | `GROQ_API_KEY` | Clé API Groq (matching CV/offres) |
+| `TAVILY_API_KEY` | Clé API Tavily (recherche web, fallback de géocodage sur la carte) |
 
 ## Structure du projet
 

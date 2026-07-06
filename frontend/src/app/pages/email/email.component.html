@@ -59,7 +59,7 @@
             </button>
             <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="emailService.syncingGmail()" [disabled]="!hasGmail() || emailService.syncingGmail() || gmailSyncRemainingMs() > 0">
               <span nz-icon nzType="sync"></span>
-              {{ gmailSyncRemainingMs() > 0 ? 'Synchroniser dans ' + formatCountdown(gmailSyncRemainingMs()) : 'Synchroniser' }}
+              {{ gmailSyncRemainingMs() > 0 ? 'Synchroniser dans ' + formatCountdown(gmailSyncRemainingMs()) : formatAttemptsRemaining(gmailSyncAttemptsRemaining()) }}
             </button>
             <button nz-button nzType="default" nzDanger [disabled]="!hasGmail()"
                     nz-popconfirm

@@ -86,9 +86,12 @@ async def _call_groq(
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": 0.1,
+        "reasoning_effort": "low",
     }
     if response_format:
         payload["response_format"] = response_format
+
+    last_error: str | None = None
 
     for attempt in range(_MAX_RETRIES):
         key = await _pick_key()
@@ -112,6 +115,7 @@ async def _call_groq(
                             _MAX_RETRIES,
                             wait,
                         )
+                        last_error = "429 rate limited"
                         if attempt < _MAX_RETRIES - 1:
                             still_wait = await _seconds_until_any_key_free()
                             if still_wait is not None:
@@ -119,21 +123,33 @@ async def _call_groq(
                         continue
                     if resp.status >= 400:
                         text = await resp.text()
-                        logger.error("Groq HTTP error %d: %s", resp.status, text)
-                        raise HTTPException(
-                            status_code=503, detail="AI service unavailable"
+                        logger.error(
+                            "Groq HTTP error %d on key ...%s, attempt %d/%d: %s",
+                            resp.status,
+                            key[-4:],
+                            attempt + 1,
+                            _MAX_RETRIES,
+                            text,
                         )
+                        last_error = f"{resp.status}: {text}"
+                        await _mark_cooldown(key, _RETRY_DELAY)
+                        continue
                     return await resp.json()
         except aiohttp.ClientConnectionError as e:
             logger.error("Groq connection error: %s", e)
+            last_error = str(e)
             if attempt < _MAX_RETRIES - 1:
                 await asyncio.sleep(_RETRY_DELAY)
         except asyncio.TimeoutError:
             logger.error("Groq timeout on attempt %d", attempt + 1)
+            last_error = "timeout"
             if attempt < _MAX_RETRIES - 1:
                 await asyncio.sleep(_RETRY_DELAY)
 
-    raise HTTPException(status_code=503, detail="AI service unavailable after retries")
+    raise HTTPException(
+        status_code=503,
+        detail=f"AI service unavailable after retries: {last_error}",
+    )
 
 
 async def complete(

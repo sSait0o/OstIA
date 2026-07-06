@@ -27,7 +27,8 @@ export interface GeocodeResult {
   lat: number | null;
   lon: number | null;
   resolvedLocation: string | null;
-  confidence: 'geocoded' | 'ai_guess' | 'failed';
+  confidence: 'geocoded' | 'web_search' | 'ai_guess' | 'failed';
+  jobUrl: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -63,11 +64,18 @@ export class MapService {
     });
   }
 
-  saveCoordinates(id: string, lat: number, lon: number, resolvedLocation: string) {
+  saveCoordinates(
+    id: string,
+    lat: number,
+    lon: number,
+    resolvedLocation: string,
+    jobUrl?: string,
+  ) {
     return this.http.patch(`${this.appsBase}/${id}/coordinates`, {
       lat,
       lon,
       resolvedLocation,
+      ...(jobUrl ? { jobUrl } : {}),
     });
   }
 

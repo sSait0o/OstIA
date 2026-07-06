@@ -39,6 +39,7 @@ import {
   MenuFoldOutline,
   ArrowRightOutline,
   QuestionCircleOutline,
+  LinkOutline,
 } from '@ant-design/icons-angular/icons';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
@@ -76,6 +77,7 @@ const icons: IconDefinition[] = [
   MenuFoldOutline,
   ArrowRightOutline,
   QuestionCircleOutline,
+  LinkOutline,
 ];
 
 export const appConfig: ApplicationConfig = {

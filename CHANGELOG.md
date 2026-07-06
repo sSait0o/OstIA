@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-07
+
+### Added
+
+- Application email history: view synced email body/thread and update status directly from the kanban modal.
+- Email sync engine split into dedicated Gmail/Outlook providers with resumable sync state per connection.
+- New job search providers (Adzuna, France Travail) behind a shared job-search provider interface.
+- Shared frontend design tokens/mixins/buttons system (`frontend/src/styles/`), reused across pages instead of duplicated per component.
+
+### Fixed
+
+- Responsive layout issues across dashboard, kanban, email, auth, and map pages (see 1.2.2).
+
 ## [1.2.2] - 2026-07-07
 
 ### Fixed

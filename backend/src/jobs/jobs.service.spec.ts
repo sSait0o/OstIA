@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { Job } from './entities/job.entity';
 import { JobsService } from './jobs.service';
 import { AiService } from '../ai/ai.service';
+import { UsersService } from '../users/users.service';
 
 const mockJob = (overrides: Partial<Job> = {}): Job =>
   ({
@@ -25,15 +26,23 @@ describe('JobsService', () => {
     findOne: jest.Mock;
     save: jest.Mock;
     find: jest.Mock;
+    findAndCount: jest.Mock;
     create: jest.Mock;
+    delete: jest.Mock;
   };
+  let usersService: { updateJobsLastSyncedAt: jest.Mock };
 
   beforeEach(async () => {
     jobRepo = {
       findOne: jest.fn(),
       save: jest.fn(),
-      find: jest.fn(),
-      create: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
+      findAndCount: jest.fn().mockResolvedValue([[], 0]),
+      create: jest.fn((data) => data),
+      delete: jest.fn(),
+    };
+    usersService = {
+      updateJobsLastSyncedAt: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -63,6 +72,7 @@ describe('JobsService', () => {
             }),
           },
         },
+        { provide: UsersService, useValue: usersService },
       ],
     }).compile();
 
@@ -112,6 +122,205 @@ describe('JobsService', () => {
         }),
       );
       expect(result).toHaveLength(2);
+    });
+  });
+
+  const mockOffer = (overrides: Partial<any> = {}) => ({
+    title: 'Backend Developer',
+    company: 'Acme',
+    description: 'Node.js role',
+    url: 'https://example.com/job',
+    source: 'france_travail',
+    externalId: 'ext-1',
+    ...overrides,
+  });
+
+  describe('searchAndScore (upsertAndScoreOffers)', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(service, 'searchFranceTravail')
+        .mockResolvedValue({ offers: [mockOffer()], total: 1 });
+      jest
+        .spyOn(service, 'searchAdzuna')
+        .mockResolvedValue({ offers: [], total: 0 });
+    });
+
+    it('creates a new job and calls the AI matcher when no existing job', async () => {
+      jobRepo.find.mockResolvedValue([]);
+      jobRepo.save.mockImplementation((j) => Promise.resolve(j));
+
+      const result = await service.searchAndScore(
+        'user-1',
+        {},
+        { skills: ['Node.js'] },
+      );
+
+      expect(result.jobs).toHaveLength(1);
+      expect(result.jobs[0].matchScore).toBe(80);
+      expect(jobRepo.save).toHaveBeenCalled();
+    });
+
+    it('reuses an existing valid score without calling the AI matcher again', async () => {
+      const existing = mockJob({
+        externalId: 'ext-1',
+        matchScore: 55,
+        matchDetails: { summary: 'Already scored' } as any,
+      });
+      jobRepo.find.mockResolvedValue([existing]);
+
+      const aiService = (service as any).aiService as {
+        matchCvToJob: jest.Mock;
+      };
+      aiService.matchCvToJob.mockClear();
+
+      const result = await service.searchAndScore(
+        'user-1',
+        {},
+        { skills: ['Node.js'] },
+      );
+
+      expect(result.jobs[0]).toBe(existing);
+      expect(aiService.matchCvToJob).not.toHaveBeenCalled();
+    });
+
+    it('does not call the AI matcher when cvData is empty', async () => {
+      jobRepo.find.mockResolvedValue([]);
+      jobRepo.save.mockImplementation((j) => Promise.resolve(j));
+
+      const aiService = (service as any).aiService as {
+        matchCvToJob: jest.Mock;
+      };
+      aiService.matchCvToJob.mockClear();
+
+      const result = await service.searchAndScore('user-1', {}, {});
+
+      expect(aiService.matchCvToJob).not.toHaveBeenCalled();
+      expect(result.jobs[0].matchScore).toBe(0);
+    });
+  });
+
+  describe('syncJobsForUser', () => {
+    let ftSpy: jest.SpyInstance;
+    let adzunaSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      ftSpy = jest
+        .spyOn(service, 'searchFranceTravail')
+        .mockResolvedValue({ offers: [mockOffer()], total: 1 });
+      adzunaSpy = jest
+        .spyOn(service, 'searchAdzuna')
+        .mockResolvedValue({ offers: [], total: 0 });
+      jobRepo.find.mockResolvedValue([]);
+      jobRepo.save.mockImplementation((j) => Promise.resolve(j));
+    });
+
+    it('stamps jobsLastSyncedAt before doing any work', async () => {
+      await service.syncJobsForUser('user-1', { skills: ['Node.js'] });
+
+      expect(usersService.updateJobsLastSyncedAt).toHaveBeenCalledWith(
+        'user-1',
+      );
+    });
+
+    it('purges stale unsaved/unapplied jobs for the user', async () => {
+      await service.syncJobsForUser('user-1', { skills: ['Node.js'] });
+
+      expect(jobRepo.delete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: { id: 'user-1' },
+          isSaved: false,
+          isApplied: false,
+        }),
+      );
+    });
+
+    it('queries at most 5 skills', async () => {
+      await service.syncJobsForUser('user-1', {
+        skills: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+      });
+
+      expect(ftSpy).toHaveBeenCalledTimes(5);
+    });
+
+    it('dedupes offers sharing the same externalId across skills', async () => {
+      ftSpy.mockResolvedValue({
+        offers: [mockOffer({ externalId: 'same-id' })],
+        total: 1,
+      });
+
+      await service.syncJobsForUser('user-1', { skills: ['Node.js', 'TypeScript'] });
+
+      expect(jobRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing (no fetch) when the CV has no skills', async () => {
+      await service.syncJobsForUser('user-1', {});
+
+      expect(ftSpy).not.toHaveBeenCalled();
+      expect(adzunaSpy).not.toHaveBeenCalled();
+      expect(usersService.updateJobsLastSyncedAt).toHaveBeenCalled();
+    });
+
+    it('continues processing other skills when one search fails', async () => {
+      ftSpy
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValue({ offers: [mockOffer({ externalId: 'ok' })], total: 1 });
+
+      await expect(
+        service.syncJobsForUser('user-1', { skills: ['Bad', 'Good'] }),
+      ).resolves.not.toThrow();
+      expect(jobRepo.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('getFeed', () => {
+    it('uses default paging and sorts by matchScore desc', async () => {
+      await service.getFeed('user-1', {});
+
+      expect(jobRepo.findAndCount).toHaveBeenCalledWith({
+        where: { user: { id: 'user-1' } },
+        order: { matchScore: 'DESC' },
+        skip: 0,
+        take: 9,
+      });
+    });
+
+    it('adds a minScore filter when provided', async () => {
+      await service.getFeed('user-1', { minScore: 70 });
+
+      const call = jobRepo.findAndCount.mock.calls[0][0];
+      expect(call.where.matchScore).toBeDefined();
+    });
+
+    it('sorts by publishedAt when sortBy is date', async () => {
+      await service.getFeed('user-1', { sortBy: 'date' });
+
+      expect(jobRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ order: { publishedAt: 'DESC' } }),
+      );
+    });
+
+    it('computes skip/take from page and pageSize', async () => {
+      await service.getFeed('user-1', { page: 3, pageSize: 20 });
+
+      expect(jobRepo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 40, take: 20 }),
+      );
+    });
+  });
+
+  describe('isJobsSyncStale', () => {
+    it('returns true when never synced', () => {
+      expect(service.isJobsSyncStale(null)).toBe(true);
+    });
+
+    it('returns false when synced recently', () => {
+      expect(service.isJobsSyncStale(new Date())).toBe(false);
+    });
+
+    it('returns true when synced more than 6 hours ago', () => {
+      const sevenHoursAgo = new Date(Date.now() - 7 * 60 * 60 * 1000);
+      expect(service.isJobsSyncStale(sevenHoursAgo)).toBe(true);
     });
   });
 });

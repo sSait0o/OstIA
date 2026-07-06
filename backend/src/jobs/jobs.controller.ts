@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Patch,
   Query,
   Param,
@@ -22,6 +23,8 @@ import { UsersService } from '../users/users.service';
 @UseGuards(JwtAuthGuard)
 @Controller('jobs')
 export class JobsController {
+  private readonly logger = new Logger(JobsController.name);
+
   constructor(
     private readonly jobsService: JobsService,
     private readonly usersService: UsersService,
@@ -92,6 +95,52 @@ export class JobsController {
       },
       (user?.cvData as Record<string, unknown>) || {},
     );
+  }
+
+  @Get('feed')
+  @ApiOperation({
+    summary: "Fil d'offres personnalisé basé sur le CV (auto-synchronisé)",
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ name: 'minScore', required: false, type: Number })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description: 'matchScore | date',
+  })
+  async feed(
+    @Request() req: { user: { id: string } },
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('minScore') minScore?: string,
+    @Query('sortBy') sortBy?: string,
+  ) {
+    const user = await this.usersService.findById(req.user.id);
+    const cvData = (user?.cvData as Record<string, unknown>) || {};
+
+    let syncing = false;
+    if (this.jobsService.isJobsSyncStale(user?.jobsLastSyncedAt)) {
+      if (!user?.jobsLastSyncedAt) {
+        await this.jobsService.syncJobsForUser(req.user.id, cvData);
+      } else {
+        syncing = true;
+        this.jobsService.syncJobsForUser(req.user.id, cvData).catch((err) => {
+          this.logger.error(
+            `Background jobs sync failed for user ${req.user.id}: ${err}`,
+          );
+        });
+      }
+    }
+
+    const result = await this.jobsService.getFeed(req.user.id, {
+      page: page ? +page : undefined,
+      pageSize: pageSize ? +pageSize : undefined,
+      minScore: minScore ? +minScore : undefined,
+      sortBy: (sortBy as 'matchScore' | 'date') || undefined,
+    });
+
+    return { ...result, syncing };
   }
 
   @Get('saved')
