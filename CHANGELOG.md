@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-07
+
+### Fixed
+
+- Map geocoding failing in production with a CORS error (`core` service's `ALLOWED_ORIGINS` wasn't set, defaulting to `localhost:4200` only). Documented the required env var in `core/.env.example`.
+
 ## [1.3.0] - 2026-07-07
 
 ### Added
