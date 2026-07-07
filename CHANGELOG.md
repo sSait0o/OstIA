@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-07-07
+
+### Changed
+
+- Replaced the full JSON data export (profile, emails, sync records) with a focused CSV export of applications, better suited for spreadsheet analysis (e.g. Power BI). The trigger moved from the user dropdown menu to a dashboard action button.
+
 ## [1.3.1] - 2026-07-07
 
 ### Fixed
