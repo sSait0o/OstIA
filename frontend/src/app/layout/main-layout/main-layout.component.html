@@ -112,10 +112,6 @@
       <div class="user-dropdown-email">{{ auth.currentUser()?.email }}</div>
     </div>
     <div class="user-dropdown-divider"></div>
-    <div class="user-dropdown-item" [class.user-dropdown-item--disabled]="exportingData()" (click)="exportMyData()">
-      <span nz-icon [nzType]="exportingData() ? 'loading' : 'download'"></span>
-      Exporter mes données
-    </div>
     <div class="user-dropdown-item" (click)="auth.logout()">
       <span nz-icon nzType="logout"></span>
       Déconnexion

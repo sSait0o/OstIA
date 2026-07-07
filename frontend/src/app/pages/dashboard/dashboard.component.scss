@@ -1,12 +1,21 @@
 @use 'mixins' as mx;
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
 .page-title {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #fff;
-  margin: 0 0 28px;
+  margin: 0;
 }
 
 .loading-center {

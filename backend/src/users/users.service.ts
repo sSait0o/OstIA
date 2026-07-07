@@ -3,11 +3,35 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
-import { Application } from '../applications/entities/application.entity';
-import { ApplicationEmail } from '../applications/entities/application-email.entity';
-import { Job } from '../jobs/entities/job.entity';
-import { EmailConnection } from '../email/entities/email-connection.entity';
-import { EmailSyncRecord } from '../email/entities/email-sync-record.entity';
+import {
+  Application,
+  ApplicationSource,
+  ApplicationStatus,
+} from '../applications/entities/application.entity';
+
+const STATUS_LABELS: Record<ApplicationStatus, string> = {
+  [ApplicationStatus.APPLIED]: 'Envoyée',
+  [ApplicationStatus.ACKNOWLEDGED]: 'Reçue',
+  [ApplicationStatus.TECHNICAL]: 'Test technique',
+  [ApplicationStatus.INTERVIEW]: 'Entretien',
+  [ApplicationStatus.OFFER]: 'Offre',
+  [ApplicationStatus.REJECTED]: 'Refusé',
+};
+
+const SOURCE_LABELS: Record<ApplicationSource, string> = {
+  [ApplicationSource.EMAIL]: 'Email',
+  [ApplicationSource.MANUAL]: 'Manuel',
+  [ApplicationSource.JOB_BOARD]: "Offre d'emploi",
+};
+
+function formatDate(date: Date | null | undefined): string {
+  return date ? new Date(date).toISOString().slice(0, 10) : '';
+}
+
+function csvEscape(value: unknown): string {
+  const str = value === null || value === undefined ? '' : String(value);
+  return /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
 
 @Injectable()
 export class UsersService {
@@ -16,14 +40,6 @@ export class UsersService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Application)
     private readonly applicationRepo: Repository<Application>,
-    @InjectRepository(ApplicationEmail)
-    private readonly applicationEmailRepo: Repository<ApplicationEmail>,
-    @InjectRepository(Job)
-    private readonly jobRepo: Repository<Job>,
-    @InjectRepository(EmailConnection)
-    private readonly emailConnectionRepo: Repository<EmailConnection>,
-    @InjectRepository(EmailSyncRecord)
-    private readonly emailSyncRecordRepo: Repository<EmailSyncRecord>,
   ) {}
 
   async create(dto: CreateUserDto): Promise<User> {
@@ -101,78 +117,43 @@ export class UsersService {
     await this.userRepo.delete(userId);
   }
 
-  async exportUserData(userId: string) {
-    const user = await this.findById(userId);
-    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+  async exportApplicationsCsv(userId: string): Promise<string> {
+    const applications = await this.applicationRepo.find({
+      where: { user: { id: userId } },
+      order: { createdAt: 'DESC' },
+    });
 
-    const [
-      applications,
-      savedJobs,
-      emailConnections,
-      applicationEmails,
-      emailSyncRecords,
-    ] = await Promise.all([
-      this.applicationRepo.find({
-        where: { user: { id: userId } },
-        order: { createdAt: 'DESC' },
-      }),
-      this.jobRepo.find({
-        where: { user: { id: userId }, isSaved: true },
-        order: { createdAt: 'DESC' },
-      }),
-      this.emailConnectionRepo.find({ where: { user: { id: userId } } }),
-      this.applicationEmailRepo.find({
-        where: { user: { id: userId } },
-        relations: { application: true },
-        order: { receivedAt: 'ASC' },
-      }),
-      this.emailSyncRecordRepo.find({
-        where: { user: { id: userId } },
-        relations: { application: true },
-        order: { createdAt: 'DESC' },
-      }),
+    const headers = [
+      'Entreprise',
+      'Poste',
+      'Statut',
+      'Source',
+      'Lieu',
+      'Salaire',
+      'Date de candidature',
+      'Dernier contact',
+      'Notes',
+      'Créée le',
+    ];
+
+    const rows = applications.map((a) => [
+      a.company,
+      a.jobTitle,
+      STATUS_LABELS[a.status] ?? a.status,
+      SOURCE_LABELS[a.source] ?? a.source,
+      a.location ?? '',
+      a.salary ?? '',
+      formatDate(a.appliedAt),
+      formatDate(a.lastContactAt),
+      a.notes ?? '',
+      formatDate(a.createdAt),
     ]);
 
-    return {
-      exportedAt: new Date().toISOString(),
-      profile: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        isEmailVerified: user.isEmailVerified,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-      cv: user.cvData ?? null,
-      applications,
-      savedJobs,
-      emailConnections: emailConnections.map((c) => ({
-        provider: c.provider,
-        email: c.email,
-        isActive: c.isActive,
-        lastSyncedAt: c.lastSyncedAt,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-      })),
-      applicationEmails: applicationEmails.map((e) => ({
-        applicationId: e.application?.id ?? null,
-        provider: e.provider,
-        subject: e.subject,
-        body: e.body,
-        statusDetected: e.statusDetected,
-        receivedAt: e.receivedAt,
-        createdAt: e.createdAt,
-      })),
-      emailSyncRecords: emailSyncRecords.map((r) => ({
-        applicationId: r.application?.id ?? null,
-        provider: r.provider,
-        status: r.status,
-        reason: r.reason,
-        attemptCount: r.attemptCount,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      })),
-    };
+    const lines = [headers, ...rows].map((row) =>
+      row.map(csvEscape).join(','),
+    );
+
+    const BOM = String.fromCharCode(0xfeff);
+    return BOM + lines.join('\r\n');
   }
 }

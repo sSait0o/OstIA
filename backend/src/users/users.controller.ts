@@ -25,14 +25,16 @@ export class UsersController {
   }
 
   @Get('export')
-  @Header('Content-Type', 'application/json')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header(
     'Content-Disposition',
-    'attachment; filename="ostia-mes-donnees.json"',
+    'attachment; filename="ostia-candidatures.csv"',
   )
-  @ApiOperation({ summary: 'Exporter toutes mes données' })
+  @ApiOperation({
+    summary: 'Exporter mes candidatures en CSV (pour analyse, ex. Power BI)',
+  })
   exportData(@Request() req: { user: User }) {
-    return this.usersService.exportUserData(req.user.id);
+    return this.usersService.exportApplicationsCsv(req.user.id);
   }
 
   @Delete('me')

@@ -11,6 +11,7 @@ import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { ApplicationsService, ApplicationStats } from '../../core/services/applications.service';
 import { JobsService, Job } from '../../core/services/jobs.service';
+import { UserService } from '../../core/services/user.service';
 import { getScoreColor, scoreFormat } from '../../shared/utils/score.utils';
 import { getStatusHex, getStatusLabel } from '../../shared/utils/status-colors.utils';
 import type { EChartsOption } from 'echarts';
@@ -29,6 +30,7 @@ import type { EChartsOption } from 'echarts';
 export class DashboardComponent implements OnInit {
   private readonly appsService = inject(ApplicationsService);
   private readonly jobsService = inject(JobsService);
+  private readonly userService = inject(UserService);
   private readonly message = inject(NzMessageService);
 
   loading = signal(true);
@@ -37,6 +39,7 @@ export class DashboardComponent implements OnInit {
   pieOptions = signal<EChartsOption>({});
   barOptions = signal<EChartsOption>({});
   funnelOptions = signal<EChartsOption>({});
+  exportingData = signal(false);
 
   ngOnInit() {
     this.appsService.getStats().subscribe({
@@ -50,6 +53,23 @@ export class DashboardComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.loadTopJobs();
+  }
+
+  exportMyData() {
+    if (this.exportingData()) return;
+    this.exportingData.set(true);
+    this.userService.exportData().subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `ostia-candidatures-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.exportingData.set(false);
+      },
+      error: () => this.exportingData.set(false),
+    });
   }
 
   private loadTopJobs() {

@@ -38,7 +38,6 @@ export class MainLayoutComponent implements OnInit {
   readonly dots = Array(24);
   isCollapsed = signal(false);
   emailConnections = signal<EmailConnection[]>([]);
-  exportingData = signal(false);
 
   private readonly message = inject(NzMessageService);
   deleteAccountModalVisible = signal(false);
@@ -75,23 +74,6 @@ export class MainLayoutComponent implements OnInit {
 
   toggleSidebar() {
     this.isCollapsed.set(!this.isCollapsed());
-  }
-
-  exportMyData() {
-    if (this.exportingData()) return;
-    this.exportingData.set(true);
-    this.userService.exportData().subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `ostia-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
-        this.exportingData.set(false);
-      },
-      error: () => this.exportingData.set(false),
-    });
   }
 
   confirmDeleteAccount() {

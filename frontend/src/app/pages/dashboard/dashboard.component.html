@@ -1,4 +1,10 @@
-<h2 class="page-title">Dashboard</h2>
+<div class="page-header">
+  <h2 class="page-title">Dashboard</h2>
+  <button nz-button nzType="default" [nzLoading]="exportingData()" (click)="exportMyData()">
+    <span nz-icon nzType="download"></span>
+    Exporter mes données
+  </button>
+</div>
 
 @if (loading()) {
   <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
