@@ -33,7 +33,7 @@ export class LoginComponent {
     this.loading = true;
     const { email, password } = this.form.value;
     this.authService.login(email, password).subscribe({
-      next: () => this.router.navigate(['/']),
+      next: () => this.router.navigate(['/kanban']),
       error: (err) => {
         if (err.status === 403) {
           this.router.navigate(['/auth/verify-email-pending'], { queryParams: { email } });

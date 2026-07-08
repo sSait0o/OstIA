@@ -1,0 +1,73 @@
+<div class="landing">
+  <div class="dot-bg landing-dots">
+    <span *ngFor="let dot of dots; let i = index" [class.visible]="i < visibleDots()"></span>
+  </div>
+
+  <div class="thread-container" [style.height.px]="pageHeight()">
+    <svg class="thread-svg" [attr.viewBox]="threadViewBox" preserveAspectRatio="none">
+      <path #threadPath [attr.d]="threadPathData" [attr.stroke-dasharray]="pathLength()" [attr.stroke-dashoffset]="pathOffset()" />
+    </svg>
+  </div>
+
+  <header class="hero">
+    <img src="/favicon.ico" alt="OstIA" class="brand-logo" />
+    <h1>Organisez votre recherche d'emploi, sans y perdre le fil</h1>
+    <p class="subtitle">
+      OstIA centralise vos candidatures, lit vos emails pour vous éviter la saisie manuelle,
+      et met en regard votre CV avec les offres qui comptent vraiment.
+    </p>
+    <div class="hero-actions">
+      <ng-container *ngIf="isAuthenticated; else guestActions">
+        <button nz-button nzType="primary" nzSize="large" routerLink="/kanban">
+          Accéder à la plateforme
+        </button>
+      </ng-container>
+      <ng-template #guestActions>
+        <button nz-button nzType="primary" nzSize="large" routerLink="/auth/register">
+          Créer un compte
+        </button>
+        <button nz-button nzSize="large" routerLink="/auth/login">Se connecter</button>
+      </ng-template>
+    </div>
+  </header>
+
+  <section class="video-section">
+    <div class="video-frame">
+      <div class="video-frame-bar">
+        <span></span><span></span><span></span>
+      </div>
+      <video
+        #demoVideo
+        autoplay
+        loop
+        playsinline
+        [muted]="true"
+        src="/resources/ostia-pres.mp4"
+      ></video>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature-card" *ngFor="let feature of features">
+      <span nz-icon [nzType]="feature.icon" nzTheme="outline" class="feature-icon"></span>
+      <h3>{{ feature.title }}</h3>
+      <p>{{ feature.description }}</p>
+    </div>
+  </section>
+
+  <section class="final-cta">
+    <ng-container *ngIf="isAuthenticated; else guestFinalCta">
+      <h2>Retrouvez vos candidatures</h2>
+      <button nz-button nzType="primary" nzSize="large" routerLink="/kanban">
+        Accéder à la plateforme
+      </button>
+    </ng-container>
+    <ng-template #guestFinalCta>
+      <h2>Reprenez le contrôle de votre recherche d'emploi</h2>
+      <p>Gratuit, sans engagement, vos données restent les vôtres.</p>
+      <button nz-button nzType="primary" nzSize="large" routerLink="/auth/register">
+        Créer un compte
+      </button>
+    </ng-template>
+  </section>
+</div>

@@ -103,7 +103,7 @@ OstIA/
 │   └── src/app/
 │       ├── core/         # Services, guards, interceptors
 │       ├── layout/       # Sidebar
-│       └── pages/        # Login, Register, Kanban, Jobs, Dashboard, Map
+│       └── pages/        # Landing, Login, Register, Kanban, Jobs, Dashboard, Map
 └── docker-compose.yml
 ```
 
