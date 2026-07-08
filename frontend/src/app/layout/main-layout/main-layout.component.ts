@@ -2,6 +2,7 @@ import { Component, OnInit, effect, inject, signal, computed } from '@angular/co
 import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs/operators';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzAvatarModule } from 'ng-zorro-antd/avatar';
@@ -35,6 +36,7 @@ export class MainLayoutComponent implements OnInit {
   tutorialService = inject(TutorialService);
   private userService = inject(UserService);
   private router = inject(Router);
+  private breakpointObserver = inject(BreakpointObserver);
   readonly dots = Array(24);
   isCollapsed = signal(false);
   emailConnections = signal<EmailConnection[]>([]);
@@ -43,9 +45,20 @@ export class MainLayoutComponent implements OnInit {
   deleteAccountModalVisible = signal(false);
   deletingAccount = signal(false);
 
-  private readonly expandSidebarForTutorial = effect(() => {
-    if (this.tutorialService.active()) {
+  private readonly isMobileNav = toSignal(
+    this.breakpointObserver.observe('(max-width: 767.98px)').pipe(map((r) => r.matches)),
+    { initialValue: false },
+  );
+
+  private readonly syncSidebarForTutorial = effect(() => {
+    const active = this.tutorialService.active();
+    const step = this.tutorialService.currentStep();
+    if (!active || !step) return;
+
+    if (step.requiresSidebar) {
       this.isCollapsed.set(false);
+    } else if (this.isMobileNav()) {
+      this.isCollapsed.set(true);
     }
   });
 

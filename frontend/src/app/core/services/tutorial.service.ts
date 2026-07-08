@@ -7,6 +7,7 @@ export interface TutorialStep {
   title: string;
   description: string;
   requiresClick: boolean;
+  requiresSidebar: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -21,6 +22,7 @@ export class TutorialService {
       title: 'Bienvenue sur OstIA 👋',
       description: 'Ce petit tour rapide vous présente les fonctionnalités principales de l\'application. Cliquez sur "Suivant" pour continuer.',
       requiresClick: false,
+      requiresSidebar: false,
     },
     {
       id: 'sync-btn',
@@ -28,6 +30,7 @@ export class TutorialService {
       title: 'Synchronisez vos emails',
       description: 'Cliquez sur "Sync email" pour accéder à la page de connexion de votre boîte mail.',
       requiresClick: true,
+      requiresSidebar: false,
     },
     {
       id: 'email-page',
@@ -35,6 +38,7 @@ export class TutorialService {
       title: 'Connectez votre boîte mail',
       description: 'Connectez votre compte Gmail ou Outlook, puis créez vous-même le libellé "OstIA" dans Gmail (ou un dossier "OstIA" dans Outlook) et déplacez-y vos emails de candidature. OstIA les analysera et créera automatiquement les sous-libellés (Envoyé, Entretien, Test Technique, Offre, Refusé) pour classer chaque candidature dans votre Kanban.',
       requiresClick: false,
+      requiresSidebar: false,
     },
     {
       id: 'nav-kanban',
@@ -42,6 +46,7 @@ export class TutorialService {
       title: 'Suivez vos candidatures',
       description: 'Cliquez ici pour retrouver toutes vos candidatures organisées par étape, comme un tableau Kanban.',
       requiresClick: true,
+      requiresSidebar: true,
     },
     {
       id: 'nav-dashboard',
@@ -49,6 +54,7 @@ export class TutorialService {
       title: 'Analysez vos statistiques',
       description: 'Cliquez ici pour visualiser votre taux de réponse, vos relances à faire et votre progression globale.',
       requiresClick: true,
+      requiresSidebar: true,
     },
     {
       id: 'nav-map',
@@ -56,6 +62,7 @@ export class TutorialService {
       title: 'Explorez la carte',
       description: 'Cliquez ici pour visualiser géographiquement vos candidatures et les offres disponibles autour de vous.',
       requiresClick: true,
+      requiresSidebar: true,
     },
     {
       id: 'nav-jobs',
@@ -63,6 +70,7 @@ export class TutorialService {
       title: 'Découvrez des offres',
       description: "Cliquez ici pour parcourir les offres d'emploi qui correspondent à votre profil.",
       requiresClick: true,
+      requiresSidebar: true,
     },
     {
       id: 'nav-saved-jobs',
@@ -70,6 +78,7 @@ export class TutorialService {
       title: 'Vos favoris',
       description: 'Cliquez ici pour retrouver les offres que vous avez mises de côté pour plus tard.',
       requiresClick: true,
+      requiresSidebar: true,
     },
     {
       id: 'nav-cv',
@@ -77,6 +86,7 @@ export class TutorialService {
       title: 'Gérez votre CV',
       description: 'Cliquez ici pour mettre à jour vos informations et votre CV.',
       requiresClick: true,
+      requiresSidebar: true,
     },
     {
       id: 'user-menu',
@@ -84,6 +94,7 @@ export class TutorialService {
       title: 'Votre profil',
       description: 'Cliquez ici pour retrouver vos informations de compte et vous déconnecter. Vous pourrez revoir ce tutoriel à tout moment via le bouton "?".',
       requiresClick: true,
+      requiresSidebar: false,
     },
   ];
 
@@ -120,12 +131,16 @@ export class TutorialService {
   autoStartIfNeeded() {
     const userId = this.auth.currentUser()?.id;
     if (userId && localStorage.getItem(this.storagePrefix + userId) !== '1') {
+      this.markSeen();
       this.start();
     }
   }
 
   private finish() {
     this.active.set(false);
+  }
+
+  private markSeen() {
     const userId = this.auth.currentUser()?.id;
     if (userId) {
       localStorage.setItem(this.storagePrefix + userId, '1');
