@@ -33,6 +33,10 @@
     height: 120px;
     width: auto;
     margin: 0 0 8px;
+
+    @include mx.mobile {
+      height: 88px;
+    }
   }
 
   p {
@@ -51,7 +55,7 @@
     flex: 1;
   }
 
-  @media (max-width: 399px) {
+  @include mx.mobile {
     flex-direction: column;
     gap: 0;
   }
