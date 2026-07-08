@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .tutorial-blocker {
   position: fixed;
   inset: 0;
@@ -29,7 +31,7 @@
   overflow-y: auto;
   transition: top 0.25s ease, left 0.25s ease;
 
-  @media (max-width: 575px) {
+  @include mx.mobile {
     width: calc(100vw - 32px);
     left: 16px !important;
   }

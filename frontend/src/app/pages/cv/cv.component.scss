@@ -41,7 +41,11 @@
     @include mx.glow(5px, .06, 30px, .03);
   }
 
-  @media (max-width: 575px) {
+  @include mx.tablet {
+    padding: 40px 24px;
+  }
+
+  @include mx.mobile {
     padding: 32px 20px;
   }
 }
@@ -91,7 +95,7 @@
   border-radius: 16px;
   border-left: 2px solid rgba(255,255,255,.25);
 
-  @media (max-width: 575px) {
+  @include mx.mobile {
     flex-direction: column;
     align-items: center;
     text-align: center;
