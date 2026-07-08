@@ -7,22 +7,22 @@ Plateforme intelligente de gestion de candidatures et de recherche d'emploi, pro
 
 ## Fonctionnalités
 
-- **Kanban des candidatures** - 7 statuts, drag & drop, filtres
+- **Kanban des candidatures** - 6 statuts (Envoyée, Reçue, Test technique, Entretien, Offre, Refusée), drag & drop, filtres
 - **Parsing IA des emails** - Groq analyse le dossier "Ostia" de votre boîte mail et crée les candidatures automatiquement
 - **Sync email avancée** - suivi de progression par mailbox, dédoublonnage des relances par thread, détection automatique des changements de statut par IA
-- **Vérification d'email** - confirmation du compte par lien envoyé par email (SMTP)
-- **Matching CV/offres** - Agrège les offres France Travail et les score en temps réel selon votre CV (Groq)
+- **Vérification d'email** - confirmation du compte par lien envoyé par email (Resend)
+- **Matching CV/offres** - Agrège les offres France Travail et Adzuna et les score en temps réel selon votre CV (Groq)
 - **Dashboard analytique** - Taux de réponse, répartition par statut (Apache ECharts)
-- **Carte géographique** - Visualisation des candidatures par localisation, géocodage concurrent avec limitation de débit Nominatim
+- **Carte géographique** - Visualisation des candidatures par localisation (OpenLayers), géocodage à 3 niveaux : Nominatim direct, puis recherche web + IA, puis IA du siège social en dernier recours
 
 ## Stack technique
 
 | Couche | Technologie |
 |--------|-------------|
-| Frontend | Angular 19, NG-Zorro, Apache ECharts |
+| Frontend | Angular 19, NG-Zorro, Apache ECharts, OpenLayers |
 | Backend | NestJS, TypeORM, PostgreSQL |
 | Core IA | FastAPI, Groq, pdfplumber |
-| Emails | Gmail OAuth2, Microsoft Graph, nodemailer (SMTP) |
+| Emails | Gmail OAuth2, Microsoft Graph, Resend (transactionnel) |
 | Jobs | France Travail API (officielle) |
 | Auth | JWT, vérification d'email |
 | Infra | Docker, Railway, GitHub Actions |
@@ -64,7 +64,7 @@ L'app est disponible sur [http://localhost:4200](http://localhost:4200).
 | `DB_HOST/PORT/USER/PASSWORD/NAME` | PostgreSQL local |
 | `JWT_SECRET` | Clé secrète JWT (min. 32 chars en prod) |
 | `ENCRYPTION_KEY` | Chiffrement AES-256-GCM des tokens OAuth au repos (défaut: `JWT_SECRET`) |
-| `SMTP_HOST/PORT/SECURE/USER/PASS` | Serveur SMTP pour les emails transactionnels (vérification de compte) |
+| `RESEND_API_KEY` | Clé API Resend pour les emails transactionnels (vérification de compte) |
 | `MAIL_FROM` | Adresse d'expéditeur des emails transactionnels |
 | `GOOGLE_CLIENT_ID/SECRET` | Google OAuth (Gmail) |
 | `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` | Azure OAuth (Outlook) |
