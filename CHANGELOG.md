@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-08
+
+### Added
+
+- Public landing page served at `/`, with a presentation video. The app now lives under `/kanban` (logo and post-login redirect updated accordingly).
+
+### Fixed
+
+- Sidebar now collapses on mobile outside of tutorial steps that require it open, instead of staying expanded through the whole tour.
+- Responsive sizing/padding fixes across auth, CV, jobs, kanban, map, and the tutorial overlay, now using shared breakpoint mixins instead of ad-hoc media queries.
+
+### Changed
+
+- README feature/stack descriptions synced with the current implementation (Resend, Adzuna, OpenLayers, 3-level map geocoding, 6-status kanban).
+
 ## [1.3.2] - 2026-07-07
 
 ### Changed
