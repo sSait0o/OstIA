@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-09
+
+### Fixed
+
+- Backend ESLint and ruff format checks that had been failing on `develop` since 2026-07-07, blocking CI from ever reaching the test step. Also fixed a hidden test failure (missing `ApplicationEmailsService` mock) that CI never got to because lint failed first.
+
+### Changed
+
+- Backend: loose module files grouped into subfolders matching the existing `entities/`/`dto/`/`providers/` convention — `jobs/job-search.types.ts` → `jobs/types/`, `email/quote-stripper.ts` and `email/status-keywords.ts` → `email/utils/`.
+
 ## [1.4.0] - 2026-07-08
 
 ### Added
