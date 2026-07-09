@@ -130,9 +130,7 @@ async def _web_search_geocode(company: str, job_title: str) -> dict | None:
     if not results:
         return None
 
-    sources = [
-        {"url": r["url"], "text": r["text"]} for r in results if r.get("text")
-    ]
+    sources = [{"url": r["url"], "text": r["text"]} for r in results if r.get("text")]
     logger.info(
         "[web_search] %d/%d result(s) had usable content for %r",
         len(sources),
@@ -143,7 +141,7 @@ async def _web_search_geocode(company: str, job_title: str) -> dict | None:
         return None
 
     blocks = "\n\n".join(
-        f'Source {i + 1} ({s["url"]}):\n{s["text"][:1500]}'
+        f"Source {i + 1} ({s['url']}):\n{s['text'][:1500]}"
         for i, s in enumerate(sources)
     )
     prompt = f"""Given these web pages found while searching for the job "{job_title}" at company "{company}":

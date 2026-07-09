@@ -3,6 +3,7 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApplicationsService } from './applications.service';
+import { ApplicationEmailsService } from './application-emails.service';
 import {
   Application,
   ApplicationSource,
@@ -45,6 +46,10 @@ describe('ApplicationsService', () => {
       providers: [
         ApplicationsService,
         { provide: getRepositoryToken(Application), useValue: repo },
+        {
+          provide: ApplicationEmailsService,
+          useValue: { findForApplication: jest.fn() },
+        },
       ],
     }).compile();
 

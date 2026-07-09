@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddEmailConnectionSyncAttemptCount1783300000000
-  implements MigrationInterface
-{
+export class AddEmailConnectionSyncAttemptCount1783300000000 implements MigrationInterface {
   name = 'AddEmailConnectionSyncAttemptCount1783300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

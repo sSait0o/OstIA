@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { JobOffer, JobSearchParams } from '../job-search.types';
+import { JobOffer, JobSearchParams } from '../types/job-search.types';
 
 interface AdzunaResult {
   id: string;
@@ -46,8 +46,7 @@ export async function searchAdzunaJobs(
   if (params.fullTime === true) queryParams['full_time'] = 1;
   if (params.fullTime === false) queryParams['part_time'] = 1;
   if (params.sortBy === 'date') queryParams['sort_by'] = 'date';
-  else if (params.sortBy === 'pertinence')
-    queryParams['sort_by'] = 'relevance';
+  else if (params.sortBy === 'pertinence') queryParams['sort_by'] = 'relevance';
 
   if (params.contractTypes?.length) {
     const isExpressible = params.contractTypes.some(
@@ -59,7 +58,8 @@ export async function searchAdzunaJobs(
     const hasContract = params.contractTypes.some((c) =>
       ['CDD', 'MIS'].includes(c),
     );
-    if (hasPermanent && !hasContract) queryParams['contract_type'] = 'permanent';
+    if (hasPermanent && !hasContract)
+      queryParams['contract_type'] = 'permanent';
     else if (hasContract && !hasPermanent)
       queryParams['contract_type'] = 'contract';
   }
