@@ -35,7 +35,9 @@ export class EmailController {
   }
 
   @Get('sync/status')
-  @ApiOperation({ summary: 'Récupérer la progression de synchronisation en cours' })
+  @ApiOperation({
+    summary: 'Récupérer la progression de synchronisation en cours',
+  })
   getSyncStatus(@Request() req: { user: { id: string } }) {
     return this.emailService.getSyncStatus(req.user.id);
   }

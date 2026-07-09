@@ -73,8 +73,7 @@ export async function exchangeMicrosoftAuthCode(
     'https://graph.microsoft.com/v1.0/me',
     { headers: { Authorization: `Bearer ${access_token}` } },
   );
-  const email =
-    profileRes.data.mail ?? profileRes.data.userPrincipalName ?? '';
+  const email = profileRes.data.mail ?? profileRes.data.userPrincipalName ?? '';
 
   return {
     accessToken: access_token,
@@ -112,9 +111,7 @@ export async function refreshMicrosoftTokenIfNeeded(
   );
 
   connection.accessToken = encryptionService.encrypt(res.data.access_token);
-  connection.tokenExpiresAt = new Date(
-    Date.now() + res.data.expires_in * 1000,
-  );
+  connection.tokenExpiresAt = new Date(Date.now() + res.data.expires_in * 1000);
   await connectionRepo.save(connection);
 
   return res.data.access_token;

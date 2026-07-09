@@ -28,8 +28,8 @@ function formatDate(date: Date | null | undefined): string {
   return date ? new Date(date).toISOString().slice(0, 10) : '';
 }
 
-function csvEscape(value: unknown): string {
-  const str = value === null || value === undefined ? '' : String(value);
+function csvEscape(value: string | number): string {
+  const str = String(value);
   return /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
@@ -149,9 +149,7 @@ export class UsersService {
       formatDate(a.createdAt),
     ]);
 
-    const lines = [headers, ...rows].map((row) =>
-      row.map(csvEscape).join(','),
-    );
+    const lines = [headers, ...rows].map((row) => row.map(csvEscape).join(','));
 
     const BOM = String.fromCharCode(0xfeff);
     return BOM + lines.join('\r\n');
