@@ -10,8 +10,8 @@ import { User } from '../../users/entities/user.entity';
 import { AiService } from '../../ai/ai.service';
 import { EmailSyncStatus } from '../entities/email-sync-record.entity';
 import { EmailSyncRecordsService } from '../email-sync-records.service';
-import { detectStatusByKeywords } from '../status-keywords';
-import { stripQuotedReply } from '../quote-stripper';
+import { detectStatusByKeywords } from '../utils/status-keywords';
+import { stripQuotedReply } from '../utils/quote-stripper';
 import {
   EmailSyncProvider,
   SyncProgress,

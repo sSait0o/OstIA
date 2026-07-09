@@ -38,7 +38,9 @@ export class UsersController {
   }
 
   @Delete('me')
-  @ApiOperation({ summary: 'Supprimer définitivement mon compte et mes données' })
+  @ApiOperation({
+    summary: 'Supprimer définitivement mon compte et mes données',
+  })
   deleteMe(@Request() req: { user: User }) {
     return this.usersService.remove(req.user.id);
   }

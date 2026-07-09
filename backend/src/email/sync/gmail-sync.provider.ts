@@ -121,7 +121,9 @@ export async function applyGmailSublabel(
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.warn(`[EmailSync] Failed to apply label to message ${msgId}: ${msg}`);
+    logger.warn(
+      `[EmailSync] Failed to apply label to message ${msgId}: ${msg}`,
+    );
   }
 }
 

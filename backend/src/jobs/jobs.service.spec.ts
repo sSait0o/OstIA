@@ -38,7 +38,7 @@ describe('JobsService', () => {
       save: jest.fn(),
       find: jest.fn().mockResolvedValue([]),
       findAndCount: jest.fn().mockResolvedValue([[], 0]),
-      create: jest.fn((data) => data),
+      create: jest.fn((data: Partial<Job>) => data),
       delete: jest.fn(),
     };
     usersService = {
@@ -164,13 +164,13 @@ describe('JobsService', () => {
       const existing = mockJob({
         externalId: 'ext-1',
         matchScore: 55,
-        matchDetails: { summary: 'Already scored' } as any,
+        matchDetails: { summary: 'Already scored' },
       });
       jobRepo.find.mockResolvedValue([existing]);
 
-      const aiService = (service as any).aiService as {
-        matchCvToJob: jest.Mock;
-      };
+      const aiService = (
+        service as unknown as { aiService: { matchCvToJob: jest.Mock } }
+      ).aiService;
       aiService.matchCvToJob.mockClear();
 
       const result = await service.searchAndScore(
@@ -187,9 +187,9 @@ describe('JobsService', () => {
       jobRepo.find.mockResolvedValue([]);
       jobRepo.save.mockImplementation((j) => Promise.resolve(j));
 
-      const aiService = (service as any).aiService as {
-        matchCvToJob: jest.Mock;
-      };
+      const aiService = (
+        service as unknown as { aiService: { matchCvToJob: jest.Mock } }
+      ).aiService;
       aiService.matchCvToJob.mockClear();
 
       const result = await service.searchAndScore('user-1', {}, {});
@@ -248,7 +248,9 @@ describe('JobsService', () => {
         total: 1,
       });
 
-      await service.syncJobsForUser('user-1', { skills: ['Node.js', 'TypeScript'] });
+      await service.syncJobsForUser('user-1', {
+        skills: ['Node.js', 'TypeScript'],
+      });
 
       expect(jobRepo.save).toHaveBeenCalledTimes(1);
     });
@@ -262,9 +264,10 @@ describe('JobsService', () => {
     });
 
     it('continues processing other skills when one search fails', async () => {
-      ftSpy
-        .mockRejectedValueOnce(new Error('boom'))
-        .mockResolvedValue({ offers: [mockOffer({ externalId: 'ok' })], total: 1 });
+      ftSpy.mockRejectedValueOnce(new Error('boom')).mockResolvedValue({
+        offers: [mockOffer({ externalId: 'ok' })],
+        total: 1,
+      });
 
       await expect(
         service.syncJobsForUser('user-1', { skills: ['Bad', 'Good'] }),
@@ -288,8 +291,10 @@ describe('JobsService', () => {
     it('adds a minScore filter when provided', async () => {
       await service.getFeed('user-1', { minScore: 70 });
 
-      const call = jobRepo.findAndCount.mock.calls[0][0];
-      expect(call.where.matchScore).toBeDefined();
+      const calls = jobRepo.findAndCount.mock.calls as unknown as Array<
+        [{ where: { matchScore?: unknown } }]
+      >;
+      expect(calls[0][0].where.matchScore).toBeDefined();
     });
 
     it('sorts by publishedAt when sortBy is date', async () => {

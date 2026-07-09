@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { JobOffer, JobSearchParams } from '../job-search.types';
+import { JobOffer, JobSearchParams } from '../types/job-search.types';
 
 interface FranceTravailToken {
   access_token: string;

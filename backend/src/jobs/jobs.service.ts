@@ -18,7 +18,7 @@ import {
 } from '../ai/ai.service';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
-import { JobOffer, JobSearchParams } from './job-search.types';
+import { JobOffer, JobSearchParams } from './types/job-search.types';
 import { FranceTravailClient } from './providers/france-travail.provider';
 import { searchAdzunaJobs } from './providers/adzuna.provider';
 
@@ -142,22 +142,28 @@ export class JobsService {
           return existing;
         }
 
-        const match: CvMatchResult | { score: number | null; matchedSkills: string[]; missingSkills: string[]; summary: string } =
-          hasCv
-            ? await this.aiService
-                .matchCvToJob(cvData, offer.title, offer.description || '')
-                .catch(() => ({
-                  score: null as number | null,
-                  matchedSkills: [] as string[],
-                  missingSkills: [] as string[],
-                  summary: '',
-                }))
-            : {
+        const match:
+          | CvMatchResult
+          | {
+              score: number | null;
+              matchedSkills: string[];
+              missingSkills: string[];
+              summary: string;
+            } = hasCv
+          ? await this.aiService
+              .matchCvToJob(cvData, offer.title, offer.description || '')
+              .catch(() => ({
                 score: null as number | null,
                 matchedSkills: [] as string[],
                 missingSkills: [] as string[],
-                summary: NO_CV_MATCH_SUMMARY,
-              };
+                summary: '',
+              }))
+          : {
+              score: null as number | null,
+              matchedSkills: [] as string[],
+              missingSkills: [] as string[],
+              summary: NO_CV_MATCH_SUMMARY,
+            };
 
         if (existing) {
           existing.matchScore = match.score ?? 0;
@@ -202,9 +208,7 @@ export class JobsService {
     }
 
     const location =
-      typeof cvData?.['city'] === 'string'
-        ? (cvData['city'] as string)
-        : undefined;
+      typeof cvData?.['city'] === 'string' ? cvData['city'] : undefined;
     const hasAdzuna =
       !!this.configService.get('ADZUNA_APP_ID') &&
       !!this.configService.get('ADZUNA_APP_KEY');
@@ -293,7 +297,9 @@ export class JobsService {
     if (options.minScore) where.matchScore = MoreThanOrEqual(options.minScore);
 
     const order: FindOptionsOrder<Job> =
-      options.sortBy === 'date' ? { publishedAt: 'DESC' } : { matchScore: 'DESC' };
+      options.sortBy === 'date'
+        ? { publishedAt: 'DESC' }
+        : { matchScore: 'DESC' };
 
     const [jobs, total] = await this.jobRepo.findAndCount({
       where,
