@@ -31,11 +31,11 @@ export const AI_MATCH_ERROR_SUMMARY = "Erreur d'analyse";
 
 @Injectable()
 export class AiService {
-  private readonly coreUrl: string;
+  private readonly aiServiceUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.coreUrl =
-      this.configService.get<string>('CORE_API_URL') ?? 'http://localhost:8001';
+    this.aiServiceUrl =
+      this.configService.get<string>('AI_SERVICE_URL') ?? 'http://localhost:8001';
   }
 
   async parseEmailForApplication(
@@ -45,7 +45,7 @@ export class AiService {
   ): Promise<EmailParseResult> {
     try {
       const { data } = await axios.post<Omit<ParsedApplication, 'source'>>(
-        `${this.coreUrl}/cv/parse-email`,
+        `${this.aiServiceUrl}/cv/parse-email`,
         { subject: emailSubject, body: emailBody, emailId },
       );
       return {
@@ -85,7 +85,7 @@ export class AiService {
   ): Promise<string | null> {
     try {
       const { data } = await axios.post<{ status: string | null }>(
-        `${this.coreUrl}/cv/detect-status`,
+        `${this.aiServiceUrl}/cv/detect-status`,
         {
           subject: emailSubject,
           body: emailBody,
@@ -107,7 +107,7 @@ export class AiService {
   ): Promise<CvMatchResult> {
     try {
       const { data } = await axios.post<CvMatchResult>(
-        `${this.coreUrl}/matching/score`,
+        `${this.aiServiceUrl}/matching/score`,
         { cvData, jobTitle, jobDescription },
       );
       return data;
@@ -124,7 +124,7 @@ export class AiService {
   async extractCvData(text: string): Promise<Record<string, unknown>> {
     try {
       const { data } = await axios.post<Record<string, unknown>>(
-        `${this.coreUrl}/cv/extract`,
+        `${this.aiServiceUrl}/cv/extract`,
         { text },
       );
       return data;
@@ -143,7 +143,7 @@ export class AiService {
   ): Promise<Record<string, unknown>> {
     try {
       const { data } = await axios.post<Record<string, unknown>>(
-        `${this.coreUrl}/analytics/stats`,
+        `${this.aiServiceUrl}/analytics/stats`,
         { applications },
       );
       return data;

@@ -21,7 +21,7 @@ Plateforme intelligente de gestion de candidatures et de recherche d'emploi, pro
 |--------|-------------|
 | Frontend | Angular 19, NG-Zorro, Apache ECharts, OpenLayers |
 | Backend | NestJS, TypeORM, PostgreSQL |
-| Core IA | FastAPI, Groq, pdfplumber |
+| AI Service | FastAPI, Groq, pdfplumber |
 | Emails | Gmail OAuth2, Microsoft Graph, Resend (transactionnel) |
 | Jobs | France Travail API (officielle) |
 | Auth | JWT, vérification d'email |
@@ -37,7 +37,7 @@ Plateforme intelligente de gestion de candidatures et de recherche d'emploi, pro
 ## Démarrage rapide
 
 ```bash
-# 1. Base de données + core IA
+# 1. Base de données + service IA
 docker-compose up -d
 
 # 2. Backend
@@ -68,12 +68,12 @@ L'app est disponible sur [http://localhost:4200](http://localhost:4200).
 | `MAIL_FROM` | Adresse d'expéditeur des emails transactionnels |
 | `GOOGLE_CLIENT_ID/SECRET` | Google OAuth (Gmail) |
 | `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` | Azure OAuth (Outlook) |
-| `CORE_API_URL` | URL du service core (défaut: `http://localhost:8001`) |
+| `AI_SERVICE_URL` | URL du service IA (défaut: `http://localhost:8001`) |
 | `FRANCE_TRAVAIL_CLIENT_ID/SECRET` | API France Travail |
 | `ADZUNA_APP_ID` | Adzuna App ID (offres d'emploi) |
 | `ADZUNA_APP_KEY` | Adzuna App Key |
 
-### Core (`core/.env`)
+### AI Service (`ai-service/.env`)
 
 | Variable | Description |
 |----------|-------------|
@@ -93,9 +93,9 @@ OstIA/
 │       ├── mail/         # Envoi SMTP (nodemailer)
 │       ├── jobs/         # France Travail API
 │       ├── cv/           # Upload & parsing CV
-│       ├── ai/           # Client vers le core (Groq)
+│       ├── ai/           # Client vers le service IA (Groq)
 │       └── migrations/   # Migrations TypeORM
-├── core/             # Microservice Python FastAPI
+├── ai-service/        # Microservice Python FastAPI
 │   └── app/
 │       ├── routers/      # cv, matching, analytics
 │       └── services/     # cv_parser, job_matcher, ai_client
@@ -113,4 +113,4 @@ Chaque service est déployé sur Railway. Configurer les secrets GitHub suivants
 
 - `RAILWAY_TOKEN` - Token Railway (Settings → Tokens)
 - `RAILWAY_SERVICE_BACKEND` - ID du service backend Railway
-- `RAILWAY_SERVICE_CORE` - ID du service core Railway
+- `RAILWAY_SERVICE_AI` - ID du service IA Railway

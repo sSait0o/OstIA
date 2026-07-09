@@ -30,7 +30,7 @@ logging.config.dictConfig(
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
-app = FastAPI(title="Ostia Core", version="1.0.0")
+app = FastAPI(title="Ostia AI Service", version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

@@ -19,11 +19,11 @@ services:
       timeout: 5s
       retries: 5
 
-  core:
-    build: ./core
-    container_name: ostia_core
+  ai-service:
+    build: ./ai-service
+    container_name: ostia_ai_service
     restart: unless-stopped
-    env_file: ./core/.env
+    env_file: ./ai-service/.env
     ports:
       - '8001:8001'
     healthcheck:
