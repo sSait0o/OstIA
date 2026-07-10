@@ -1,28 +1,40 @@
 import {
+  BeforeInsert,
+  BeforeUpdate,
   Entity,
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
   OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { Application } from '../../applications/entities/application.entity';
 import { EmailConnection } from '../../email/entities/email-connection.entity';
 import { Job } from '../../jobs/entities/job.entity';
+import { hmacEmail } from '../../common/crypto.util';
+import {
+  encryptedStringTransformer,
+  encryptedJsonTransformer,
+} from '../../common/encrypted.transformer';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'text', transformer: encryptedStringTransformer })
   email: string;
 
-  @Column()
+  @Index({ unique: true })
+  @Column({ type: 'varchar', length: 64 })
+  emailHash: string;
+
+  @Column({ type: 'text', transformer: encryptedStringTransformer })
   firstName: string;
 
-  @Column()
+  @Column({ type: 'text', transformer: encryptedStringTransformer })
   lastName: string;
 
   @Exclude()
@@ -48,7 +60,11 @@ export class User {
   @Column({ nullable: true, type: 'timestamptz' })
   passwordResetExpires: Date | null;
 
-  @Column({ nullable: true, type: 'jsonb' })
+  @Column({
+    nullable: true,
+    type: 'text',
+    transformer: encryptedJsonTransformer,
+  })
   cvData: Record<string, any>;
 
   @Column({ type: 'timestamp', nullable: true })
@@ -68,4 +84,10 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  computeEmailHash(): void {
+    this.emailHash = hmacEmail(this.email);
+  }
 }

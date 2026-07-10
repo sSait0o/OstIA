@@ -16,7 +16,6 @@ import { AiService } from '../ai/ai.service';
 import { ApplicationsService } from '../applications/applications.service';
 import { ApplicationEmailsService } from '../applications/application-emails.service';
 import { ApplicationStatus } from '../applications/entities/application.entity';
-import { EncryptionService } from '../common/encryption.service';
 import {
   SyncProgress,
   SyncRateLimitedException,
@@ -49,7 +48,6 @@ export class EmailService {
     @InjectRepository(EmailConnection)
     private readonly connectionRepo: Repository<EmailConnection>,
     private readonly configService: ConfigService,
-    private readonly encryptionService: EncryptionService,
     private readonly aiService: AiService,
     private readonly applicationsService: ApplicationsService,
     private readonly syncRecordsService: EmailSyncRecordsService,
@@ -120,13 +118,9 @@ export class EmailService {
 
   private buildGmailClient(connection: EmailConnection): gmail_v1.Gmail {
     this.googleOAuth2Client.setCredentials({
-      access_token: this.encryptionService.decrypt(connection.accessToken),
+      access_token: connection.accessToken,
       ...(connection.refreshToken
-        ? {
-            refresh_token: this.encryptionService.decrypt(
-              connection.refreshToken,
-            ),
-          }
+        ? { refresh_token: connection.refreshToken }
         : {}),
     });
     return google.gmail({ version: 'v1', auth: this.googleOAuth2Client });
@@ -159,13 +153,8 @@ export class EmailService {
       });
 
     connection.email = profile.data.emailAddress ?? '';
-    connection.accessToken = this.encryptionService.encrypt(
-      tokens.access_token!,
-    );
-    if (tokens.refresh_token)
-      connection.refreshToken = this.encryptionService.encrypt(
-        tokens.refresh_token,
-      );
+    connection.accessToken = tokens.access_token!;
+    if (tokens.refresh_token) connection.refreshToken = tokens.refresh_token;
     if (tokens.expiry_date)
       connection.tokenExpiresAt = new Date(tokens.expiry_date);
     connection.isActive = true;
@@ -288,9 +277,8 @@ export class EmailService {
       });
 
     connection.email = email;
-    connection.accessToken = this.encryptionService.encrypt(accessToken);
-    if (refreshToken)
-      connection.refreshToken = this.encryptionService.encrypt(refreshToken);
+    connection.accessToken = accessToken;
+    if (refreshToken) connection.refreshToken = refreshToken;
     connection.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
     connection.isActive = true;
 
@@ -342,7 +330,6 @@ export class EmailService {
     const token = await refreshMicrosoftTokenIfNeeded(
       connection,
       this.configService,
-      this.encryptionService,
       this.connectionRepo,
     );
     const headers = { Authorization: `Bearer ${token}` };
