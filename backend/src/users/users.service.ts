@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { hmacEmail } from '../common/crypto.util';
 import {
   Application,
   ApplicationSource,
@@ -48,7 +49,7 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userRepo.findOne({ where: { email } });
+    return this.userRepo.findOne({ where: { emailHash: hmacEmail(email) } });
   }
 
   async findById(id: string): Promise<User | null> {

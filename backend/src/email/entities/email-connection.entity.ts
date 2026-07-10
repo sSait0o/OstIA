@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '@users/entities/user.entity';
+import { encryptedStringTransformer } from '@common/encrypted.transformer';
 
 export enum EmailProvider {
   GMAIL = 'GMAIL',
@@ -33,10 +34,14 @@ export class EmailConnection {
   @Column()
   email: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', transformer: encryptedStringTransformer })
   accessToken: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: encryptedStringTransformer,
+  })
   refreshToken: string;
 
   @Column({ nullable: true })
