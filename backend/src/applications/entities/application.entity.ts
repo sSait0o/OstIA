@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { encryptedStringTransformer } from '../../common/encrypted.transformer';
 
 export enum ApplicationStatus {
   APPLIED = 'APPLIED',
@@ -65,7 +66,11 @@ export class Application {
   @Column({ nullable: true, length: 500 })
   emailSubject: string;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({
+    nullable: true,
+    type: 'text',
+    transformer: encryptedStringTransformer,
+  })
   emailBody: string;
 
   @Column({ nullable: true })
@@ -77,7 +82,11 @@ export class Application {
   @Column({ nullable: true })
   salary: string;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({
+    nullable: true,
+    type: 'text',
+    transformer: encryptedStringTransformer,
+  })
   notes: string;
 
   @Column({ nullable: true, type: 'float' })

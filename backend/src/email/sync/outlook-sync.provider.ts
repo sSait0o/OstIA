@@ -6,7 +6,6 @@ import {
   EmailConnection,
   EmailProvider,
 } from '../entities/email-connection.entity';
-import { EncryptionService } from '../../common/encryption.service';
 import { extractEmailAddress } from './email-sync.engine';
 import {
   EmailSyncProvider,
@@ -86,12 +85,11 @@ export async function exchangeMicrosoftAuthCode(
 export async function refreshMicrosoftTokenIfNeeded(
   connection: EmailConnection,
   configService: ConfigService,
-  encryptionService: EncryptionService,
   connectionRepo: Repository<EmailConnection>,
 ): Promise<string> {
   const isExpired =
     connection.tokenExpiresAt && connection.tokenExpiresAt < new Date();
-  if (!isExpired) return encryptionService.decrypt(connection.accessToken);
+  if (!isExpired) return connection.accessToken;
 
   const clientId = configService.get<string>('MICROSOFT_CLIENT_ID')!;
   const clientSecret = configService.get<string>('MICROSOFT_CLIENT_SECRET')!;
@@ -100,7 +98,7 @@ export async function refreshMicrosoftTokenIfNeeded(
   const params = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
-    refresh_token: encryptionService.decrypt(connection.refreshToken),
+    refresh_token: connection.refreshToken,
     grant_type: 'refresh_token',
   });
 
@@ -110,7 +108,7 @@ export async function refreshMicrosoftTokenIfNeeded(
     { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
   );
 
-  connection.accessToken = encryptionService.encrypt(res.data.access_token);
+  connection.accessToken = res.data.access_token;
   connection.tokenExpiresAt = new Date(Date.now() + res.data.expires_in * 1000);
   await connectionRepo.save(connection);
 
