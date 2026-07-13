@@ -45,6 +45,12 @@ export class EmailConnection {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lastSyncedAt: Date | null;
+
+  @Column({ type: 'int', default: 0 })
+  syncAttemptCount: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

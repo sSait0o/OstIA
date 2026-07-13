@@ -7,6 +7,8 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { AuthService } from '../../../core/services/auth.service';
+import { syncPasswordMismatch } from '../../../shared/validators/password-match.validator';
+import { extractErrorMessage } from '../../../shared/utils/http-error.utils';
 
 @Component({
   selector: 'app-register',
@@ -28,16 +30,25 @@ export class RegisterComponent {
     lastName: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
+    confirmPassword: ['', Validators.required],
   });
+
+  constructor() {
+    syncPasswordMismatch(
+      this.form.get('password')!,
+      this.form.get('confirmPassword')!,
+    );
+  }
 
   onSubmit() {
     if (this.form.invalid) return;
     this.loading = true;
     const { firstName, lastName, email, password } = this.form.value;
     this.authService.register(firstName, lastName, email, password).subscribe({
-      next: () => this.router.navigate(['/']),
+      next: () =>
+        this.router.navigate(['/auth/verify-email-pending'], { queryParams: { email } }),
       error: (err) => {
-        this.message.error(err.error?.message || 'Erreur lors de la création du compte');
+        this.message.error(extractErrorMessage(err, 'Erreur lors de la création du compte'));
         this.loading = false;
       },
     });

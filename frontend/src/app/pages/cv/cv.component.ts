@@ -35,7 +35,7 @@ export class CvComponent implements OnInit {
     this.cvService.getCv().subscribe({
       next: ({ cvData }) => {
         if (cvData && (cvData.firstName || cvData.skills?.length || cvData.experience?.length)) {
-          this.cvData.set(cvData);
+          this.cvData.set(this.sortByRecency(cvData));
         }
       },
     });
@@ -68,7 +68,7 @@ export class CvComponent implements OnInit {
       next: ({ cvData }) => {
         this.uploading.set(false);
         if (cvData && (cvData.firstName || cvData.skills?.length || cvData.experience?.length)) {
-          this.cvData.set(cvData);
+          this.cvData.set(this.sortByRecency(cvData));
           this.message.success('CV analysé ! Recherche des offres en cours...');
           setTimeout(() => this.router.navigate(['/jobs']), 1500);
         } else {
@@ -80,5 +80,21 @@ export class CvComponent implements OnInit {
         this.uploading.set(false);
       },
     });
+  }
+
+  private sortByRecency(cvData: CvData): CvData {
+    const latestYear = (text: string) => {
+      const years = text?.match(/\d{4}/g);
+      return years ? Math.max(...years.map(Number)) : 0;
+    };
+    return {
+      ...cvData,
+      experience: [...(cvData.experience ?? [])].sort(
+        (a, b) => latestYear(b.duration) - latestYear(a.duration),
+      ),
+      education: [...(cvData.education ?? [])].sort(
+        (a, b) => latestYear(b.year) - latestYear(a.year),
+      ),
+    };
   }
 }

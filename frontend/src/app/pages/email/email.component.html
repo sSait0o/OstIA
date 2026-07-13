@@ -1,87 +1,178 @@
-<div class="email-page">
+<div class="email-page" data-tutorial="email-page">
   <div class="page-header">
     <h2 class="page-title">Synchronisation email</h2>
     <p class="subtitle">Connectez vos boîtes mail pour importer automatiquement vos candidatures</p>
   </div>
 
-  @if (loading()) {
-    <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
-  } @else {
+  <div nz-row [nzGutter]="[24, 24]">
+    <div nz-col [nzXs]="24" [nzLg]="16">
+      <nz-alert
+        nzType="info"
+        nzShowIcon
+        nzMessage="Seuls les emails reçus dans les 2 derniers mois sont analysés."
+        class="sync-window-alert"
+      ></nz-alert>
 
-    @if (emailConnections().length > 0) {
-      <nz-card class="section-card" nzTitle="Comptes connectés">
-        <div class="connections-list">
-          @for (conn of emailConnections(); track conn.id) {
-            <div class="connection-item">
-              <div class="connection-info">
-                <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'" class="provider-icon"></span>
-                <div>
-                  <div class="provider-name">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</div>
-                  <div class="provider-email">{{ conn.email }}</div>
+      @if (loading()) {
+        <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+      } @else {
+
+        @if (emailConnections().length > 0) {
+          <nz-card class="section-card" nzTitle="Comptes connectés">
+            <div class="connections-list">
+              @for (conn of emailConnections(); track conn.id) {
+                <div class="connection-item">
+                  <div class="connection-info">
+                    <span nz-icon [nzType]="conn.provider === 'GMAIL' ? 'mail' : 'laptop'" class="provider-icon"></span>
+                    <div>
+                      <div class="provider-name">{{ conn.provider === 'GMAIL' ? 'Gmail' : 'Outlook' }}</div>
+                      <div class="provider-email">{{ conn.email }}</div>
+                    </div>
+                  </div>
+                  <div class="connection-actions">
+                    <nz-tag nzColor="green">Actif</nz-tag>
+                    <button nz-button nzSize="small" nzDanger (click)="disconnect(conn.id)">
+                      <span nz-icon nzType="disconnect"></span> Déconnecter
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div class="connection-actions">
-                <nz-tag nzColor="green">Actif</nz-tag>
-                <button nz-button nzSize="small" nzDanger (click)="disconnect(conn.id)">
-                  <span nz-icon nzType="disconnect"></span> Déconnecter
-                </button>
-              </div>
+              }
             </div>
+          </nz-card>
+        }
+
+        <nz-card class="section-card provider-card">
+          <div class="provider-header">
+            <span nz-icon nzType="mail" class="provider-icon-lg"></span>
+            <div>
+              <div class="provider-title">Gmail</div>
+              <div class="provider-desc">Synchronisez vos emails Google pour détecter automatiquement vos candidatures</div>
+            </div>
+            <nz-tag [nzColor]="hasGmail() ? 'green' : 'default'">
+              {{ hasGmail() ? 'Connecté' : 'Non connecté' }}
+            </nz-tag>
+          </div>
+          <div class="provider-actions">
+            <button nz-button [nzType]="hasGmail() ? 'default' : 'primary'" [class.connected-btn]="hasGmail()" (click)="connectGmail()" [disabled]="hasGmail()">
+              <span nz-icon nzType="mail"></span>
+              {{ hasGmail() ? 'Compte connecté' : 'Connecter Gmail' }}
+            </button>
+            <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="emailService.syncingGmail()" [disabled]="!hasGmail() || emailService.syncingGmail() || gmailSyncRemainingMs() > 0">
+              <span nz-icon nzType="sync"></span>
+              {{ gmailSyncRemainingMs() > 0 ? 'Synchroniser dans ' + formatCountdown(gmailSyncRemainingMs()) : formatAttemptsRemaining(gmailSyncAttemptsRemaining()) }}
+            </button>
+            <button nz-button nzType="default" nzDanger [disabled]="!hasGmail()"
+                    nz-popconfirm
+                    nzPopconfirmTitle="Supprimer toutes les candidatures et l'historique de sync Gmail, et retirer les sous-libellés (garder juste OstIA) ? Vous pourrez resynchroniser proprement ensuite."
+                    nzPopconfirmPlacement="bottom"
+                    (nzOnConfirm)="resetGmailData()">
+              <span nz-icon nzType="delete"></span> Tout supprimer
+            </button>
+          </div>
+          @if (emailService.syncingGmail()) {
+            <nz-progress
+              [nzPercent]="emailService.gmailSyncPercent()"
+              [nzStatus]="emailService.gmailSyncPercent() === 100 ? 'success' : 'active'"
+              class="sync-progress"
+            ></nz-progress>
+            @if (emailService.gmailSyncTotal()) {
+              <div class="sync-detail">
+                Email {{ emailService.gmailSyncCurrent() }} / {{ emailService.gmailSyncTotal() }}
+                @if (emailService.gmailSyncEtaSeconds() > 0) {
+                  <span> · ~{{ formatEta(emailService.gmailSyncEtaSeconds()) }} restantes</span>
+                }
+              </div>
+            }
           }
+        </nz-card>
+
+        <nz-card class="section-card provider-card provider-card--disabled">
+          <div class="provider-header">
+            <span nz-icon nzType="laptop" class="provider-icon-lg"></span>
+            <div>
+              <div class="provider-title">Outlook</div>
+              <div class="provider-desc">Synchronisez vos emails Microsoft pour détecter automatiquement vos candidatures</div>
+            </div>
+            <nz-tag nzColor="default">Bientôt disponible</nz-tag>
+          </div>
+          <div class="provider-actions">
+            <button nz-button nzType="primary" disabled>
+              <span nz-icon nzType="laptop"></span>
+              Connecter Outlook
+            </button>
+            <button nz-button nzType="default" disabled>
+              <span nz-icon nzType="sync"></span>
+              Synchroniser
+            </button>
+            <button nz-button nzType="default" nzDanger disabled>
+              <span nz-icon nzType="delete"></span> Tout supprimer
+            </button>
+          </div>
+        </nz-card>
+
+      }
+    </div>
+
+    <div nz-col [nzXs]="24" [nzLg]="8">
+      <nz-card nzTitle="Comment fonctionne le tri des emails ?" class="how-it-works-card">
+        <div nz-row [nzGutter]="16">
+          <div nz-col [nzXs]="24" [nzSm]="14">
+            <ol class="how-it-works-steps">
+              <li>
+                <span class="step-text">
+                  Créez vous-même un libellé <strong>"OstIA"</strong> dans Gmail (ou un dossier "OstIA" dans Outlook)
+                  et déplacez-y vos emails de candidature. OstIA n'analyse que les emails que vous y placez.
+                </span>
+              </li>
+              <li>
+                <span class="step-text">
+                  Pour chaque email de ce libellé, OstIA lit le sujet et le corps pour repérer une candidature
+                  (mots-clés + IA), en extraire l'entreprise et le poste, puis lui attribuer un statut :
+                </span>
+                <div class="status-legend">
+                  <nz-tag nzColor="default">Envoyée</nz-tag>
+                  <nz-tag nzColor="orange">Entretien</nz-tag>
+                  <nz-tag nzColor="purple">Test technique</nz-tag>
+                  <nz-tag nzColor="green">Offre</nz-tag>
+                  <nz-tag nzColor="red">Refusé</nz-tag>
+                </div>
+              </li>
+              <li>
+                <span class="step-text">
+                  Les sous-libellés correspondants sont créés et appliqués automatiquement sous "OstIA" pour retrouver
+                  l'email d'origine, et la candidature apparaît dans votre <a routerLink="/kanban">Kanban</a> avec ce statut.
+                </span>
+              </li>
+            </ol>
+          </div>
+          <div nz-col [nzXs]="24" [nzSm]="10">
+            <button type="button" class="thumbnail-btn" (click)="imageModalVisible = true">
+              <img
+                src="/resources/OstIA_Tuto.jpg"
+                alt="Créer le libellé OstIA dans Gmail via le + à côté de Libellés"
+                class="how-it-works-thumb"
+              />
+              <span class="thumbnail-zoom"><span nz-icon nzType="zoom-in"></span></span>
+            </button>
+          </div>
         </div>
       </nz-card>
-    }
-
-    <nz-card class="section-card provider-card">
-      <div class="provider-header">
-        <span nz-icon nzType="mail" class="provider-icon-lg"></span>
-        <div>
-          <div class="provider-title">Gmail</div>
-          <div class="provider-desc">Synchronisez vos emails Google pour détecter automatiquement vos candidatures</div>
-        </div>
-        <nz-tag [nzColor]="hasGmail() ? 'green' : 'default'">
-          {{ hasGmail() ? 'Connecté' : 'Non connecté' }}
-        </nz-tag>
-      </div>
-      <div class="provider-actions">
-        <button nz-button [nzType]="hasGmail() ? 'default' : 'primary'" [class.connected-btn]="hasGmail()" (click)="connectGmail()" [disabled]="hasGmail()">
-          <span nz-icon nzType="mail"></span>
-          {{ hasGmail() ? 'Compte connecté' : 'Connecter Gmail' }}
-        </button>
-        <button nz-button nzType="default" (click)="syncGmail()" [nzLoading]="syncingGmail()" [disabled]="!hasGmail() || syncingGmail()">
-          <span nz-icon nzType="sync"></span> Synchroniser
-        </button>
-      </div>
-      @if (syncingGmail()) {
-        <nz-progress
-          [nzPercent]="gmailSyncPercent()"
-          [nzStatus]="gmailSyncPercent() === 100 ? 'success' : 'active'"
-          class="sync-progress"
-        ></nz-progress>
-      }
-    </nz-card>
-
-    <nz-card class="section-card provider-card">
-      <div class="provider-header">
-        <span nz-icon nzType="laptop" class="provider-icon-lg"></span>
-        <div>
-          <div class="provider-title">Outlook</div>
-          <div class="provider-desc">Synchronisez vos emails Microsoft pour détecter automatiquement vos candidatures</div>
-        </div>
-        <nz-tag [nzColor]="hasOutlook() ? 'green' : 'default'">
-          {{ hasOutlook() ? 'Connecté' : 'Non connecté' }}
-        </nz-tag>
-      </div>
-      <div class="provider-actions">
-        <button nz-button [nzType]="hasOutlook() ? 'default' : 'primary'" [class.connected-btn]="hasOutlook()" (click)="connectOutlook()" [disabled]="hasOutlook()">
-          <span nz-icon nzType="laptop"></span>
-          {{ hasOutlook() ? 'Compte connecté' : 'Connecter Outlook' }}
-        </button>
-        <button nz-button nzType="default" (click)="syncOutlook()" [nzLoading]="syncingOutlook()" [disabled]="!hasOutlook()">
-          <span nz-icon nzType="sync"></span> Synchroniser
-        </button>
-      </div>
-    </nz-card>
-
-  }
+    </div>
+  </div>
 </div>
+
+<nz-modal
+  [(nzVisible)]="imageModalVisible"
+  [nzFooter]="null"
+  nzTitle="Créer le libellé OstIA dans Gmail"
+  nzWidth="420px"
+  (nzOnCancel)="imageModalVisible = false"
+>
+  <ng-container *nzModalContent>
+    <img
+      src="/resources/OstIA_Tuto.jpg"
+      alt="Créer le libellé OstIA dans Gmail via le + à côté de Libellés"
+      class="how-it-works-modal-image"
+    />
+  </ng-container>
+</nz-modal>

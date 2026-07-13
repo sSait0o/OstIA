@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, computed, effect, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -7,38 +8,102 @@ import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { EmailService, EmailConnection } from '../../core/services/email.service';
-import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-email',
   standalone: true,
   imports: [
+    RouterLink,
     NzCardModule, NzButtonModule, NzIconModule, NzTagModule,
-    NzDividerModule, NzProgressModule, NzSpinModule,
+    NzDividerModule, NzProgressModule, NzSpinModule, NzPopconfirmModule,
+    NzAlertModule, NzGridModule, NzModalModule,
   ],
   templateUrl: './email.component.html',
   styleUrl: './email.component.scss',
 })
-export class EmailComponent implements OnInit {
-  private readonly emailService = inject(EmailService);
-  private readonly authService = inject(AuthService);
+export class EmailComponent implements OnInit, OnDestroy {
+  readonly emailService = inject(EmailService);
   private readonly message = inject(NzMessageService);
 
   loading = signal(true);
-  syncingGmail = signal(false);
-  syncingOutlook = signal(false);
-  gmailSyncPercent = signal(0);
   emailConnections = signal<EmailConnection[]>([]);
+  now = signal(Date.now());
+  imageModalVisible = false;
+
+  private tickInterval?: ReturnType<typeof setInterval>;
+  private wasSyncingGmail = false;
+  private wasSyncingOutlook = false;
 
   hasGmail = computed(() => this.emailConnections().some((c) => c.provider === 'GMAIL'));
   hasOutlook = computed(() => this.emailConnections().some((c) => c.provider === 'OUTLOOK'));
 
+  gmailSyncRemainingMs = computed(() =>
+    this.remainingMs(this.emailConnections().find((c) => c.provider === 'GMAIL')?.nextSyncAvailableAt),
+  );
+  outlookSyncRemainingMs = computed(() =>
+    this.remainingMs(this.emailConnections().find((c) => c.provider === 'OUTLOOK')?.nextSyncAvailableAt),
+  );
+
+  gmailSyncAttemptsRemaining = computed(
+    () => this.emailConnections().find((c) => c.provider === 'GMAIL')?.syncAttemptsRemaining ?? 3,
+  );
+  outlookSyncAttemptsRemaining = computed(
+    () => this.emailConnections().find((c) => c.provider === 'OUTLOOK')?.syncAttemptsRemaining ?? 3,
+  );
+
+  constructor() {
+    effect(() => {
+      const syncing = this.emailService.syncingGmail();
+      if (this.wasSyncingGmail && !syncing) this.refreshConnections();
+      this.wasSyncingGmail = syncing;
+    });
+    effect(() => {
+      const syncing = this.emailService.syncingOutlook();
+      if (this.wasSyncingOutlook && !syncing) this.refreshConnections();
+      this.wasSyncingOutlook = syncing;
+    });
+  }
+
   ngOnInit() {
+    this.tickInterval = setInterval(() => this.now.set(Date.now()), 1000);
     this.emailService.getConnections().subscribe({
       next: (conns) => { this.emailConnections.set(conns); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
+  }
+
+  ngOnDestroy() {
+    if (this.tickInterval) clearInterval(this.tickInterval);
+  }
+
+  private refreshConnections() {
+    this.emailService.getConnections().subscribe({
+      next: (conns) => this.emailConnections.set(conns),
+    });
+  }
+
+  private remainingMs(nextSyncAvailableAt: string | null | undefined): number {
+    if (!nextSyncAvailableAt) return 0;
+    return Math.max(0, new Date(nextSyncAvailableAt).getTime() - this.now());
+  }
+
+  formatCountdown(ms: number): string {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}min`;
+    if (m > 0) return `${m}min ${String(s).padStart(2, '0')}s`;
+    return `${s}s`;
+  }
+
+  formatAttemptsRemaining(n: number): string {
+    return `Synchroniser (${n} essai${n > 1 ? 's' : ''} restant${n > 1 ? 's' : ''})`;
   }
 
   connectGmail() {
@@ -54,37 +119,46 @@ export class EmailComponent implements OnInit {
   }
 
   syncGmail() {
-    const token = this.authService.getToken();
-    if (!token) return;
-    this.syncingGmail.set(true);
-    this.gmailSyncPercent.set(0);
-    this.emailService.syncGmailStream(token).subscribe({
-      next: (p) => {
-        this.gmailSyncPercent.set(p.percent);
-        if (p.done) {
-          const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
-          if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
-          if (p.failed) parts.push(`${p.failed} non reconnu(s) par l'IA`);
-          this.message.success(parts.join(', '));
-          this.syncingGmail.set(false);
-        }
-      },
-      error: () => { this.message.error('Erreur de synchronisation Gmail'); this.syncingGmail.set(false); },
-    });
+    if (this.gmailSyncRemainingMs() > 0) return;
+    this.emailService.startGmailSync();
   }
 
   syncOutlook() {
-    this.syncingOutlook.set(true);
-    this.emailService.syncOutlook().subscribe({
-      next: ({ synced, created, skipped, failed }) => {
-        const parts: string[] = [`${synced} emails analysés`, `${created} candidature(s) créée(s)`];
-        if (skipped) parts.push(`${skipped} doublon(s) ignoré(s)`);
-        if (failed) parts.push(`${failed} non reconnu(s) par l'IA`);
-        this.message.success(parts.join(', '));
-        this.syncingOutlook.set(false);
+    if (this.outlookSyncRemainingMs() > 0) return;
+    this.emailService.startOutlookSync();
+  }
+
+  resetGmailData() {
+    this.emailService.resetGmailData().subscribe({
+      next: ({ applicationsRemoved, syncRecordsRemoved, labelsStripped, labelsRemaining }) => {
+        this.message.success(
+          `${applicationsRemoved} candidature(s) et ${syncRecordsRemoved} entrée(s) de sync supprimées, ${labelsStripped} email(s) repassé(s) en libellé OstIA seul`,
+        );
+        if (labelsRemaining > 0) {
+          this.message.warning(
+            `${labelsRemaining} email(s) gardent encore un sous-libellé malgré la vérification. Relancez "Tout supprimer" pour réessayer.`,
+          );
+        }
       },
-      error: () => { this.message.error('Erreur de synchronisation Outlook'); this.syncingOutlook.set(false); },
+      error: () => this.message.error('Erreur lors de la suppression des données Gmail'),
     });
+  }
+
+  resetOutlookData() {
+    this.emailService.resetOutlookData().subscribe({
+      next: ({ applicationsRemoved, syncRecordsRemoved }) => {
+        this.message.success(
+          `${applicationsRemoved} candidature(s) et ${syncRecordsRemoved} entrée(s) de sync supprimées`,
+        );
+      },
+      error: () => this.message.error('Erreur lors de la suppression des données Outlook'),
+    });
+  }
+
+  formatEta(seconds: number): string {
+    if (seconds < 60) return `${seconds} s`;
+    const minutes = Math.round(seconds / 60);
+    return `${minutes} min`;
   }
 
   disconnect(id: string) {

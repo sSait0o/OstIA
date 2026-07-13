@@ -1,22 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-
-export type ApplicationStatus =
-  | 'APPLIED'
-  | 'ACKNOWLEDGED'
-  | 'TECHNICAL'
-  | 'INTERVIEW'
-  | 'OFFER'
-  | 'REJECTED'
-  | 'WITHDRAWN';
+import { ApplicationStatus, ApplicationSource } from '../../shared/models/application.model';
 
 export interface Application {
   id: string;
   company: string;
   jobTitle: string;
   status: ApplicationStatus;
-  source: 'EMAIL' | 'MANUAL' | 'JOB_BOARD';
+  source: ApplicationSource;
   jobUrl?: string;
   location?: string;
   salary?: string;
@@ -28,6 +20,14 @@ export interface Application {
   updatedAt: string;
 }
 
+export interface ApplicationEmail {
+  id: string;
+  subject: string | null;
+  body: string | null;
+  statusDetected: ApplicationStatus | null;
+  receivedAt: string | null;
+}
+
 export interface KanbanBoard {
   APPLIED: Application[];
   ACKNOWLEDGED: Application[];
@@ -35,7 +35,6 @@ export interface KanbanBoard {
   INTERVIEW: Application[];
   OFFER: Application[];
   REJECTED: Application[];
-  WITHDRAWN: Application[];
 }
 
 export interface ApplicationStats {
@@ -43,14 +42,13 @@ export interface ApplicationStats {
   byStatus: Record<ApplicationStatus, number>;
   responseRate: number;
   byMonth?: { month: string; count: number }[];
-  bySource?: { EMAIL: number; MANUAL: number; JOB_BOARD: number };
 }
 
 export interface CreateApplicationDto {
   company: string;
   jobTitle: string;
   status?: ApplicationStatus;
-  source?: 'EMAIL' | 'MANUAL' | 'JOB_BOARD';
+  source?: ApplicationSource;
   jobUrl?: string;
   location?: string;
   salary?: string;
@@ -76,6 +74,10 @@ export class ApplicationsService {
 
   getStats() {
     return this.http.get<ApplicationStats>(`${this.base}/stats`);
+  }
+
+  getEmails(id: string) {
+    return this.http.get<ApplicationEmail[]>(`${this.base}/${id}/emails`);
   }
 
   create(dto: CreateApplicationDto) {

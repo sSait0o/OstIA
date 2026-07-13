@@ -3,6 +3,12 @@ import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./pages/landing/landing.component').then((m) => m.LandingComponent),
+  },
+  {
     path: 'auth',
     children: [
       {
@@ -15,6 +21,34 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/auth/register/register.component').then((m) => m.RegisterComponent),
       },
+      {
+        path: 'verify-email-pending',
+        loadComponent: () =>
+          import('./pages/auth/verify-email-pending/verify-email-pending.component').then(
+            (m) => m.VerifyEmailPendingComponent,
+          ),
+      },
+      {
+        path: 'verify-email',
+        loadComponent: () =>
+          import('./pages/auth/verify-email/verify-email.component').then(
+            (m) => m.VerifyEmailComponent,
+          ),
+      },
+      {
+        path: 'forgot-password',
+        loadComponent: () =>
+          import('./pages/auth/forgot-password/forgot-password.component').then(
+            (m) => m.ForgotPasswordComponent,
+          ),
+      },
+      {
+        path: 'reset-password',
+        loadComponent: () =>
+          import('./pages/auth/reset-password/reset-password.component').then(
+            (m) => m.ResetPasswordComponent,
+          ),
+      },
     ],
   },
   {
@@ -23,7 +57,6 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./layout/main-layout/main-layout.component').then((m) => m.MainLayoutComponent),
     children: [
-      { path: '', redirectTo: 'kanban', pathMatch: 'full' },
       {
         path: 'kanban',
         loadComponent: () =>

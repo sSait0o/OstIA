@@ -97,6 +97,7 @@
 
   <nz-select
     [(ngModel)]="scoreFilter"
+    (ngModelChange)="onScoreFilterChange()"
     class="filter-select"
   >
     @for (opt of scoreFilterOptions; track opt.value) {

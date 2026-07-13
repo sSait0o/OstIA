@@ -1,7 +1,7 @@
 <div class="auth-container">
   <nz-card class="auth-card">
     <div class="auth-header">
-      <h1>OstIA</h1>
+      <img src="/favicon.ico" alt="OstIA" class="brand-logo" />
       <p>Créer un compte</p>
     </div>
     <form nz-form [formGroup]="form" (ngSubmit)="onSubmit()">
@@ -25,6 +25,19 @@
       <nz-form-item>
         <nz-form-control nzErrorTip="Min. 8 caractères">
           <input nz-input formControlName="password" placeholder="Mot de passe" type="password" />
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-control [nzErrorTip]="confirmPasswordErrorTip">
+          <input
+            nz-input
+            formControlName="confirmPassword"
+            placeholder="Confirmer le mot de passe"
+            type="password"
+          />
+          <ng-template #confirmPasswordErrorTip let-control>
+            {{ control.hasError('passwordMismatch') ? 'Les mots de passe ne correspondent pas' : 'Requis' }}
+          </ng-template>
         </nz-form-control>
       </nz-form-item>
       <button nz-button nzType="primary" nzBlock [nzLoading]="loading" type="submit">

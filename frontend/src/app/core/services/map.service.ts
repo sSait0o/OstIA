@@ -1,17 +1,18 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { ApplicationStatus, ApplicationSource } from '../../shared/models/application.model';
 
 export interface MapApplication {
   id: string;
   company: string;
   jobTitle: string;
-  status: string;
+  status: ApplicationStatus;
   location: string | null;
   resolvedLocation: string | null;
   lat: number | null;
   lon: number | null;
-  source: string | null;
+  source: ApplicationSource | null;
   emailSubject: string | null;
   emailBody: string | null;
   emailId: string | null;
@@ -26,7 +27,8 @@ export interface GeocodeResult {
   lat: number | null;
   lon: number | null;
   resolvedLocation: string | null;
-  confidence: 'geocoded' | 'ai_guess' | 'failed';
+  confidence: 'geocoded' | 'web_search' | 'ai_guess' | 'failed';
+  jobUrl: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -62,11 +64,18 @@ export class MapService {
     });
   }
 
-  saveCoordinates(id: string, lat: number, lon: number, resolvedLocation: string) {
+  saveCoordinates(
+    id: string,
+    lat: number,
+    lon: number,
+    resolvedLocation: string,
+    jobUrl?: string,
+  ) {
     return this.http.patch(`${this.appsBase}/${id}/coordinates`, {
       lat,
       lon,
       resolvedLocation,
+      ...(jobUrl ? { jobUrl } : {}),
     });
   }
 

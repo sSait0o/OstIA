@@ -9,17 +9,19 @@ src/
 ├── app.module.ts         # Module racine - configure TypeORM + importe tous les modules
 ├── main.ts               # Point d'entrée - démarre le serveur, configure Swagger, CORS, validation
 │
-├── auth/                 # Authentification JWT
+├── auth/                 # Authentification JWT + vérification d'email
 │   ├── strategies/       # Stratégies Passport (jwt, jwt-query, local)
 │   ├── guards/           # Guards NestJS (JwtAuthGuard, LocalAuthGuard)
 │   └── dto/              # Objets de transfert : LoginDto, RegisterDto
 │
 ├── users/                # Gestion des utilisateurs
 ├── applications/         # Candidatures (CRUD + statuts kanban)
-├── email/                # Connexion Gmail/Outlook via OAuth2
+├── email/                # Connexion Gmail/Outlook via OAuth2, sync IMAP, dédup par thread
+├── mail/                 # Envoi d'emails transactionnels (SMTP/nodemailer)
 ├── cv/                   # Upload et analyse de CV (forwarde vers le service core)
 ├── jobs/                 # Recherche d'offres (France Travail + Adzuna)
-└── ai/                   # Intégration Claude API (parsing emails)
+├── ai/                   # Client vers le service core pour le parsing IA (Groq)
+└── migrations/           # Migrations TypeORM
 ```
 
 Chaque module suit la même convention NestJS :

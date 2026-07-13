@@ -10,6 +10,8 @@ import {
   ApplicationSource,
   ApplicationStatus,
 } from './entities/application.entity';
+import { ApplicationEmail } from './entities/application-email.entity';
+import { ApplicationEmailsService } from './application-emails.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { User } from '../users/entities/user.entity';
@@ -19,6 +21,7 @@ export class ApplicationsService {
   constructor(
     @InjectRepository(Application)
     private readonly appRepo: Repository<Application>,
+    private readonly applicationEmailsService: ApplicationEmailsService,
   ) {}
 
   async create(user: User, dto: CreateApplicationDto): Promise<Application> {
@@ -93,6 +96,19 @@ export class ApplicationsService {
     await this.appRepo.remove(app);
   }
 
+  async findEmailsForApplication(
+    userId: string,
+    id: string,
+  ): Promise<ApplicationEmail[]> {
+    const app = await this.appRepo.findOne({
+      where: { id },
+      relations: { user: true },
+    });
+    if (!app) throw new NotFoundException('Candidature non trouvée');
+    if (app.user.id !== userId) throw new ForbiddenException();
+    return this.applicationEmailsService.findForApplication(userId, id);
+  }
+
   async findForMap(userId: string) {
     const apps = await this.findAllByUser(userId);
     return apps.map((a) => ({
@@ -146,6 +162,14 @@ export class ApplicationsService {
     return { removed };
   }
 
+  async removeAllEmailSourced(userId: string): Promise<number> {
+    const result = await this.appRepo.delete({
+      user: { id: userId },
+      source: ApplicationSource.EMAIL,
+    });
+    return result.affected ?? 0;
+  }
+
   async resetAllCoordinates(userId: string): Promise<{ reset: number }> {
     const apps = await this.findAllByUser(userId);
     await Promise.all(
@@ -157,37 +181,48 @@ export class ApplicationsService {
     return { reset: apps.length };
   }
 
-  async findDuplicate(
+  private static readonly TERMINAL_STATUSES = new Set<ApplicationStatus>([
+    ApplicationStatus.OFFER,
+    ApplicationStatus.REJECTED,
+  ]);
+
+  async findByEmailId(
     userId: string,
-    emailId?: string,
-    company?: string,
-    jobTitle?: string,
+    emailId: string,
   ): Promise<Application | null> {
-    if (emailId) {
-      const byEmail = await this.appRepo.findOne({
-        where: { user: { id: userId }, emailId },
+    return this.appRepo.findOne({ where: { user: { id: userId }, emailId } });
+  }
+
+  async findDossierForEmail(
+    userId: string,
+    params: { threadId?: string; text: string },
+  ): Promise<Application | null> {
+    const { threadId, text } = params;
+
+    if (threadId) {
+      const byThread = await this.appRepo.findOne({
+        where: { user: { id: userId }, threadId },
       });
-      if (byEmail) return byEmail;
+      if (byThread) return byThread;
     }
 
-    if (company && jobTitle) {
-      const existing = await this.findAllByUser(userId);
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const nc = norm(company);
-      const nj = norm(jobTitle);
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nText = norm(text);
+    const existing = await this.findAllByUser(userId);
 
-      return (
-        existing.find((a) => {
-          const ec = norm(a.company);
-          const ej = norm(a.jobTitle);
-          const companySimilar =
-            ec === nc || ec.includes(nc) || nc.includes(ec);
-          return companySimilar && ej === nj;
-        }) ?? null
-      );
-    }
-
-    return null;
+    return (
+      existing.find((a) => {
+        if (ApplicationsService.TERMINAL_STATUSES.has(a.status)) return false;
+        const nc = norm(a.company);
+        const nj = norm(a.jobTitle);
+        return (
+          nc.length > 0 &&
+          nj.length > 0 &&
+          nText.includes(nc) &&
+          nText.includes(nj)
+        );
+      }) ?? null
+    );
   }
 
   async getStats(userId: string) {
@@ -199,10 +234,7 @@ export class ApplicationsService {
       {} as Record<ApplicationStatus, number>,
     );
 
-    const activeApps = apps.filter(
-      (a) => a.status !== ApplicationStatus.WITHDRAWN,
-    );
-    const responded = activeApps.filter((a) =>
+    const responded = apps.filter((a) =>
       [
         ApplicationStatus.INTERVIEW,
         ApplicationStatus.TECHNICAL,
@@ -211,9 +243,7 @@ export class ApplicationsService {
       ].includes(a.status),
     ).length;
     const responseRate =
-      activeApps.length > 0
-        ? Math.round((responded / activeApps.length) * 100)
-        : 0;
+      apps.length > 0 ? Math.round((responded / apps.length) * 100) : 0;
 
     const now = new Date();
     const byMonth = Array.from({ length: 6 }, (_, i) => {
@@ -232,13 +262,6 @@ export class ApplicationsService {
       return { month: label, count };
     });
 
-    const bySource = {
-      EMAIL: apps.filter((a) => a.source === ApplicationSource.EMAIL).length,
-      MANUAL: apps.filter((a) => a.source === ApplicationSource.MANUAL).length,
-      JOB_BOARD: apps.filter((a) => a.source === ApplicationSource.JOB_BOARD)
-        .length,
-    };
-
-    return { total, byStatus, responseRate, byMonth, bySource };
+    return { total, byStatus, responseRate, byMonth };
   }
 }

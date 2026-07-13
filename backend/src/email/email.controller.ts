@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
   Delete,
   Param,
   Query,
@@ -35,6 +34,14 @@ export class EmailController {
     return this.emailService.getConnections(req.user.id);
   }
 
+  @Get('sync/status')
+  @ApiOperation({
+    summary: 'Récupérer la progression de synchronisation en cours',
+  })
+  getSyncStatus(@Request() req: { user: { id: string } }) {
+    return this.emailService.getSyncStatus(req.user.id);
+  }
+
   @Get('google/auth')
   @ApiOperation({ summary: "Démarrer l'authentification Gmail" })
   googleAuth(@Request() req: { user: { id: string } }) {
@@ -47,16 +54,22 @@ export class EmailController {
     return { url: this.emailService.getMicrosoftAuthUrl(req.user.id) };
   }
 
-  @Post('sync/gmail')
-  @ApiOperation({ summary: 'Synchroniser les emails Gmail (dossier Ostia)' })
-  syncGmail(@Request() req: { user: { id: string } }) {
-    return this.emailService.syncGmailEmails(req.user.id);
+  @Delete('gmail/data')
+  @ApiOperation({
+    summary:
+      "Supprimer les candidatures et l'historique de sync Gmail pour resynchroniser proprement",
+  })
+  resetGmailData(@Request() req: { user: { id: string } }) {
+    return this.emailService.resetGmailData(req.user.id);
   }
 
-  @Post('sync/outlook')
-  @ApiOperation({ summary: 'Synchroniser les emails Outlook (dossier Ostia)' })
-  syncOutlook(@Request() req: { user: { id: string } }) {
-    return this.emailService.syncOutlookEmails(req.user.id);
+  @Delete('outlook/data')
+  @ApiOperation({
+    summary:
+      "Supprimer les candidatures et l'historique de sync Outlook pour resynchroniser proprement",
+  })
+  resetOutlookData(@Request() req: { user: { id: string } }) {
+    return this.emailService.resetOutlookData(req.user.id);
   }
 
   @Delete('connections/:id')
@@ -83,6 +96,17 @@ export class EmailSseController {
     try {
       const payload = this.jwtService.verify<{ sub: string }>(token);
       return this.emailService.syncGmailStream(payload.sub);
+    } catch {
+      throw new UnauthorizedException();
+    }
+  }
+
+  @Sse('sync/outlook/stream')
+  @ApiOperation({ summary: 'Synchroniser Outlook avec progression SSE' })
+  syncOutlookStream(@Query('token') token: string): Observable<MessageEvent> {
+    try {
+      const payload = this.jwtService.verify<{ sub: string }>(token);
+      return this.emailService.syncOutlookStream(payload.sub);
     } catch {
       throw new UnauthorizedException();
     }

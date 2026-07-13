@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from fastapi import HTTPException
 from app.services.ai_client import complete_json
 from app.constants import MAX_JOB_TEXT_LENGTH
 
@@ -14,7 +15,8 @@ def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:
         return 0.0
     desc_lower = job_description.lower()
     matches = sum(
-        1 for skill in cv_skills
+        1
+        for skill in cv_skills
         if re.search(r"\b" + re.escape(skill.lower()) + r"\b", desc_lower)
     )
     return round(matches / len(cv_skills) * 100, 1)
@@ -23,14 +25,21 @@ def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:
 def _cv_summary(cv_data: dict) -> str:
     relevant = {
         k: cv_data[k]
-        for k in ("firstName", "lastName", "skills", "experience", "education", "summary")
+        for k in (
+            "firstName",
+            "lastName",
+            "skills",
+            "experience",
+            "education",
+            "summary",
+        )
         if k in cv_data
     }
     text = json.dumps(relevant, ensure_ascii=False)
     return text[:_MAX_TEXT_LENGTH]
 
 
-def score_cv_job(cv_data: dict, job_title: str, job_description: str) -> dict:
+async def score_cv_job(cv_data: dict, job_title: str, job_description: str) -> dict:
     cv_skills: list[str] = cv_data.get("skills", [])
     preliminary = _keyword_overlap_score(cv_skills, job_description)
 
@@ -59,9 +68,15 @@ Return ONLY a valid JSON object:
   "summary": "1-2 sentence compatibility summary"
 }}"""
 
-    result = complete_json(prompt, max_tokens=512)
+    try:
+        result = await complete_json(prompt, max_tokens=1024)
+    except HTTPException:
+        result = None
+
     if not result or "score" not in result:
-        logger.warning("AI matching returned no usable result, falling back to keyword score")
+        logger.warning(
+            "AI matching returned no usable result, falling back to keyword score"
+        )
         return {
             "score": round(preliminary),
             "matchedSkills": cv_skills,

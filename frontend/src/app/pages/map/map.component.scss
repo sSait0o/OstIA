@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .map-page {
   position: relative;
   height: 100%;
@@ -23,6 +25,11 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 4px;
+
+  @include mx.mobile {
+    top: 8px;
+    left: 8px;
+  }
 }
 
 .map-nav-tab {
@@ -51,7 +58,7 @@
 }
 
 .map-nav-badge {
-  background: rgba(255, 100, 70, 0.9);
+  background: var(--accent-alert);
   color: #fff;
   border-radius: 10px;
   font-size: 10px;
@@ -75,6 +82,12 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 6px 14px;
+
+  @include mx.mobile {
+    top: 56px;
+    right: 8px;
+    padding: 4px 10px;
+  }
 }
 
 .map-count {
@@ -82,6 +95,12 @@
   color: rgba(255, 255, 255, 0.45);
 
   strong { color: #fff; }
+}
+
+.ai-hint-icon {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: help;
 }
 
 .map-panel {
@@ -103,7 +122,7 @@
     transform: translateX(0);
   }
 
-  @media (max-width: 575px) {
+  @include mx.tablet {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -114,7 +133,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 12px;
+  padding: 64px 16px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
@@ -278,7 +297,7 @@
 
 .email-header {
   padding: 20px 24px 16px;
-  background: #111;
+  background: var(--surface-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -314,13 +333,13 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  background: #0e0e0e;
+  background: var(--surface-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 16px 24px;
   column-gap: 32px;
   row-gap: 12px;
 
-  @media (max-width: 575px) {
+  @include mx.tablet {
     grid-template-columns: 1fr;
     padding: 12px 16px;
   }
@@ -365,6 +384,18 @@
   text-decoration: none;
 
   &:hover { color: #7bbdf5; text-decoration: underline; }
+}
+
+.meta-value-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-hint-icon {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: help;
 }
 
 .email-body-block {

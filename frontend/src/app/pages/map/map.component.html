@@ -23,6 +23,14 @@
     <span class="map-count">
       <strong>{{ locatedApps().length }}</strong> / {{ allApps().length }}
     </span>
+    <span
+      nz-icon
+      nzType="info-circle"
+      class="ai-hint-icon"
+      nz-tooltip
+      nzTooltipTitle="Localisation déduite par l'IA : une candidature peut apparaître au mauvais endroit sur la carte."
+      [nzTooltipOverlayStyle]="{ maxWidth: '260px' }"
+    ></span>
   </div>
 
   <div class="map-panel" [class.map-panel--open]="drawerVisible && activeTab() === 'map'">
@@ -138,9 +146,19 @@
           @if (emailApp.jobUrl) {
             <div class="meta-item">
               <span class="meta-label">Offre</span>
-              <a class="meta-link" [href]="emailApp.jobUrl" target="_blank" rel="noopener">
-                <span nz-icon nzType="link"></span> Voir l'offre
-              </a>
+              <div class="meta-value-row">
+                <a class="meta-link" [href]="emailApp.jobUrl" target="_blank" rel="noopener">
+                  <span nz-icon nzType="link"></span> Voir l'offre
+                </a>
+                <span
+                  nz-icon
+                  nzType="info-circle"
+                  class="meta-hint-icon"
+                  nz-tooltip
+                  nzTooltipTitle="Lien retrouvé automatiquement par l'IA : il illustre le poste (compétences, intitulé…) mais peut ne pas être l'annonce exacte."
+                  [nzTooltipOverlayStyle]="{ maxWidth: '260px' }"
+                ></span>
+              </div>
             </div>
           }
           @if (emailApp.notes) {

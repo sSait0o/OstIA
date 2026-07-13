@@ -89,4 +89,14 @@ export class CreateApplicationDto {
   @IsString()
   @IsOptional()
   emailBody?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  emailId?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  threadId?: string;
 }

@@ -1,26 +1,30 @@
 import {
-  ConflictException,
-  ForbiddenException,
   Injectable,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
-import { MailerService } from '../mailer/mailer.service';
+import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { User } from '../users/entities/user.entity';
 
-const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-    private readonly mailerService: MailerService,
-    private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -29,7 +33,9 @@ export class AuthService {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return null;
     if (!user.isEmailVerified) {
-      throw new ForbiddenException('Veuillez vérifier votre adresse email');
+      throw new ForbiddenException(
+        'Email non vérifié. Vérifiez votre boîte de réception.',
+      );
     }
     return user;
   }
@@ -49,55 +55,119 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) throw new ConflictException('Email déjà utilisé');
+    if (existing) {
+      if (!this.isReclaimable(existing)) {
+        throw new ConflictException('Email déjà utilisé');
+      }
+      await this.usersService.remove(existing.id);
+    }
 
     const hashed = await bcrypt.hash(dto.password, 12);
     const user = await this.usersService.create({ ...dto, password: hashed });
-    await this.sendVerificationEmail(user);
+    await this.issueVerificationToken(user);
+
     return {
       message:
-        'Compte créé. Vérifiez votre boîte mail pour activer votre compte.',
+        'Compte créé. Vérifiez votre boîte de réception pour confirmer votre email.',
     };
   }
 
-  async verifyEmail(token: string): Promise<void> {
-    const tokenHash = this.hashToken(token);
-    const user =
-      await this.usersService.findByEmailVerificationTokenHash(tokenHash);
+  async verifyEmail(token: string) {
+    const user = await this.usersService.findByVerificationToken(token);
     if (
       !user ||
-      !user.emailVerificationTokenExpiresAt ||
-      user.emailVerificationTokenExpiresAt.getTime() < Date.now()
+      !user.emailVerificationExpires ||
+      user.emailVerificationExpires.getTime() < Date.now()
     ) {
-      throw new ForbiddenException('Lien de vérification invalide ou expiré');
+      throw new BadRequestException('Lien de vérification invalide ou expiré');
     }
     await this.usersService.markEmailAsVerified(user.id);
+    return { message: 'Email vérifié, vous pouvez maintenant vous connecter.' };
   }
 
-  async resendVerificationEmail(email: string): Promise<void> {
+  async resendVerification(email: string) {
     const user = await this.usersService.findByEmail(email);
-    if (!user || user.isEmailVerified) return;
-    await this.sendVerificationEmail(user);
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    if (user.isEmailVerified) {
+      throw new ConflictException('Email déjà vérifié');
+    }
+    await this.issueVerificationToken(user);
+    return { message: 'Email de vérification renvoyé' };
   }
 
-  private async sendVerificationEmail(user: User): Promise<void> {
+  async forgotPassword(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (user) {
+      await this.issuePasswordResetToken(user);
+    }
+    return {
+      message:
+        'Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.',
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const user = await this.usersService.findByPasswordResetToken(token);
+    if (
+      !user ||
+      !user.passwordResetExpires ||
+      user.passwordResetExpires.getTime() < Date.now()
+    ) {
+      throw new BadRequestException(
+        'Lien de réinitialisation invalide ou expiré',
+      );
+    }
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await this.usersService.resetPassword(user.id, hashed);
+    return { message: 'Mot de passe mis à jour, vous pouvez vous connecter.' };
+  }
+
+  private isReclaimable(user: User): boolean {
+    return (
+      !user.isEmailVerified &&
+      (!user.emailVerificationExpires ||
+        user.emailVerificationExpires.getTime() < Date.now())
+    );
+  }
+
+  private issuePasswordResetToken(user: User) {
+    return this.issueToken(
+      user,
+      PASSWORD_RESET_TOKEN_TTL_MS,
+      (userId, token, expires) =>
+        this.usersService.setPasswordResetToken(userId, token, expires),
+      (u, token) =>
+        this.mailService.sendPasswordResetEmail(u.email, u.firstName, token),
+      "Envoi de l'email de réinitialisation",
+    );
+  }
+
+  private issueVerificationToken(user: User) {
+    return this.issueToken(
+      user,
+      VERIFICATION_TOKEN_TTL_MS,
+      (userId, token, expires) =>
+        this.usersService.setVerificationToken(userId, token, expires),
+      (u, token) =>
+        this.mailService.sendVerificationEmail(u.email, u.firstName, token),
+      "Envoi de l'email de vérification",
+    );
+  }
+
+  private async issueToken(
+    user: User,
+    ttlMs: number,
+    persist: (userId: string, token: string, expires: Date) => Promise<void>,
+    send: (user: User, token: string) => Promise<void>,
+    actionLabel: string,
+  ) {
     const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = this.hashToken(token);
-    const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TOKEN_TTL_MS);
-    await this.usersService.setEmailVerificationToken(
-      user.id,
-      tokenHash,
-      expiresAt,
-    );
-    const frontendUrl = this.configService.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:4200',
-    );
-    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
-    await this.mailerService.sendVerificationEmail(user.email, verificationUrl);
-  }
-
-  private hashToken(token: string): string {
-    return crypto.createHash('sha256').update(token).digest('hex');
+    const expires = new Date(Date.now() + ttlMs);
+    await persist(user.id, token, expires);
+    void send(user, token).catch((err) => {
+      this.logger.warn(
+        `${actionLabel} différé/échoué pour l'utilisateur ${user.id} (${user.email}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
   }
 }

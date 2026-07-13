@@ -31,10 +31,7 @@ export class ApplicationsController {
 
   @Post()
   @ApiOperation({ summary: 'Créer une candidature' })
-  create(
-    @Request() req: { user: User },
-    @Body() dto: CreateApplicationDto,
-  ) {
+  create(@Request() req: { user: User }, @Body() dto: CreateApplicationDto) {
     return this.applicationsService.create(req.user, dto);
   }
 
@@ -70,6 +67,12 @@ export class ApplicationsController {
     return this.applicationsService.findForMap(req.user.id);
   }
 
+  @Get(':id/emails')
+  @ApiOperation({ summary: 'Historique des mails liés à une candidature' })
+  findEmails(@Request() req: { user: User }, @Param('id') id: string) {
+    return this.applicationsService.findEmailsForApplication(req.user.id, id);
+  }
+
   @Delete('duplicates')
   @ApiOperation({
     summary: 'Supprimer les candidatures en double (même entreprise + poste)',
@@ -91,7 +94,13 @@ export class ApplicationsController {
   saveCoordinates(
     @Request() req: { user: User },
     @Param('id') id: string,
-    @Body() body: { lat: number; lon: number; resolvedLocation: string },
+    @Body()
+    body: {
+      lat: number;
+      lon: number;
+      resolvedLocation: string;
+      jobUrl?: string;
+    },
   ) {
     return this.applicationsService.update(req.user.id, id, body);
   }

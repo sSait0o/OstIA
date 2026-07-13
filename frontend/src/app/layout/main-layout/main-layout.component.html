@@ -6,18 +6,25 @@
 
 <div class="main-layout">
   <div class="app-header">
-    <div class="logo">
-      <span nz-icon nzType="compass" nzTheme="outline"></span>
-      <span class="logo-text">OstIA</span>
+    <div class="logo" routerLink="/kanban" data-tutorial="logo">
+      <img src="/favicon.ico" alt="OstIA" class="logo-img" />
     </div>
     <div class="header-bar">
       <div class="header-left">
         <button class="menu-trigger" (click)="toggleSidebar()">
           <span nz-icon [nzType]="isCollapsed() ? 'menu' : 'menu-fold'" nzTheme="outline"></span>
         </button>
-        <a routerLink="/email" class="sync-btn">
-          <span nz-icon nzType="sync" nzTheme="outline"></span>
+        <a routerLink="/email" class="sync-btn" [class.sync-btn--active]="isSyncing()" data-tutorial="sync-btn">
+          <span nz-icon [nzType]="isSyncing() ? 'loading' : 'sync'" nzTheme="outline"></span>
           <span class="sync-label">Sync email</span>
+          @if (isSyncing()) {
+            <span class="sync-percent">{{ syncPercent() }}%</span>
+          }
+          @if (isSyncing()) {
+            <span class="sync-btn-track">
+              <span class="sync-btn-fill" [style.width.%]="syncPercent()"></span>
+            </span>
+          }
         </a>
         @if (emailConnections().length > 0) {
           <span class="sync-accounts">
@@ -30,27 +37,22 @@
           </span>
         }
       </div>
-      <div class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight">
-        <nz-avatar nzIcon="user" class="user-avatar"></nz-avatar>
-        <span class="user-name">{{ auth.currentUser()?.firstName }}</span>
-        <span nz-icon nzType="down" class="user-chevron"></span>
-      </div>
-      <nz-dropdown-menu #userMenu="nzDropdownMenu">
-        <div class="user-dropdown">
-          <div class="user-dropdown-header">
-            <div class="user-dropdown-name">{{ auth.currentUser()?.firstName }} {{ auth.currentUser()?.lastName }}</div>
-            <div class="user-dropdown-email">{{ auth.currentUser()?.email }}</div>
-          </div>
-          <div class="user-dropdown-divider"></div>
-          <div class="user-dropdown-item" (click)="auth.logout()">
-            <span nz-icon nzType="logout"></span>
-            Déconnexion
-          </div>
+      <div class="header-right">
+        <button class="help-btn" (click)="tutorialService.start()" title="Revoir le tutoriel">
+          <span nz-icon nzType="question-circle" nzTheme="outline"></span>
+        </button>
+        <div class="user-menu" nz-dropdown [nzDropdownMenu]="userMenu" nzPlacement="bottomRight" data-tutorial="user-menu">
+          <nz-avatar nzIcon="user" class="user-avatar"></nz-avatar>
+          <span class="user-name">{{ auth.currentUser()?.firstName }}</span>
+          <span nz-icon nzType="down" class="user-chevron"></span>
         </div>
-      </nz-dropdown-menu>
+      </div>
     </div>
   </div>
   <nz-layout class="body-layout" [class.body-layout--map]="isMapRoute()">
+    @if (!isCollapsed()) {
+      <div class="sidebar-backdrop" (click)="toggleSidebar()"></div>
+    }
     <nz-sider nzTheme="dark"
               [nzCollapsed]="isCollapsed()"
               (nzCollapsedChange)="isCollapsed.set($event)"
@@ -60,15 +62,15 @@
       <ul nz-menu nzTheme="dark" nzMode="inline">
         <li nz-menu-group nzTitle="Organisation">
           <ul>
-            <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/kanban" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-kanban">
               <span nz-icon nzType="project" nzTheme="outline"></span>
               <span>Candidatures</span>
             </li>
-            <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/dashboard" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-dashboard">
               <span nz-icon nzType="bar-chart" nzTheme="outline"></span>
               <span>Dashboard</span>
             </li>
-            <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/map" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-map">
               <span nz-icon nzType="global" nzTheme="outline"></span>
               <span>Carte</span>
               @if (mapService.unlocatedCount() > 0) {
@@ -79,15 +81,15 @@
         </li>
         <li nz-menu-group nzTitle="Recherche">
           <ul>
-            <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/jobs" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-jobs">
               <span nz-icon nzType="search" nzTheme="outline"></span>
               <span>Offres</span>
             </li>
-            <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/saved-jobs" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-saved-jobs">
               <span nz-icon nzType="heart" nzTheme="outline"></span>
               <span>Favoris</span>
             </li>
-            <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected">
+            <li nz-menu-item routerLink="/cv" routerLinkActive="ant-menu-item-selected" data-tutorial="nav-cv">
               <span nz-icon nzType="file-text" nzTheme="outline"></span>
               <span>Mon CV</span>
             </li>
@@ -102,3 +104,46 @@
     </nz-layout>
   </nz-layout>
 </div>
+
+<nz-dropdown-menu #userMenu="nzDropdownMenu">
+  <div class="user-dropdown">
+    <div class="user-dropdown-header">
+      <div class="user-dropdown-name">{{ auth.currentUser()?.firstName }} {{ auth.currentUser()?.lastName }}</div>
+      <div class="user-dropdown-email">{{ auth.currentUser()?.email }}</div>
+    </div>
+    <div class="user-dropdown-divider"></div>
+    <div class="user-dropdown-item" (click)="auth.logout()">
+      <span nz-icon nzType="logout"></span>
+      Déconnexion
+    </div>
+    <div class="user-dropdown-divider"></div>
+    <div class="user-dropdown-item user-dropdown-item--danger" (click)="deleteAccountModalVisible.set(true)">
+      <span nz-icon nzType="delete"></span>
+      Supprimer mon compte et mes données
+    </div>
+  </div>
+</nz-dropdown-menu>
+
+<nz-modal
+  [nzVisible]="deleteAccountModalVisible()"
+  nzTitle="Supprimer mon compte"
+  [nzFooter]="deleteAccountModalFooter"
+  (nzOnCancel)="deleteAccountModalVisible.set(false)"
+>
+  <ng-container *nzModalContent>
+    <p>
+      Cette action est <strong>définitive et irréversible</strong>. Toutes vos données seront
+      immédiatement et complètement supprimées : profil, CV, candidatures, offres sauvegardées
+      et connexions email.
+    </p>
+    <p>Voulez-vous vraiment continuer ?</p>
+  </ng-container>
+</nz-modal>
+<ng-template #deleteAccountModalFooter>
+  <button nz-button nzType="default" (click)="deleteAccountModalVisible.set(false)">Annuler</button>
+  <button nz-button nzType="primary" nzDanger [nzLoading]="deletingAccount()" (click)="confirmDeleteAccount()">
+    Supprimer définitivement
+  </button>
+</ng-template>
+
+<app-tutorial-overlay />

@@ -34,14 +34,25 @@ export class User {
 
   @Exclude()
   @Column({ type: 'varchar', nullable: true })
-  emailVerificationTokenHash: string | null;
+  emailVerificationToken: string | null;
 
   @Exclude()
-  @Column({ type: 'timestamp', nullable: true })
-  emailVerificationTokenExpiresAt: Date | null;
+  @Column({ nullable: true, type: 'timestamptz' })
+  emailVerificationExpires: Date | null;
+
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  passwordResetToken: string | null;
+
+  @Exclude()
+  @Column({ nullable: true, type: 'timestamptz' })
+  passwordResetExpires: Date | null;
 
   @Column({ nullable: true, type: 'jsonb' })
   cvData: Record<string, any>;
+
+  @Column({ type: 'timestamp', nullable: true })
+  jobsLastSyncedAt: Date | null;
 
   @OneToMany(() => Application, (app) => app.user)
   applications: Application[];

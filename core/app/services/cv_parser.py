@@ -24,7 +24,7 @@ def _strip_html(text: str) -> str:
     return _RE_WHITESPACE.sub(" ", text).strip()
 
 
-def parse_email(subject: str, body: str, email_id: str) -> dict | None:
+async def parse_email(subject: str, body: str, email_id: str) -> dict | None:
     clean_body = _strip_html(body)[:MAX_EMAIL_LENGTH]
 
     prompt = f"""Analyze this email related to a job application and return a structured JSON.
@@ -57,7 +57,7 @@ Status definitions:
 Company examples: "BNP Paribas", "Thales", "Capgemini" (not "HR team of BNP", not "the recruitment team")
 JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager Apprenticeship" """
 
-    result = complete_json(prompt, max_tokens=400, system=_SYSTEM_EMAIL)
+    result = await complete_json(prompt, max_tokens=1024, system=_SYSTEM_EMAIL)
 
     if not result or result.get("not_recruitment"):
         return None
@@ -71,7 +71,9 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
 
     status = result.get("status", "APPLIED")
     if status not in VALID_STATUSES:
-        logger.warning("Email %s discarded: invalid status '%s' from AI", email_id, status)
+        logger.warning(
+            "Email %s discarded: invalid status '%s' from AI", email_id, status
+        )
         return None
 
     return {
@@ -86,9 +88,32 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
     }
 
 
-def extract_cv(text: str) -> dict:
+async def detect_status_update(
+    subject: str, body: str, company: str, job_title: str, current_status: str
+) -> str | None:
+    clean_body = _strip_html(body)[:MAX_EMAIL_LENGTH]
+
+    prompt = f"""This email is a follow-up in an ongoing job application to "{company}" for the position "{job_title}".
+Current tracked status: {current_status}
+
+SUBJECT: {subject}
+CONTENT: {clean_body}
+
+Does this email clearly indicate a NEW status for this application? Reply with exactly this JSON (no surrounding text):
+{{"status": "APPLIED" | "ACKNOWLEDGED" | "INTERVIEW" | "TECHNICAL" | "OFFER" | "REJECTED" | null}}
+
+Return null if the email does not clearly indicate one of these statuses (e.g. a scheduling detail, a generic reply, an out-of-office)."""
+
+    result = await complete_json(prompt, max_tokens=1024, system=_SYSTEM_EMAIL)
+    status = result.get("status") if result else None
+    return status if status in VALID_STATUSES else None
+
+
+async def extract_cv(text: str) -> dict:
     if len(text) > MAX_CV_LENGTH:
-        logger.warning("CV text truncated from %d to %d characters", len(text), MAX_CV_LENGTH)
+        logger.warning(
+            "CV text truncated from %d to %d characters", len(text), MAX_CV_LENGTH
+        )
 
     prompt = f"""Analyze this CV and extract structured information.
 
@@ -101,11 +126,18 @@ Return ONLY a valid JSON object:
   "lastName": "",
   "email": "",
   "phone": "",
+  "city": "",
   "skills": ["skill1"],
   "languages": ["language1"],
   "experience": [{{"title": "", "company": "", "duration": "", "description": ""}}],
   "education": [{{"degree": "", "school": "", "year": ""}}],
   "summary": "profile summary"
-}}"""
+}}
 
-    return complete_json(prompt, max_tokens=1024)
+"city" is the candidate's current city (never a country or region), used to search nearby job offers:
+- Use the candidate's home/postal address city if the CV states one
+- Otherwise use the city of the most recent education entry (school/campus location)
+- Otherwise use the city of the most recent work experience
+- Return "" if none of these can be determined"""
+
+    return await complete_json(prompt, max_tokens=3000)

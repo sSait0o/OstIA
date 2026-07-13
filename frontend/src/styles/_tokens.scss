@@ -1,0 +1,46 @@
+$bg: #060606;
+$surface: #0d0d0d;
+$surface-2: #111111;
+
+$border: rgba(255, 255, 255, 0.08);
+$border-hover: rgba(255, 255, 255, 0.2);
+$border-strong: rgba(255, 255, 255, 0.35);
+$border-focus: rgba(255, 255, 255, 0.5);
+
+$text: #e8e8e8;
+$text-muted: #555;
+$text-dim: rgba(255, 255, 255, 0.35);
+
+$color-success: #52c41a;
+$color-warning: #ffc53d;
+$color-error: #ff4d4f;
+$color-info: #4a9eff;
+
+$accent-cyan: rgba(90, 200, 250, 0.9);
+$accent-alert: rgba(255, 100, 70, 0.9);
+
+:root {
+  --bg: #{$bg};
+  --bg-rgb: 6, 6, 6;
+  --surface: #{$surface};
+  --surface-rgb: 13, 13, 13;
+  --surface-2: #{$surface-2};
+
+  --border: #{$border};
+  --border-hover: #{$border-hover};
+  --border-strong: #{$border-strong};
+  --border-focus: #{$border-focus};
+
+  --text: #{$text};
+  --text-muted: #{$text-muted};
+  --text-dim: #{$text-dim};
+
+  --color-success: #{$color-success};
+  --color-warning: #{$color-warning};
+  --color-error: #{$color-error};
+  --color-info: #{$color-info};
+  --color-info-rgb: 74, 158, 255;
+
+  --accent-cyan: #{$accent-cyan};
+  --accent-alert: #{$accent-alert};
+}

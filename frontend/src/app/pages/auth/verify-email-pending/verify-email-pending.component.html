@@ -1,0 +1,28 @@
+<div class="auth-container">
+  <nz-card class="auth-card">
+    <div class="auth-header">
+      <img src="/favicon.ico" alt="OstIA" class="brand-logo" />
+      <p>Vérifiez votre boîte de réception</p>
+    </div>
+    <p style="color: rgba(255,255,255,.6); text-align: center;">
+      Un email de confirmation a été envoyé
+      @if (email) {
+        à <strong>{{ email }}</strong>
+      }
+      . Cliquez sur le lien qu'il contient pour activer votre compte.
+    </p>
+    <button
+      nz-button
+      nzType="primary"
+      nzBlock
+      [nzLoading]="resending"
+      [disabled]="!email"
+      (click)="resend()"
+    >
+      Renvoyer l'email
+    </button>
+    <div class="auth-footer">
+      <a routerLink="/auth/login">Retour à la connexion</a>
+    </div>
+  </nz-card>
+</div>

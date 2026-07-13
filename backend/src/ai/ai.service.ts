@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { ApplicationSource } from '../applications/entities/application.entity';
@@ -14,12 +14,20 @@ export interface ParsedApplication {
   location?: string;
 }
 
+export type EmailParseResult =
+  | { kind: 'ok'; data: ParsedApplication }
+  | { kind: 'not-relevant'; reason?: string }
+  | { kind: 'unavailable'; reason: string }
+  | { kind: 'failed'; reason: string };
+
 export interface CvMatchResult {
   score: number;
   matchedSkills: string[];
   missingSkills: string[];
   summary: string;
 }
+
+export const AI_MATCH_ERROR_SUMMARY = "Erreur d'analyse";
 
 @Injectable()
 export class AiService {
@@ -34,13 +42,59 @@ export class AiService {
     emailSubject: string,
     emailBody: string,
     emailId: string,
-  ): Promise<ParsedApplication | null> {
+  ): Promise<EmailParseResult> {
     try {
       const { data } = await axios.post<Omit<ParsedApplication, 'source'>>(
         `${this.coreUrl}/cv/parse-email`,
         { subject: emailSubject, body: emailBody, emailId },
       );
-      return { ...data, source: ApplicationSource.EMAIL };
+      return {
+        kind: 'ok',
+        data: { ...data, source: ApplicationSource.EMAIL },
+      };
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 503) {
+          return {
+            kind: 'unavailable',
+            reason:
+              'AI service unavailable (rate limit/connection) after retries',
+          };
+        }
+        if (err.response?.status === 400) {
+          return {
+            kind: 'not-relevant',
+            reason: (err.response?.data as { detail?: string } | undefined)
+              ?.detail,
+          };
+        }
+      }
+      return {
+        kind: 'failed',
+        reason: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  async detectStatusUpdate(
+    emailSubject: string,
+    emailBody: string,
+    company: string,
+    jobTitle: string,
+    currentStatus: string,
+  ): Promise<string | null> {
+    try {
+      const { data } = await axios.post<{ status: string | null }>(
+        `${this.coreUrl}/cv/detect-status`,
+        {
+          subject: emailSubject,
+          body: emailBody,
+          company,
+          jobTitle,
+          currentStatus,
+        },
+      );
+      return data.status ?? null;
     } catch {
       return null;
     }
@@ -62,17 +116,26 @@ export class AiService {
         score: 0,
         matchedSkills: [],
         missingSkills: [],
-        summary: "Erreur d'analyse",
+        summary: AI_MATCH_ERROR_SUMMARY,
       };
     }
   }
 
   async extractCvData(text: string): Promise<Record<string, unknown>> {
-    const { data } = await axios.post<Record<string, unknown>>(
-      `${this.coreUrl}/cv/extract`,
-      { text },
-    );
-    return data;
+    try {
+      const { data } = await axios.post<Record<string, unknown>>(
+        `${this.coreUrl}/cv/extract`,
+        { text },
+      );
+      return data;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 503) {
+        throw new ServiceUnavailableException(
+          "Service d'analyse IA temporairement indisponible, réessayez plus tard",
+        );
+      }
+      throw err;
+    }
   }
 
   async computeAnalytics(

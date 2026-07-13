@@ -1,3 +1,5 @@
+@use 'mixins' as mx;
+
 .cv-page {
   max-width: 1100px;
   margin: 0 auto;
@@ -36,10 +38,14 @@
   &.dragover {
     border-color: rgba(255,255,255,.35);
     background: rgba(255,255,255,.04);
-    box-shadow: 0 0 5px rgba(255,255,255,.06), 0 0 30px rgba(180,180,180,.03);
+    @include mx.glow(5px, .06, 30px, .03);
   }
 
-  @media (max-width: 575px) {
+  @include mx.tablet {
+    padding: 40px 24px;
+  }
+
+  @include mx.mobile {
     padding: 32px 20px;
   }
 }
@@ -89,7 +95,7 @@
   border-radius: 16px;
   border-left: 2px solid rgba(255,255,255,.25);
 
-  @media (max-width: 575px) {
+  @include mx.mobile {
     flex-direction: column;
     align-items: center;
     text-align: center;

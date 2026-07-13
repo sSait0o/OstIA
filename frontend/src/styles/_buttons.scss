@@ -1,0 +1,97 @@
+@use 'mixins' as mx;
+
+@mixin buttons {
+  .ant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 6px;
+    color: var(--text);
+    transition: all .3s;
+    box-shadow: none;
+
+    &:hover,
+    &:focus {
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.7);
+      color: #fff;
+      @include mx.glow(3px, .08, 10px, .04);
+    }
+
+    &:active {
+      background: rgba(255,255,255,.1);
+      border-color: #fff;
+      color: #fff;
+    }
+  }
+
+  .ant-btn-primary {
+    background: transparent;
+    border: 2px solid #fff;
+    border-radius: 6px;
+    color: #fff;
+    box-shadow: none;
+
+    &:hover,
+    &:focus {
+      background: rgba(243,243,243,.12);
+      @include mx.glow(3px, .12, 12px, .06);
+    }
+
+    &:active {
+      background: rgba(243,243,243,.18);
+    }
+
+    &[disabled] {
+      border-color: rgba(255,255,255,.15);
+      color: var(--text-muted);
+    }
+  }
+
+  .ant-btn-dangerous {
+    border-color: rgba(255,90,90,.4);
+    color: rgba(255,100,100,.8);
+
+    &:hover,
+    &:focus {
+      border-color: rgba(255,90,90,.8);
+      color: #ff5a5a;
+      box-shadow: 0 0 8px rgba(255,90,90,.1);
+    }
+
+    &.ant-btn-primary {
+      background: transparent;
+
+      &:hover,
+      &:focus {
+        background: rgba(255,90,90,.12);
+      }
+    }
+  }
+
+  .ant-popover-buttons {
+    .ant-btn {
+      color: var(--text-muted);
+      border-color: rgba(255, 255, 255, 0.15);
+
+      &:hover,
+      &:focus {
+        color: var(--text);
+        border-color: var(--border-focus);
+      }
+    }
+
+    .ant-btn-primary {
+      color: #fff;
+      border-color: rgba(255, 80, 80, 0.6);
+
+      &:hover,
+      &:focus {
+        border-color: #ff5a5a;
+        box-shadow: 0 0 6px rgba(255, 80, 80, 0.12);
+      }
+    }
+  }
+}

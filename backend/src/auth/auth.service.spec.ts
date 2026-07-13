@@ -1,11 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
-import { MailerService } from '../mailer/mailer.service';
+import { MailService } from '../mail/mail.service';
 import { User } from '../users/entities/user.entity';
 
 const mockUser = (overrides: Partial<User> = {}): User =>
@@ -23,7 +26,6 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
-  let mailerService: jest.Mocked<MailerService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -35,24 +37,22 @@ describe('AuthService', () => {
             findByEmail: jest.fn(),
             findById: jest.fn(),
             create: jest.fn(),
-            setEmailVerificationToken: jest.fn(),
-            findByEmailVerificationTokenHash: jest.fn(),
-            markEmailAsVerified: jest.fn(),
+            setVerificationToken: jest.fn(),
+            findByPasswordResetToken: jest.fn(),
+            setPasswordResetToken: jest.fn(),
+            resetPassword: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+            sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
           provide: JwtService,
           useValue: { sign: jest.fn().mockReturnValue('mock-jwt-token') },
-        },
-        {
-          provide: MailerService,
-          useValue: { sendVerificationEmail: jest.fn() },
-        },
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn((_key: string, fallback?: unknown) => fallback),
-          },
         },
       ],
     }).compile();
@@ -60,11 +60,10 @@ describe('AuthService', () => {
     service = module.get(AuthService);
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
-    mailerService = module.get(MailerService);
   });
 
   describe('validateUser', () => {
-    it('returns user when credentials are valid and email verified', async () => {
+    it('returns user when credentials are valid', async () => {
       const user = mockUser();
       usersService.findByEmail.mockResolvedValue(user);
 
@@ -114,7 +113,7 @@ describe('AuthService', () => {
 
   describe('register', () => {
     it('creates user and sends a verification email when email is new', async () => {
-      const user = mockUser({ isEmailVerified: false });
+      const user = mockUser();
       usersService.findByEmail.mockResolvedValue(null);
       usersService.create.mockResolvedValue(user);
 
@@ -126,12 +125,7 @@ describe('AuthService', () => {
       });
 
       expect(jest.mocked(usersService.create)).toHaveBeenCalled();
-      expect(
-        jest.mocked(usersService.setEmailVerificationToken),
-      ).toHaveBeenCalled();
-      expect(
-        jest.mocked(mailerService.sendVerificationEmail),
-      ).toHaveBeenCalled();
+      expect(jest.mocked(usersService.setVerificationToken)).toHaveBeenCalled();
       expect(result.message).toBeDefined();
     });
 
@@ -145,6 +139,70 @@ describe('AuthService', () => {
           lastName: 'B',
         }),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('issues a reset token and sends an email when the user exists', async () => {
+      const user = mockUser();
+      usersService.findByEmail.mockResolvedValue(user);
+
+      const result = await service.forgotPassword(user.email);
+
+      expect(
+        jest.mocked(usersService.setPasswordResetToken),
+      ).toHaveBeenCalled();
+      expect(result.message).toBeDefined();
+    });
+
+    it('returns the same generic message when the user does not exist', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      const result = await service.forgotPassword('unknown@example.com');
+
+      expect(
+        jest.mocked(usersService.setPasswordResetToken),
+      ).not.toHaveBeenCalled();
+      expect(result.message).toBeDefined();
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('updates the password when the token is valid', async () => {
+      const user = mockUser({
+        passwordResetToken: 'valid-token',
+        passwordResetExpires: new Date(Date.now() + 60000),
+      });
+      usersService.findByPasswordResetToken.mockResolvedValue(user);
+
+      const result = await service.resetPassword(
+        'valid-token',
+        'newPassword123',
+      );
+
+      expect(jest.mocked(usersService.resetPassword)).toHaveBeenCalledWith(
+        user.id,
+        expect.any(String),
+      );
+      expect(result.message).toBeDefined();
+    });
+
+    it('throws BadRequestException when the token is unknown', async () => {
+      usersService.findByPasswordResetToken.mockResolvedValue(null);
+      await expect(
+        service.resetPassword('unknown-token', 'newPassword123'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when the token is expired', async () => {
+      const user = mockUser({
+        passwordResetToken: 'expired-token',
+        passwordResetExpires: new Date(Date.now() - 1000),
+      });
+      usersService.findByPasswordResetToken.mockResolvedValue(user);
+      await expect(
+        service.resetPassword('expired-token', 'newPassword123'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -9,16 +9,17 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { FormsModule } from '@angular/forms';
-import { ApplicationsService, Application, ApplicationStatus, CreateApplicationDto } from '../../core/services/applications.service';
-import { MapService } from '../../core/services/map.service';
+import { ApplicationsService, Application, ApplicationEmail, CreateApplicationDto } from '../../core/services/applications.service';
+import { ApplicationStatus } from '../../shared/models/application.model';
+import { getStatusTag, getStatusLabel as getStatusRollupLabel } from '../../shared/utils/status-colors.utils';
 
 interface Column {
   key: ApplicationStatus;
@@ -33,7 +34,7 @@ interface Column {
   imports: [
     DragDropModule,
     NzCardModule, NzTagModule, NzButtonModule, NzIconModule, NzModalModule,
-    NzFormModule, NzInputModule, NzSelectModule, NzDividerModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, NzToolTipModule, NzDatePickerModule, FormsModule,
+    NzFormModule, NzInputModule, NzSelectModule, NzPopconfirmModule, NzSpinModule, NzEmptyModule, NzToolTipModule, NzDatePickerModule, NzCollapseModule, FormsModule,
   ],
   templateUrl: './kanban.component.html',
   styleUrl: './kanban.component.scss',
@@ -42,7 +43,6 @@ export class KanbanComponent implements OnInit {
   private readonly appsService = inject(ApplicationsService);
   private readonly message = inject(NzMessageService);
   private readonly sanitizer = inject(DomSanitizer);
-  readonly mapService = inject(MapService);
 
   loading = signal(true);
   saving = signal(false);
@@ -71,25 +71,21 @@ export class KanbanComponent implements OnInit {
   emailModalVisible = false;
   selectedApp = signal<Application | null>(null);
   emailApp = signal<Application | null>(null);
+  emailHistory = signal<ApplicationEmail[]>([]);
+  emailHistoryLoading = signal(false);
 
-  columns = signal<Column[]>([
-    { key: 'APPLIED', label: 'Envoyée', color: 'default', items: [] },
-    { key: 'TECHNICAL', label: 'Test technique', color: 'purple', items: [] },
-    { key: 'INTERVIEW', label: 'Entretien', color: 'orange', items: [] },
-    { key: 'OFFER', label: 'Offre', color: 'green', items: [] },
-    { key: 'REJECTED', label: 'Refusé', color: 'red', items: [] },
-    { key: 'WITHDRAWN', label: 'Retiré', color: 'default', items: [] },
-  ]);
+  columns = signal<Column[]>(
+    (['APPLIED', 'TECHNICAL', 'INTERVIEW', 'OFFER', 'REJECTED'] as ApplicationStatus[]).map((key) => ({
+      key,
+      label: getStatusRollupLabel(key),
+      color: getStatusTag(key),
+      items: [],
+    })),
+  );
 
-  statusOptions = [
-    { value: 'APPLIED', label: 'Envoyée' },
-    { value: 'ACKNOWLEDGED', label: 'Reçue' },
-    { value: 'TECHNICAL', label: 'Test technique' },
-    { value: 'INTERVIEW', label: 'Entretien' },
-    { value: 'OFFER', label: 'Offre' },
-    { value: 'REJECTED', label: 'Refusé' },
-    { value: 'WITHDRAWN', label: 'Retiré' },
-  ];
+  statusOptions = (
+    ['APPLIED', 'ACKNOWLEDGED', 'TECHNICAL', 'INTERVIEW', 'OFFER', 'REJECTED'] as ApplicationStatus[]
+  ).map((value) => ({ value, label: getStatusRollupLabel(value) }));
 
   form: Partial<CreateApplicationDto> & { status?: ApplicationStatus } = {
     company: '',
@@ -170,8 +166,8 @@ export class KanbanComponent implements OnInit {
     });
   }
 
-  get safeEmailHtml(): string {
-    return this.sanitizer.sanitize(SecurityContext.HTML, this.emailApp()?.emailBody ?? '') ?? '';
+  sanitizeHtml(body: string | null | undefined): string {
+    return this.sanitizer.sanitize(SecurityContext.HTML, body ?? '') ?? '';
   }
 
   isHtml(body: string | null): boolean {
@@ -193,18 +189,20 @@ export class KanbanComponent implements OnInit {
     event?.stopPropagation();
     this.emailApp.set(app);
     this.emailModalVisible = true;
+    this.emailHistory.set([]);
+    this.emailHistoryLoading.set(true);
+    this.appsService.getEmails(app.id).subscribe({
+      next: (emails) => {
+        this.emailHistory.set(emails);
+        this.emailHistoryLoading.set(false);
+      },
+      error: () => this.emailHistoryLoading.set(false),
+    });
   }
 
-  getStatusLabel(status: string): string {
-    return this.statusOptions.find((s) => s.value === status)?.label ?? status;
-  }
+  getStatusLabel = getStatusRollupLabel;
 
-  getStatusColor(status: string): string {
-    const map: Record<string, string> = {
-      APPLIED: 'default', ACKNOWLEDGED: 'default', TECHNICAL: 'purple', INTERVIEW: 'orange', OFFER: 'green', REJECTED: 'red',
-    };
-    return map[status] ?? 'default';
-  }
+  getStatusColor = getStatusTag;
 
   closeModal() {
     this.modalVisible = false;

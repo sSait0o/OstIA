@@ -1,5 +1,15 @@
 <div class="kanban-header">
-  <h2>Mes candidatures</h2>
+  <h2>
+    Candidatures
+    <span
+      nz-icon
+      nzType="info-circle"
+      class="ai-hint-icon"
+      nz-tooltip
+      nzTooltipTitle="Statut détecté par l'IA depuis tes emails : elle peut se tromper de colonne. Glisse-dépose pour corriger."
+      [nzTooltipOverlayStyle]="{ maxWidth: '260px' }"
+    ></span>
+  </h2>
   <div class="kanban-header-actions">
     <nz-input-group [nzPrefix]="searchIcon" class="search-input">
       <input nz-input placeholder="Rechercher…" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()" />
@@ -82,7 +92,7 @@
           <div class="email-header-top">
             <span class="email-company">{{ app.company }}</span>
             <nz-select [ngModel]="app.status" (ngModelChange)="updateEmailAppStatus(app, $event)"
-                       style="width: 160px" nzSize="small">
+                       class="email-status-select" nzSize="small">
               @for (s of statusOptions; track s.value) {
                 <nz-option [nzValue]="s.value" [nzLabel]="s.label"></nz-option>
               }
@@ -93,10 +103,77 @@
             <div class="email-raw-subject">{{ app.emailSubject }}</div>
           }
         </div>
-        @if (app.emailBody) {
+        @if (app.location || app.appliedAt || app.salary || app.jobUrl || app.notes) {
+          <div class="email-meta-grid">
+            @if (app.location) {
+              <div class="meta-item">
+                <span class="meta-label">Lieu</span>
+                <span class="meta-value">{{ app.location }}</span>
+              </div>
+            }
+            @if (app.appliedAt) {
+              <div class="meta-item">
+                <span class="meta-label">Date de candidature</span>
+                <span class="meta-value">{{ formatDate(app.appliedAt) }}</span>
+              </div>
+            }
+            @if (app.salary) {
+              <div class="meta-item">
+                <span class="meta-label">Salaire</span>
+                <span class="meta-value">{{ app.salary }}</span>
+              </div>
+            }
+            @if (app.jobUrl) {
+              <div class="meta-item">
+                <span class="meta-label">Offre</span>
+                <div class="meta-value-row">
+                  <a class="meta-link" [href]="app.jobUrl" target="_blank" rel="noopener">
+                    <span nz-icon nzType="link"></span> Voir l'offre
+                  </a>
+                  <span
+                    nz-icon
+                    nzType="info-circle"
+                    class="meta-hint-icon"
+                    nz-tooltip
+                    nzTooltipTitle="Lien retrouvé automatiquement par l'IA : il illustre le poste (compétences, intitulé…) mais peut ne pas être l'annonce exacte."
+                    [nzTooltipOverlayStyle]="{ maxWidth: '260px' }"
+                  ></span>
+                </div>
+              </div>
+            }
+            @if (app.notes) {
+              <div class="meta-item meta-item--full">
+                <span class="meta-label">Notes</span>
+                <span class="meta-value meta-value--notes">{{ app.notes }}</span>
+              </div>
+            }
+          </div>
+        }
+        @if (emailHistoryLoading()) {
+          <div class="loading-center"><nz-spin></nz-spin></div>
+        } @else if (emailHistory().length > 0) {
+          <nz-collapse>
+            @for (mail of emailHistory(); track mail.id; let last = $last) {
+              <nz-collapse-panel [nzActive]="last" [nzHeader]="mailHeaderTpl">
+                <ng-template #mailHeaderTpl>
+                  <span class="email-history-subject">{{ mail.subject || app.jobTitle }}</span>
+                  @if (mail.statusDetected) {
+                    <nz-tag [nzColor]="getStatusColor(mail.statusDetected)">{{ getStatusLabel(mail.statusDetected) }}</nz-tag>
+                  }
+                  @if (mail.receivedAt) {
+                    <span class="email-history-date">{{ formatDate(mail.receivedAt) }}</span>
+                  }
+                </ng-template>
+                <div class="email-body-block"
+                     [class.email-body-block--plain]="!isHtml(mail.body)"
+                     [innerHTML]="sanitizeHtml(mail.body)"></div>
+              </nz-collapse-panel>
+            }
+          </nz-collapse>
+        } @else if (app.emailBody) {
           <div class="email-body-block"
                [class.email-body-block--plain]="!isHtml(app.emailBody)"
-               [innerHTML]="safeEmailHtml"></div>
+               [innerHTML]="sanitizeHtml(app.emailBody)"></div>
         } @else {
           <div class="email-no-body">
             <span nz-icon nzType="inbox"></span>

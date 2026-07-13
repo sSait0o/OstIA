@@ -1,30 +1,32 @@
-import asyncio
 import logging
 import logging.config
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.routers import cv, matching, analytics
 from app.config import settings
+from app.services.ai_client import complete
 
-logging.config.dictConfig({
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        }
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "default",
-        }
-    },
-    "root": {"level": "INFO", "handlers": ["console"]},
-})
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            }
+        },
+        "root": {"level": "INFO", "handlers": ["console"]},
+    }
+)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
@@ -46,11 +48,10 @@ app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 
 @app.get("/health")
 async def health():
-    from app.services.ai_client import complete_json
     groq_status = "ok"
     try:
-        result = await asyncio.to_thread(complete_json, '{"test": true}', 10)
-        if not isinstance(result, dict):
+        result = await complete("Reply with OK", 200)
+        if not result:
             groq_status = "degraded"
     except Exception:
         groq_status = "unavailable"

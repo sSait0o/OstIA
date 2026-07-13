@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
@@ -6,75 +6,44 @@ import * as crypto from 'crypto';
 import { google, gmail_v1 } from 'googleapis';
 import { OAuth2Client } from 'googleapis-common';
 import { Observable } from 'rxjs';
-import axios from 'axios';
 import {
   EmailConnection,
   EmailProvider,
 } from './entities/email-connection.entity';
+import { EmailSyncRecordsService } from './email-sync-records.service';
 import { User } from '../users/entities/user.entity';
 import { AiService } from '../ai/ai.service';
 import { ApplicationsService } from '../applications/applications.service';
-import {
-  ApplicationSource,
-  ApplicationStatus,
-} from '../applications/entities/application.entity';
-import { CreateApplicationDto } from '../applications/dto/create-application.dto';
+import { ApplicationEmailsService } from '../applications/application-emails.service';
+import { ApplicationStatus } from '../applications/entities/application.entity';
 import { EncryptionService } from '../common/encryption.service';
+import {
+  SyncProgress,
+  SyncRateLimitedException,
+  SyncResult,
+  SyncStatus,
+} from './sync/email-sync.types';
+import { EmailSyncDeps, runEmailSync } from './sync/email-sync.engine';
+import {
+  applyGmailSublabel,
+  createGmailSyncProvider,
+  ensureOstiaLabels,
+  stripGmailSublabels,
+} from './sync/gmail-sync.provider';
+import {
+  createOutlookSyncProvider,
+  exchangeMicrosoftAuthCode,
+  refreshMicrosoftTokenIfNeeded,
+} from './sync/outlook-sync.provider';
 
-export interface SyncProgress {
-  percent: number;
-  done?: boolean;
-  synced?: number;
-  created?: number;
-  skipped?: number;
-  failed?: number;
-}
-
-interface MicrosoftTokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  expires_in: number;
-}
-
-interface MicrosoftProfile {
-  mail?: string;
-  userPrincipalName?: string;
-}
-
-interface OutlookFolder {
-  displayName?: string;
-  id?: string;
-}
-
-interface OutlookMessage {
-  subject?: string;
-  body?: { content?: string };
-  internetMessageId?: string;
-  id?: string;
-}
-
-const OSTIA_LABEL = 'OstIA';
-const OSTIA_SUBLABELS = [
-  'Accepté',
-  'Archivé',
-  'Autre',
-  'Entretien',
-  'Envoyé',
-  'Refus',
-];
-
-const STATUS_TO_SUBLABEL: Partial<Record<ApplicationStatus, string>> = {
-  [ApplicationStatus.APPLIED]: 'Envoyé',
-  [ApplicationStatus.ACKNOWLEDGED]: 'Archivé',
-  [ApplicationStatus.TECHNICAL]: 'Autre',
-  [ApplicationStatus.INTERVIEW]: 'Entretien',
-  [ApplicationStatus.OFFER]: 'Accepté',
-  [ApplicationStatus.REJECTED]: 'Refus',
-};
+const SYNC_BURST_LIMIT = 3;
+const SYNC_COOLDOWN_MS = 20 * 60 * 60 * 1000;
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private readonly googleOAuth2Client: OAuth2Client;
+  private readonly activeSyncs = new Map<string, SyncProgress>();
 
   constructor(
     @InjectRepository(EmailConnection)
@@ -83,12 +52,28 @@ export class EmailService {
     private readonly encryptionService: EncryptionService,
     private readonly aiService: AiService,
     private readonly applicationsService: ApplicationsService,
+    private readonly syncRecordsService: EmailSyncRecordsService,
+    private readonly applicationEmailsService: ApplicationEmailsService,
   ) {
     this.googleOAuth2Client = new google.auth.OAuth2(
       this.configService.get('GOOGLE_CLIENT_ID'),
       this.configService.get('GOOGLE_CLIENT_SECRET'),
       this.configService.get('GOOGLE_REDIRECT_URI'),
     );
+  }
+
+  private syncDeps(): EmailSyncDeps {
+    const maxMessagesRaw = this.configService.get<string>(
+      'EMAIL_SYNC_MAX_MESSAGES',
+    );
+    return {
+      logger: this.logger,
+      syncRecordsService: this.syncRecordsService,
+      applicationsService: this.applicationsService,
+      applicationEmailsService: this.applicationEmailsService,
+      aiService: this.aiService,
+      maxMessages: maxMessagesRaw ? Number(maxMessagesRaw) : undefined,
+    };
   }
 
   createOAuthState(userId: string): string {
@@ -133,6 +118,20 @@ export class EmailService {
     });
   }
 
+  private buildGmailClient(connection: EmailConnection): gmail_v1.Gmail {
+    this.googleOAuth2Client.setCredentials({
+      access_token: this.encryptionService.decrypt(connection.accessToken),
+      ...(connection.refreshToken
+        ? {
+            refresh_token: this.encryptionService.decrypt(
+              connection.refreshToken,
+            ),
+          }
+        : {}),
+    });
+    return google.gmail({ version: 'v1', auth: this.googleOAuth2Client });
+  }
+
   async handleGoogleCallback(
     code: string,
     userId: string,
@@ -146,7 +145,7 @@ export class EmailService {
     });
     const profile = await gmail.users.getProfile({ userId: 'me' });
 
-    await this.ensureOstiaLabels(gmail);
+    await ensureOstiaLabels(gmail);
 
     const existing = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
@@ -174,273 +173,82 @@ export class EmailService {
     return this.connectionRepo.save(connection);
   }
 
-  async syncGmailEmails(userId: string): Promise<{
-    synced: number;
-    created: number;
-    skipped: number;
-    failed: number;
-  }> {
-    return this.doGmailSync(userId, () => {});
+  getSyncStatus(userId: string): SyncStatus {
+    return {
+      gmail:
+        this.activeSyncs.get(this.syncKey(userId, EmailProvider.GMAIL)) ?? null,
+      outlook:
+        this.activeSyncs.get(this.syncKey(userId, EmailProvider.OUTLOOK)) ??
+        null,
+    };
+  }
+
+  private syncKey(userId: string, provider: EmailProvider): string {
+    return `${userId}:${provider}`;
   }
 
   syncGmailStream(userId: string): Observable<MessageEvent> {
+    const key = this.syncKey(userId, EmailProvider.GMAIL);
     return new Observable((subscriber) => {
-      const emit = (data: SyncProgress) =>
+      const emit = (data: SyncProgress) => {
+        this.activeSyncs.set(key, data);
         subscriber.next({ data } as unknown as MessageEvent);
+      };
+      emit({ percent: 0 });
 
       this.doGmailSync(userId, emit)
         .then((result) => {
           emit({ percent: 100, done: true, ...result });
           subscriber.complete();
         })
-        .catch((err: unknown) => subscriber.error(err));
+        .catch((err: unknown) => {
+          if (err instanceof SyncRateLimitedException) {
+            emit({
+              percent: 100,
+              done: true,
+              rateLimited: true,
+              retryAfterSeconds: err.retryAfterSeconds,
+            });
+            subscriber.complete();
+            return;
+          }
+          emit({ percent: 100, done: true, error: true });
+          subscriber.error(err);
+        });
     });
   }
 
   private async doGmailSync(
     userId: string,
     onProgress: (p: SyncProgress) => void,
-  ): Promise<{
-    synced: number;
-    created: number;
-    skipped: number;
-    failed: number;
-  }> {
+  ): Promise<SyncResult> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
     });
     if (!connection) throw new NotFoundException('Connexion Gmail non trouvée');
+    await this.enforceSyncRateLimit(connection);
 
-    this.googleOAuth2Client.setCredentials({
-      access_token: this.encryptionService.decrypt(connection.accessToken),
-      ...(connection.refreshToken
-        ? {
-            refresh_token: this.encryptionService.decrypt(
-              connection.refreshToken,
-            ),
-          }
-        : {}),
-    });
+    const gmail = this.buildGmailClient(connection);
+    const provider = await createGmailSyncProvider(gmail, this.logger);
+    if (!provider) {
+      return {
+        synced: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        aiUnavailable: 0,
+        labelMissing: true,
+      };
+    }
 
-    const gmail = google.gmail({
-      version: 'v1',
-      auth: this.googleOAuth2Client,
-    });
-    const labelMap = await this.ensureOstiaLabels(gmail);
-    const ostiaLabelId = labelMap.get(OSTIA_LABEL);
-
-    if (!ostiaLabelId) return { synced: 0, created: 0, skipped: 0, failed: 0 };
-
-    const messages = await gmail.users.messages.list({
-      userId: 'me',
-      labelIds: [ostiaLabelId],
-      maxResults: 50,
-    });
-
-    if (!messages.data.messages)
-      return { synced: 0, created: 0, skipped: 0, failed: 0 };
-
-    const msgList = messages.data.messages.filter((m) => !!m.id);
-    const total = msgList.length;
-    let created = 0;
-    let skipped = 0;
-    let failed = 0;
-    const user = { id: userId } as User;
-
-    onProgress({ percent: 5 });
-    const fetched = await Promise.all(
-      msgList.map(async (msg) => {
-        const full = await gmail.users.messages.get({
-          userId: 'me',
-          id: msg.id!,
-          format: 'full',
-        });
-        const headers: gmail_v1.Schema$MessagePartHeader[] =
-          full.data?.payload?.headers ?? [];
-        const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
-        const body = this.extractGmailBody(full.data?.payload);
-        return { msgId: msg.id!, subject, body };
-      }),
+    return runEmailSync(
+      this.syncDeps(),
+      provider,
+      userId,
+      connection.email,
+      onProgress,
     );
-    onProgress({ percent: 15 });
-
-    for (let i = 0; i < fetched.length; i++) {
-      const { msgId, subject, body } = fetched[i];
-      onProgress({ percent: 15 + Math.round(((i + 1) / total) * 70) });
-
-      const existing = await this.applicationsService.findDuplicate(
-        userId,
-        msgId,
-      );
-      if (existing) {
-        if (!existing.emailBody && body) {
-          await this.applicationsService.update(userId, existing.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          });
-        }
-        await this.applyGmailSublabel(gmail, msgId, existing.status, labelMap);
-        skipped++;
-        continue;
-      }
-
-      const parsed = await this.aiService.parseEmailForApplication(
-        subject,
-        this.stripHtml(body),
-        msgId,
-      );
-
-      if (!parsed || !parsed.company || !parsed.jobTitle) {
-        failed++;
-        continue;
-      }
-
-      const duplicate = await this.applicationsService.findDuplicate(
-        userId,
-        undefined,
-        parsed.company,
-        parsed.jobTitle,
-      );
-
-      if (duplicate) {
-        if (!duplicate.emailBody && body) {
-          await this.applicationsService.update(userId, duplicate.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          });
-        }
-        await this.applyGmailSublabel(gmail, msgId, duplicate.status, labelMap);
-        skipped++;
-        continue;
-      }
-
-      try {
-        const dto: CreateApplicationDto = {
-          company: parsed.company,
-          jobTitle: parsed.jobTitle,
-          status: parsed.status as ApplicationStatus,
-          source: ApplicationSource.EMAIL,
-          emailSubject: subject,
-          emailBody: body.slice(0, 50000),
-          location: parsed.location ?? undefined,
-          appliedAt: parsed.appliedAt ?? undefined,
-          notes: parsed.notes ?? undefined,
-        };
-        const app = await this.applicationsService.create(user, dto);
-        created++;
-        await this.applyGmailSublabel(gmail, msgId, app.status, labelMap);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[EmailSync] Failed to create application for message ${msgId}: ${msg}`,
-        );
-        failed++;
-      }
-    }
-
-    return { synced: total, created, skipped, failed };
-  }
-
-  private async applyGmailSublabel(
-    gmail: gmail_v1.Gmail,
-    msgId: string,
-    status: ApplicationStatus,
-    labelMap: Map<string, string>,
-  ): Promise<void> {
-    const sublabel = STATUS_TO_SUBLABEL[status];
-    if (!sublabel) return;
-    const targetSublabelName = `${OSTIA_LABEL}/${sublabel}`;
-    const targetSublabelId = labelMap.get(targetSublabelName);
-    if (!targetSublabelId) return;
-
-    const otherSublabelIds = OSTIA_SUBLABELS.map((sub) =>
-      labelMap.get(`${OSTIA_LABEL}/${sub}`),
-    ).filter((id): id is string => !!id && id !== targetSublabelId);
-
-    try {
-      await gmail.users.messages.modify({
-        userId: 'me',
-        id: msgId,
-        requestBody: {
-          addLabelIds: [targetSublabelId],
-          removeLabelIds: otherSublabelIds,
-        },
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `[EmailSync] Failed to apply label to message ${msgId}: ${msg}`,
-      );
-    }
-  }
-
-  private async ensureOstiaLabels(
-    gmail: gmail_v1.Gmail,
-  ): Promise<Map<string, string>> {
-    const labelMap = new Map<string, string>();
-    const { data } = await gmail.users.labels.list({ userId: 'me' });
-    const existingLabels: gmail_v1.Schema$Label[] = data.labels ?? [];
-
-    let parentId = existingLabels.find((l) => l.name === OSTIA_LABEL)?.id;
-    if (!parentId) {
-      const res = await gmail.users.labels.create({
-        userId: 'me',
-        requestBody: { name: OSTIA_LABEL },
-      });
-      parentId = res.data.id ?? undefined;
-    }
-    if (parentId) labelMap.set(OSTIA_LABEL, parentId);
-
-    for (const sub of OSTIA_SUBLABELS) {
-      const fullName = `${OSTIA_LABEL}/${sub}`;
-      let labelId = existingLabels.find((l) => l.name === fullName)?.id;
-      if (!labelId) {
-        const res = await gmail.users.labels.create({
-          userId: 'me',
-          requestBody: { name: fullName },
-        });
-        labelId = res.data.id ?? undefined;
-      }
-      if (labelId) labelMap.set(fullName, labelId);
-    }
-
-    return labelMap;
-  }
-
-  private stripHtml(html: string): string {
-    return html
-      .replace(/<style[^>]*>.*?<\/style>/gis, ' ')
-      .replace(/<script[^>]*>.*?<\/script>/gis, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&[a-z]+;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  private extractGmailBody(
-    payload: gmail_v1.Schema$MessagePart | undefined,
-  ): string {
-    if (!payload) return '';
-    if (payload.body?.data)
-      return Buffer.from(payload.body.data, 'base64').toString('utf-8');
-    if (payload.parts) {
-      let plainText = '';
-      for (const part of payload.parts) {
-        if (part.mimeType === 'text/html' && part.body?.data) {
-          return Buffer.from(part.body.data, 'base64').toString('utf-8');
-        }
-        if (part.mimeType === 'text/plain' && part.body?.data) {
-          plainText = Buffer.from(part.body.data, 'base64').toString('utf-8');
-        }
-        if (part.parts) {
-          const nested = this.extractGmailBody(part);
-          if (nested) return nested;
-        }
-      }
-      return plainText;
-    }
-    return '';
   }
 
   getMicrosoftAuthUrl(userId: string): string {
@@ -465,42 +273,8 @@ export class EmailService {
     code: string,
     userId: string,
   ): Promise<EmailConnection> {
-    const clientId = this.configService.get<string>('MICROSOFT_CLIENT_ID')!;
-    const clientSecret = this.configService.get<string>(
-      'MICROSOFT_CLIENT_SECRET',
-    )!;
-    const redirectUri = this.configService.get<string>(
-      'MICROSOFT_REDIRECT_URI',
-    )!;
-    const tenant = this.configService.get<string>(
-      'MICROSOFT_TENANT_ID',
-      'common',
-    );
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      redirect_uri: redirectUri,
-      grant_type: 'authorization_code',
-    });
-
-    const tokenRes = await axios.post<MicrosoftTokenResponse>(
-      `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
-      params.toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-    );
-
-    const { access_token, refresh_token, expires_in } = tokenRes.data;
-
-    const profileRes = await axios.get<MicrosoftProfile>(
-      'https://graph.microsoft.com/v1.0/me',
-      {
-        headers: { Authorization: `Bearer ${access_token}` },
-      },
-    );
-    const email: string =
-      profileRes.data.mail ?? profileRes.data.userPrincipalName ?? '';
+    const { accessToken, refreshToken, expiresIn, email } =
+      await exchangeMicrosoftAuthCode(code, this.configService);
 
     const existing = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.OUTLOOK },
@@ -514,151 +288,84 @@ export class EmailService {
       });
 
     connection.email = email;
-    connection.accessToken = this.encryptionService.encrypt(access_token);
-    if (refresh_token)
-      connection.refreshToken = this.encryptionService.encrypt(refresh_token);
-    connection.tokenExpiresAt = new Date(Date.now() + expires_in * 1000);
+    connection.accessToken = this.encryptionService.encrypt(accessToken);
+    if (refreshToken)
+      connection.refreshToken = this.encryptionService.encrypt(refreshToken);
+    connection.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
     connection.isActive = true;
 
     return this.connectionRepo.save(connection);
   }
 
-  async syncOutlookEmails(userId: string): Promise<{
-    synced: number;
-    created: number;
-    skipped: number;
-    failed: number;
-  }> {
+  syncOutlookStream(userId: string): Observable<MessageEvent> {
+    const key = this.syncKey(userId, EmailProvider.OUTLOOK);
+    return new Observable((subscriber) => {
+      const emit = (data: SyncProgress) => {
+        this.activeSyncs.set(key, data);
+        subscriber.next({ data } as unknown as MessageEvent);
+      };
+      emit({ percent: 0 });
+
+      this.doOutlookSync(userId, emit)
+        .then((result) => {
+          emit({ percent: 100, done: true, ...result });
+          subscriber.complete();
+        })
+        .catch((err: unknown) => {
+          if (err instanceof SyncRateLimitedException) {
+            emit({
+              percent: 100,
+              done: true,
+              rateLimited: true,
+              retryAfterSeconds: err.retryAfterSeconds,
+            });
+            subscriber.complete();
+            return;
+          }
+          emit({ percent: 100, done: true, error: true });
+          subscriber.error(err);
+        });
+    });
+  }
+
+  private async doOutlookSync(
+    userId: string,
+    onProgress: (p: SyncProgress) => void,
+  ): Promise<SyncResult> {
     const connection = await this.connectionRepo.findOne({
       where: { user: { id: userId }, provider: EmailProvider.OUTLOOK },
     });
     if (!connection)
       throw new NotFoundException('Connexion Outlook non trouvée');
+    await this.enforceSyncRateLimit(connection);
 
-    const token = await this.refreshMicrosoftTokenIfNeeded(connection);
+    const token = await refreshMicrosoftTokenIfNeeded(
+      connection,
+      this.configService,
+      this.encryptionService,
+      this.connectionRepo,
+    );
     const headers = { Authorization: `Bearer ${token}` };
-
-    const foldersRes = await axios.get<{ value: OutlookFolder[] }>(
-      'https://graph.microsoft.com/v1.0/me/mailFolders?$top=50',
-      { headers },
-    );
-    const ostiaFolder = foldersRes.data.value?.find(
-      (f) => f.displayName?.toLowerCase() === OSTIA_LABEL.toLowerCase(),
-    );
-
-    if (!ostiaFolder?.id)
-      return { synced: 0, created: 0, skipped: 0, failed: 0 };
-
-    const messagesRes = await axios.get<{ value: OutlookMessage[] }>(
-      `https://graph.microsoft.com/v1.0/me/mailFolders/${ostiaFolder.id}/messages` +
-        `?$top=50&$select=subject,body,internetMessageId,receivedDateTime`,
-      { headers },
-    );
-
-    const messages = messagesRes.data.value ?? [];
-    let created = 0;
-    let skipped = 0;
-    let failed = 0;
-    const user = { id: userId } as User;
-
-    for (const msg of messages) {
-      const subject = msg.subject ?? '';
-      const body = msg.body?.content ?? '';
-      const msgId = msg.internetMessageId ?? msg.id ?? '';
-
-      const parsed = await this.aiService.parseEmailForApplication(
-        subject,
-        this.stripHtml(body),
-        msgId,
-      );
-      if (!parsed) {
-        failed++;
-        continue;
-      }
-
-      const duplicate = await this.applicationsService.findDuplicate(
-        userId,
-        msgId,
-        parsed.company,
-        parsed.jobTitle,
-      );
-
-      if (duplicate) {
-        if (!duplicate.emailBody && body) {
-          await this.applicationsService.update(userId, duplicate.id, {
-            emailSubject: subject,
-            emailBody: body.slice(0, 50000),
-          });
-        }
-        skipped++;
-        continue;
-      }
-
-      try {
-        const dto: CreateApplicationDto = {
-          company: parsed.company,
-          jobTitle: parsed.jobTitle,
-          status: parsed.status as ApplicationStatus,
-          source: ApplicationSource.EMAIL,
-          emailSubject: subject,
-          emailBody: body.slice(0, 50000),
-          location: parsed.location ?? undefined,
-          appliedAt: parsed.appliedAt ?? undefined,
-          notes: parsed.notes ?? undefined,
-        };
-        await this.applicationsService.create(user, dto);
-        created++;
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[OutlookSync] Failed to create application for message ${msgId}: ${errMsg}`,
-        );
-        failed++;
-      }
+    const provider = await createOutlookSyncProvider(headers);
+    if (!provider) {
+      return {
+        synced: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        aiUnavailable: 0,
+        labelMissing: true,
+      };
     }
 
-    return { synced: messages.length, created, skipped, failed };
-  }
-
-  private async refreshMicrosoftTokenIfNeeded(
-    connection: EmailConnection,
-  ): Promise<string> {
-    const isExpired =
-      connection.tokenExpiresAt && connection.tokenExpiresAt < new Date();
-    if (!isExpired)
-      return this.encryptionService.decrypt(connection.accessToken);
-
-    const clientId = this.configService.get<string>('MICROSOFT_CLIENT_ID')!;
-    const clientSecret = this.configService.get<string>(
-      'MICROSOFT_CLIENT_SECRET',
-    )!;
-    const tenant = this.configService.get<string>(
-      'MICROSOFT_TENANT_ID',
-      'common',
+    return runEmailSync(
+      this.syncDeps(),
+      provider,
+      userId,
+      connection.email,
+      onProgress,
     );
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: this.encryptionService.decrypt(connection.refreshToken),
-      grant_type: 'refresh_token',
-    });
-
-    const res = await axios.post<MicrosoftTokenResponse>(
-      `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
-      params.toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-    );
-
-    connection.accessToken = this.encryptionService.encrypt(
-      res.data.access_token,
-    );
-    connection.tokenExpiresAt = new Date(
-      Date.now() + res.data.expires_in * 1000,
-    );
-    await this.connectionRepo.save(connection);
-
-    return res.data.access_token;
   }
 
   async updateGmailLabelForEmail(
@@ -671,27 +378,32 @@ export class EmailService {
     });
     if (!connection) return;
 
-    this.googleOAuth2Client.setCredentials({
-      access_token: this.encryptionService.decrypt(connection.accessToken),
-      ...(connection.refreshToken
-        ? {
-            refresh_token: this.encryptionService.decrypt(
-              connection.refreshToken,
-            ),
-          }
-        : {}),
-    });
-
-    const gmail = google.gmail({
-      version: 'v1',
-      auth: this.googleOAuth2Client,
-    });
-    const labelMap = await this.ensureOstiaLabels(gmail);
-    await this.applyGmailSublabel(gmail, emailId, status, labelMap);
+    const gmail = this.buildGmailClient(connection);
+    const labelMap = await ensureOstiaLabels(gmail);
+    await applyGmailSublabel(gmail, emailId, status, labelMap, this.logger);
   }
 
-  async getConnections(userId: string): Promise<EmailConnection[]> {
-    return this.connectionRepo.find({ where: { user: { id: userId } } });
+  async getConnections(userId: string): Promise<
+    Array<
+      EmailConnection & {
+        nextSyncAvailableAt: string | null;
+        syncAttemptsRemaining: number;
+      }
+    >
+  > {
+    const connections = await this.connectionRepo.find({
+      where: { user: { id: userId } },
+    });
+    return connections.map((connection) => {
+      const availability = this.getSyncAvailability(connection);
+      return {
+        ...connection,
+        nextSyncAvailableAt: availability.available
+          ? null
+          : new Date(Date.now() + availability.retryAfterMs).toISOString(),
+        syncAttemptsRemaining: availability.attemptsRemaining,
+      };
+    });
   }
 
   async disconnect(userId: string, connectionId: string): Promise<void> {
@@ -700,5 +412,110 @@ export class EmailService {
     });
     if (!conn) throw new NotFoundException('Connexion non trouvée');
     await this.connectionRepo.remove(conn);
+  }
+
+  async resetGmailData(userId: string): Promise<{
+    applicationsRemoved: number;
+    syncRecordsRemoved: number;
+    labelsStripped: number;
+    labelsRemaining: number;
+  }> {
+    const result = await this.resetProviderData(userId, EmailProvider.GMAIL);
+    const { stripped, remaining } =
+      await this.stripGmailSublabelsForUser(userId);
+    return {
+      ...result,
+      labelsStripped: stripped,
+      labelsRemaining: remaining,
+    };
+  }
+
+  private async stripGmailSublabelsForUser(
+    userId: string,
+  ): Promise<{ stripped: number; remaining: number }> {
+    const connection = await this.connectionRepo.findOne({
+      where: { user: { id: userId }, provider: EmailProvider.GMAIL },
+    });
+    if (!connection) return { stripped: 0, remaining: 0 };
+
+    const gmail = this.buildGmailClient(connection);
+    const labelMap = await ensureOstiaLabels(gmail);
+    return stripGmailSublabels(gmail, labelMap, this.logger);
+  }
+
+  async resetOutlookData(
+    userId: string,
+  ): Promise<{ applicationsRemoved: number; syncRecordsRemoved: number }> {
+    return this.resetProviderData(userId, EmailProvider.OUTLOOK);
+  }
+
+  private async resetProviderData(
+    userId: string,
+    provider: EmailProvider,
+  ): Promise<{ applicationsRemoved: number; syncRecordsRemoved: number }> {
+    const applicationsRemoved =
+      await this.applicationsService.removeAllEmailSourced(userId);
+    const records = await this.syncRecordsService.findAllForProvider(
+      userId,
+      provider,
+    );
+    const syncRecordsRemoved =
+      await this.syncRecordsService.removeRecords(records);
+    return { applicationsRemoved, syncRecordsRemoved };
+  }
+
+  private isSyncRateLimitEnabled(): boolean {
+    return this.configService.get('NODE_ENV') === 'production';
+  }
+
+  private getSyncAvailability(connection: EmailConnection): {
+    available: boolean;
+    attemptsRemaining: number;
+    retryAfterMs: number;
+  } {
+    if (!this.isSyncRateLimitEnabled() || !connection.lastSyncedAt) {
+      return {
+        available: true,
+        attemptsRemaining: SYNC_BURST_LIMIT,
+        retryAfterMs: 0,
+      };
+    }
+    if (connection.syncAttemptCount < SYNC_BURST_LIMIT) {
+      return {
+        available: true,
+        attemptsRemaining: SYNC_BURST_LIMIT - connection.syncAttemptCount,
+        retryAfterMs: 0,
+      };
+    }
+    const elapsed = Date.now() - connection.lastSyncedAt.getTime();
+    if (elapsed >= SYNC_COOLDOWN_MS) {
+      return {
+        available: true,
+        attemptsRemaining: SYNC_BURST_LIMIT,
+        retryAfterMs: 0,
+      };
+    }
+    return {
+      available: false,
+      attemptsRemaining: 0,
+      retryAfterMs: SYNC_COOLDOWN_MS - elapsed,
+    };
+  }
+
+  private async enforceSyncRateLimit(
+    connection: EmailConnection,
+  ): Promise<void> {
+    const availability = this.getSyncAvailability(connection);
+    if (!availability.available) {
+      throw new SyncRateLimitedException(
+        Math.ceil(availability.retryAfterMs / 1000),
+      );
+    }
+    connection.syncAttemptCount =
+      connection.syncAttemptCount >= SYNC_BURST_LIMIT
+        ? 1
+        : connection.syncAttemptCount + 1;
+    connection.lastSyncedAt = new Date();
+    await this.connectionRepo.save(connection);
   }
 }

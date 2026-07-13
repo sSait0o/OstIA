@@ -11,7 +11,9 @@ import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { ApplicationsService, ApplicationStats } from '../../core/services/applications.service';
 import { JobsService, Job } from '../../core/services/jobs.service';
+import { UserService } from '../../core/services/user.service';
 import { getScoreColor, scoreFormat } from '../../shared/utils/score.utils';
+import { getStatusHex, getStatusLabel } from '../../shared/utils/status-colors.utils';
 import type { EChartsOption } from 'echarts';
 
 @Component({
@@ -28,6 +30,7 @@ import type { EChartsOption } from 'echarts';
 export class DashboardComponent implements OnInit {
   private readonly appsService = inject(ApplicationsService);
   private readonly jobsService = inject(JobsService);
+  private readonly userService = inject(UserService);
   private readonly message = inject(NzMessageService);
 
   loading = signal(true);
@@ -36,21 +39,7 @@ export class DashboardComponent implements OnInit {
   pieOptions = signal<EChartsOption>({});
   barOptions = signal<EChartsOption>({});
   funnelOptions = signal<EChartsOption>({});
-
-  private readonly STATUS_LABELS: Record<string, string> = {
-    APPLIED: 'Envoyée', ACKNOWLEDGED: 'Envoyée', INTERVIEW: 'Entretien',
-    TECHNICAL: 'Test technique', OFFER: 'Offre', REJECTED: 'Refusé', WITHDRAWN: 'Retirée',
-  };
-
-  private readonly STATUS_COLORS: Record<string, string> = {
-    APPLIED: '#4a9eff',
-    ACKNOWLEDGED: '#4a9eff',
-    INTERVIEW: '#ffc53d',
-    TECHNICAL: '#b37feb',
-    OFFER: '#52c41a',
-    REJECTED: '#ff4d4f',
-    WITHDRAWN: '#8c8c8c',
-  };
+  exportingData = signal(false);
 
   ngOnInit() {
     this.appsService.getStats().subscribe({
@@ -64,6 +53,23 @@ export class DashboardComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.loadTopJobs();
+  }
+
+  exportMyData() {
+    if (this.exportingData()) return;
+    this.exportingData.set(true);
+    this.userService.exportData().subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `ostia-candidatures-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.exportingData.set(false);
+      },
+      error: () => this.exportingData.set(false),
+    });
   }
 
   private loadTopJobs() {
@@ -85,9 +91,9 @@ export class DashboardComponent implements OnInit {
     const data = Object.entries(s.byStatus)
       .filter(([, v]) => v > 0)
       .map(([k, v]) => ({
-        name: this.STATUS_LABELS[k] || k,
+        name: getStatusLabel(k),
         value: v,
-        itemStyle: { color: this.STATUS_COLORS[k] },
+        itemStyle: { color: getStatusHex(k) },
       }));
 
     this.pieOptions.set({
@@ -164,10 +170,10 @@ export class DashboardComponent implements OnInit {
 
   private buildFunnelChart(s: ApplicationStats) {
     const pipeline = [
-      { name: 'Envoyées',   value: (s.byStatus['APPLIED'] ?? 0) + (s.byStatus['ACKNOWLEDGED'] ?? 0), color: '#4a9eff' },
-      { name: 'Tests',      value: s.byStatus['TECHNICAL'] ?? 0,  color: '#b37feb' },
-      { name: 'Entretiens', value: s.byStatus['INTERVIEW'] ?? 0,  color: '#ffc53d' },
-      { name: 'Offres',     value: s.byStatus['OFFER'] ?? 0,      color: '#52c41a' },
+      { name: 'Envoyées',   value: (s.byStatus['APPLIED'] ?? 0) + (s.byStatus['ACKNOWLEDGED'] ?? 0), color: getStatusHex('APPLIED') },
+      { name: 'Tests',      value: s.byStatus['TECHNICAL'] ?? 0,  color: getStatusHex('TECHNICAL') },
+      { name: 'Entretiens', value: s.byStatus['INTERVIEW'] ?? 0,  color: getStatusHex('INTERVIEW') },
+      { name: 'Offres',     value: s.byStatus['OFFER'] ?? 0,      color: getStatusHex('OFFER') },
     ];
 
     this.funnelOptions.set({

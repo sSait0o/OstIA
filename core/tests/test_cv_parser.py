@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import patch
 from app.services.cv_parser import _strip_html, parse_email, extract_cv
 
@@ -35,25 +36,33 @@ def test_strip_html_collapses_whitespace():
 
 
 class TestParseEmail:
-    def test_returns_none_for_non_recruitment_email(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_for_non_recruitment_email(self):
         with patch("app.services.cv_parser.complete_json") as mock:
             mock.return_value = {"not_recruitment": True}
-            result = parse_email("Invoice #123", "Please pay $200", "msg-1")
+            result = await parse_email("Invoice #123", "Please pay $200", "msg-1")
         assert result is None
 
-    def test_returns_none_when_no_company_and_no_job_title(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_company_and_no_job_title(self):
         with patch("app.services.cv_parser.complete_json") as mock:
             mock.return_value = {"company": None, "jobTitle": None, "status": "APPLIED"}
-            result = parse_email("Some email", "body", "msg-2")
+            result = await parse_email("Some email", "body", "msg-2")
         assert result is None
 
-    def test_returns_none_for_invalid_status(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_for_invalid_status(self):
         with patch("app.services.cv_parser.complete_json") as mock:
-            mock.return_value = {"company": "Acme", "jobTitle": "Dev", "status": "INVALID"}
-            result = parse_email("Subject", "body", "msg-3")
+            mock.return_value = {
+                "company": "Acme",
+                "jobTitle": "Dev",
+                "status": "INVALID",
+            }
+            result = await parse_email("Subject", "body", "msg-3")
         assert result is None
 
-    def test_returns_parsed_application_for_valid_email(self):
+    @pytest.mark.asyncio
+    async def test_returns_parsed_application_for_valid_email(self):
         with patch("app.services.cv_parser.complete_json") as mock:
             mock.return_value = {
                 "company": "Google",
@@ -63,7 +72,7 @@ class TestParseEmail:
                 "appliedAt": "2024-01-15",
                 "notes": "Applied via LinkedIn",
             }
-            result = parse_email("Job Application", "Dear applicant...", "msg-4")
+            result = await parse_email("Job Application", "Dear applicant...", "msg-4")
 
         assert result is not None
         assert result["company"] == "Google"
@@ -73,50 +82,76 @@ class TestParseEmail:
         assert result["emailId"] == "msg-4"
         assert result["source"] == "EMAIL"
 
-    def test_falls_back_to_unknown_when_company_is_none_but_title_present(self):
+    @pytest.mark.asyncio
+    async def test_falls_back_to_unknown_when_company_is_none_but_title_present(self):
         with patch("app.services.cv_parser.complete_json") as mock:
             mock.return_value = {
                 "company": None,
                 "jobTitle": "Developer",
                 "status": "ACKNOWLEDGED",
             }
-            result = parse_email("Candidature reçue", "Nous avons bien reçu...", "msg-5")
+            result = await parse_email(
+                "Candidature reçue", "Nous avons bien reçu...", "msg-5"
+            )
 
         assert result is not None
         assert result["company"] == "Unknown"
 
-    def test_falls_back_to_unknown_when_job_title_is_none_but_company_present(self):
+    @pytest.mark.asyncio
+    async def test_falls_back_to_unknown_when_job_title_is_none_but_company_present(
+        self,
+    ):
         with patch("app.services.cv_parser.complete_json") as mock:
             mock.return_value = {
                 "company": "Capgemini",
                 "jobTitle": None,
                 "status": "INTERVIEW",
             }
-            result = parse_email("Interview invite", "We'd like to meet you", "msg-6")
+            result = await parse_email(
+                "Interview invite", "We'd like to meet you", "msg-6"
+            )
 
         assert result is not None
         assert result["jobTitle"] == "Unknown"
 
-    def test_accepts_all_valid_statuses(self):
-        valid_statuses = ["APPLIED", "ACKNOWLEDGED", "INTERVIEW", "TECHNICAL", "OFFER", "REJECTED"]
+    @pytest.mark.asyncio
+    async def test_accepts_all_valid_statuses(self):
+        valid_statuses = [
+            "APPLIED",
+            "ACKNOWLEDGED",
+            "INTERVIEW",
+            "TECHNICAL",
+            "OFFER",
+            "REJECTED",
+        ]
         for status in valid_statuses:
             with patch("app.services.cv_parser.complete_json") as mock:
-                mock.return_value = {"company": "Corp", "jobTitle": "Dev", "status": status}
-                result = parse_email("Email", "body", f"msg-{status}")
+                mock.return_value = {
+                    "company": "Corp",
+                    "jobTitle": "Dev",
+                    "status": status,
+                }
+                result = await parse_email("Email", "body", f"msg-{status}")
             assert result is not None, f"Expected result for status {status}"
             assert result["status"] == status
 
-    def test_truncates_body_to_max_email_length(self):
+    @pytest.mark.asyncio
+    async def test_truncates_body_to_max_email_length(self):
         long_body = "x" * 10000
         with patch("app.services.cv_parser.complete_json") as mock:
-            mock.return_value = {"company": "Corp", "jobTitle": "Dev", "status": "APPLIED"}
-            parse_email("Subject", long_body, "msg-7")
+            mock.return_value = {
+                "company": "Corp",
+                "jobTitle": "Dev",
+                "status": "APPLIED",
+            }
+            await parse_email("Subject", long_body, "msg-7")
             call_prompt = mock.call_args[0][0]
         assert len(call_prompt) < len(long_body)
 
 
 class TestExtractCv:
-    def test_returns_dict_from_ai(self):
+    @pytest.mark.asyncio
+    async def test_returns_dict_from_ai(self):
         with patch("app.services.cv_parser.complete_json") as mock:
             mock.return_value = {
                 "firstName": "Alice",
@@ -127,15 +162,16 @@ class TestExtractCv:
                 "education": [],
                 "summary": "Experienced developer",
             }
-            result = extract_cv("Alice Dupont\nPython developer")
+            result = await extract_cv("Alice Dupont\nPython developer")
 
         assert result["firstName"] == "Alice"
         assert "Python" in result["skills"]
 
-    def test_truncates_long_cv_text(self):
+    @pytest.mark.asyncio
+    async def test_truncates_long_cv_text(self):
         long_text = "x" * 10000
         with patch("app.services.cv_parser.complete_json") as mock:
             mock.return_value = {}
-            extract_cv(long_text)
+            await extract_cv(long_text)
             call_prompt = mock.call_args[0][0]
         assert "x" * 4001 not in call_prompt

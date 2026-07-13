@@ -1,0 +1,35 @@
+@if (tutorial.active() && tutorial.currentStep(); as step) {
+  <div class="tutorial-blocker" [style.clip-path]="blockerClipPath()"></div>
+
+  @if (highlightRect(); as rect) {
+    <div
+      class="tutorial-highlight"
+      [style.top.px]="rect.top"
+      [style.left.px]="rect.left"
+      [style.width.px]="rect.width"
+      [style.height.px]="rect.height"
+    ></div>
+
+    <div #tooltipEl class="tutorial-tooltip" [style.top.px]="tooltipTop()" [style.left.px]="tooltipLeft()">
+      <div class="tutorial-step-count">Étape {{ tutorial.stepIndex() + 1 }} / {{ tutorial.steps.length }}</div>
+      <h4 class="tutorial-title">{{ step.title }}</h4>
+      <p class="tutorial-description">{{ step.description }}</p>
+      @if (step.requiresClick) {
+        <p class="tutorial-hint">👉 Cliquez sur l'élément en surbrillance pour continuer</p>
+      }
+      <div class="tutorial-actions">
+        <button class="tutorial-btn tutorial-btn--ghost" (click)="skip()">Passer</button>
+        <div class="tutorial-actions-right">
+          @if (!tutorial.isFirstStep()) {
+            <button class="tutorial-btn tutorial-btn--outline" (click)="prev()">Précédent</button>
+          }
+          @if (!step.requiresClick) {
+            <button class="tutorial-btn tutorial-btn--primary" (click)="next()">
+              {{ tutorial.isLastStep() ? 'Terminer' : 'Suivant' }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+}
