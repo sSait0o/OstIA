@@ -12,7 +12,7 @@ export class MailService {
   constructor(private readonly configService: ConfigService) {
     this.from = this.configService.get<string>(
       'MAIL_FROM',
-      'OstIA <no-reply@ostia.app>',
+      'OstIA <no-reply@ostia-app.com>',
     );
     this.frontendUrl = this.configService.get<string>(
       'FRONTEND_URL',
