@@ -253,7 +253,7 @@ export class ApplicationsService {
         year: '2-digit',
       });
       const count = apps.filter((a) => {
-        const date = new Date(a.createdAt);
+        const date = new Date(a.appliedAt ?? a.createdAt);
         return (
           date.getFullYear() === d.getFullYear() &&
           date.getMonth() === d.getMonth()
