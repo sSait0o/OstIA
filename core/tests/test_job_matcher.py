@@ -43,7 +43,9 @@ class TestScoreCvJob:
         return {
             "firstName": "Alice",
             "lastName": "Dupont",
-            "skills": skills or ["Python", "FastAPI", "PostgreSQL"],
+            "skills": (
+                ["Python", "FastAPI", "PostgreSQL"] if skills is None else skills
+            ),
             "experience": [],
             "education": [],
             "summary": "Backend developer",
@@ -107,7 +109,9 @@ class TestScoreCvJob:
     @pytest.mark.asyncio
     async def test_falls_back_to_keyword_score_when_ai_raises(self):
         with patch("app.services.job_matcher.complete_json") as mock:
-            mock.side_effect = HTTPException(status_code=503, detail="AI service unavailable")
+            mock.side_effect = HTTPException(
+                status_code=503, detail="AI service unavailable"
+            )
             result = await score_cv_job(
                 self._cv(["Python"]),
                 "Backend Developer",
@@ -117,6 +121,55 @@ class TestScoreCvJob:
         assert isinstance(result["score"], int)
         assert result["score"] > 0
         assert "keyword overlap" in result["summary"].lower()
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_keyword_score_when_score_inconsistent_with_empty_matches(
+        self,
+    ):
+        with patch("app.services.job_matcher.complete_json") as mock:
+            mock.return_value = {
+                "score": 85,
+                "matchedSkills": [],
+                "missingSkills": [],
+                "summary": "Suspiciously high score with no matches",
+            }
+            result = await score_cv_job(
+                self._cv(["Python"]), "Dev", "We need Python developers"
+            )
+
+        assert result["score"] != 85
+        assert 0 <= result["score"] <= 100
+
+    @pytest.mark.asyncio
+    async def test_keeps_ai_score_when_matched_skills_present(self):
+        with patch("app.services.job_matcher.complete_json") as mock:
+            mock.return_value = {
+                "score": 85,
+                "matchedSkills": ["Python"],
+                "missingSkills": [],
+                "summary": "Good match",
+            }
+            result = await score_cv_job(
+                self._cv(["Python"]), "Dev", "We need Python developers"
+            )
+
+        assert result["score"] == 85
+
+    @pytest.mark.asyncio
+    async def test_sanitizes_non_string_items_in_skill_lists(self):
+        with patch("app.services.job_matcher.complete_json") as mock:
+            mock.return_value = {
+                "score": 60,
+                "matchedSkills": ["Python", 42, None],
+                "missingSkills": [{"name": "Kubernetes"}, "Kubernetes"],
+                "summary": "Partial match",
+            }
+            result = await score_cv_job(
+                self._cv(["Python"]), "Dev", "We need Python developers"
+            )
+
+        assert result["matchedSkills"] == ["Python"]
+        assert result["missingSkills"] == ["Kubernetes"]
 
     @pytest.mark.asyncio
     async def test_handles_empty_skills_gracefully(self):
