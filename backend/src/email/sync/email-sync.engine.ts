@@ -192,7 +192,10 @@ export async function runEmailSync(
       let newStatus: ApplicationStatus | null;
       if (isSelfSent) {
         newStatus = null;
-      } else if (keywordStatus) {
+      } else if (
+        keywordStatus &&
+        keywordStatus !== ApplicationStatus.REJECTED
+      ) {
         newStatus = keywordStatus;
       } else {
         await sleep(AI_REQUEST_DELAY_MS);
@@ -203,6 +206,11 @@ export async function runEmailSync(
           dossier.jobTitle,
           dossier.status,
         )) as ApplicationStatus | null;
+        if (keywordStatus === ApplicationStatus.REJECTED) {
+          logger.log(
+            `${provider.logTag} keyword flagged REJECTED but AI returned ${newStatus} for dossier ${dossier.id}; trusting AI`,
+          );
+        }
       }
 
       const updates: {
@@ -318,11 +326,22 @@ export async function runEmailSync(
       continue;
     }
 
+    let resolvedStatus = (keywordStatus ?? parsed.status) as ApplicationStatus;
+    if (
+      keywordStatus === ApplicationStatus.REJECTED &&
+      parsed.status !== (ApplicationStatus.REJECTED as string)
+    ) {
+      logger.log(
+        `${provider.logTag} keyword flagged REJECTED but AI parse returned ${parsed.status} for message ${msgId}; trusting AI`,
+      );
+      resolvedStatus = parsed.status as ApplicationStatus;
+    }
+
     try {
       const dto: CreateApplicationDto = {
         company: parsed.company,
         jobTitle: parsed.jobTitle,
-        status: (keywordStatus ?? parsed.status) as ApplicationStatus,
+        status: resolvedStatus,
         source: ApplicationSource.EMAIL,
         emailSubject: subject,
         emailBody: body.slice(0, 50000),

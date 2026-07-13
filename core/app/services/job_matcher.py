@@ -22,6 +22,12 @@ def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:
     return round(matches / len(cv_skills) * 100, 1)
 
 
+def _sanitize_skill_list(value) -> list[str]:
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str)]
+    return []
+
+
 def _cv_summary(cv_data: dict) -> str:
     relevant = {
         k: cv_data[k]
@@ -86,6 +92,19 @@ Return ONLY a valid JSON object:
 
     score = result.get("score")
     if not isinstance(score, (int, float)) or not (0 <= score <= 100):
+        result["score"] = round(preliminary)
+        score = result["score"]
+
+    matched = _sanitize_skill_list(result.get("matchedSkills"))
+    result["matchedSkills"] = matched
+    result["missingSkills"] = _sanitize_skill_list(result.get("missingSkills"))
+
+    if cv_skills and not matched and score > 0:
+        logger.warning(
+            "AI matching score=%s inconsistent with empty matchedSkills, "
+            "falling back to keyword score",
+            score,
+        )
         result["score"] = round(preliminary)
 
     return result
