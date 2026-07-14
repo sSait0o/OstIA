@@ -9,10 +9,10 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
-import { UsersService } from '../users/users.service';
-import { MailService } from '../mail/mail.service';
+import { UsersService } from '@users/users.service';
+import { MailService } from '@mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
-import { User } from '../users/entities/user.entity';
+import { User } from '@users/entities/user.entity';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000;

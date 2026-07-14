@@ -12,12 +12,12 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
-import { EmailService } from '../email/email.service';
-import { User } from '../users/entities/user.entity';
+import { EmailService } from '@email/email.service';
+import { User } from '@users/entities/user.entity';
 
 @ApiTags('Applications')
 @ApiBearerAuth()

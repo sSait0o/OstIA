@@ -1,7 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { ApplicationSource } from '../applications/entities/application.entity';
+import { ApplicationSource } from '@applications/entities/application.entity';
 
 export type StatusConfidence = 'high' | 'medium' | 'low';
 

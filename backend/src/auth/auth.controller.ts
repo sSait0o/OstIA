@@ -15,7 +15,7 @@ import { EmailDto } from './dto/email.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { User } from '../users/entities/user.entity';
+import { User } from '@users/entities/user.entity';
 
 @ApiTags('Auth')
 @Controller('auth')

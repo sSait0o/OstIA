@@ -14,9 +14,9 @@ import {
   ApiOperation,
   ApiQuery,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { JobsService } from './jobs.service';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '@users/users.service';
 
 @ApiTags('Jobs')
 @ApiBearerAuth()

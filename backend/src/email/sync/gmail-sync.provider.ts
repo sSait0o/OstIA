@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { gmail_v1 } from 'googleapis';
-import { ApplicationStatus } from '../../applications/entities/application.entity';
+import { ApplicationStatus } from '@applications/entities/application.entity';
 import { EmailProvider } from '../entities/email-connection.entity';
 import { extractEmailAddress } from './email-sync.engine';
 import {

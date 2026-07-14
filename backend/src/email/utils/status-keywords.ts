@@ -1,4 +1,4 @@
-import { ApplicationStatus } from '../../applications/entities/application.entity';
+import { ApplicationStatus } from '@applications/entities/application.entity';
 
 interface StatusRule {
   status: ApplicationStatus;

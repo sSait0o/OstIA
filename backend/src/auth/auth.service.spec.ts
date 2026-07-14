@@ -7,9 +7,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
-import { MailService } from '../mail/mail.service';
-import { User } from '../users/entities/user.entity';
+import { UsersService } from '@users/users.service';
+import { MailService } from '@mail/mail.service';
+import { User } from '@users/entities/user.entity';
 
 const mockUser = (overrides: Partial<User> = {}): User =>
   ({

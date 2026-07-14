@@ -10,7 +10,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { CvService, CvData } from '../../core/services/cv.service';
+import { CvService, CvData } from '@core/services/cv.service';
 
 @Component({
   selector: 'app-cv',

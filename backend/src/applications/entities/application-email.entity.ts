@@ -8,8 +8,8 @@ import {
   Index,
   Unique,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { EmailProvider } from '../../email/entities/email-connection.entity';
+import { User } from '@users/entities/user.entity';
+import { EmailProvider } from '@email/entities/email-connection.entity';
 import { Application, ApplicationStatus } from './application.entity';
 
 @Entity('application_emails')

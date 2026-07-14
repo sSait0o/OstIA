@@ -15,9 +15,9 @@ import {
   AiService,
   AI_MATCH_ERROR_SUMMARY,
   CvMatchResult,
-} from '../ai/ai.service';
-import { User } from '../users/entities/user.entity';
-import { UsersService } from '../users/users.service';
+} from '@ai/ai.service';
+import { User } from '@users/entities/user.entity';
+import { UsersService } from '@users/users.service';
 import { JobOffer, JobSearchParams } from './types/job-search.types';
 import { FranceTravailClient } from './providers/france-travail.provider';
 import { searchAdzunaJobs } from './providers/adzuna.provider';

@@ -7,9 +7,9 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { Application } from '../../applications/entities/application.entity';
-import { EmailConnection } from '../../email/entities/email-connection.entity';
-import { Job } from '../../jobs/entities/job.entity';
+import { Application } from '@applications/entities/application.entity';
+import { EmailConnection } from '@email/entities/email-connection.entity';
+import { Job } from '@jobs/entities/job.entity';
 
 @Entity('users')
 export class User {

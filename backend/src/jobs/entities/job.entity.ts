@@ -7,7 +7,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { User } from '@users/entities/user.entity';
 
 @Entity('jobs')
 export class Job {

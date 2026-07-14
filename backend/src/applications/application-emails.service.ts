@@ -3,8 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApplicationEmail } from './entities/application-email.entity';
 import { ApplicationStatus } from './entities/application.entity';
-import { EmailProvider } from '../email/entities/email-connection.entity';
-import { User } from '../users/entities/user.entity';
+import { EmailProvider } from '@email/entities/email-connection.entity';
+import { User } from '@users/entities/user.entity';
 import { Application } from './entities/application.entity';
 
 @Injectable()

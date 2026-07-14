@@ -2,12 +2,12 @@ import { Logger } from '@nestjs/common';
 import {
   ApplicationSource,
   ApplicationStatus,
-} from '../../applications/entities/application.entity';
-import { CreateApplicationDto } from '../../applications/dto/create-application.dto';
-import { ApplicationsService } from '../../applications/applications.service';
-import { ApplicationEmailsService } from '../../applications/application-emails.service';
-import { User } from '../../users/entities/user.entity';
-import { AiService } from '../../ai/ai.service';
+} from '@applications/entities/application.entity';
+import { CreateApplicationDto } from '@applications/dto/create-application.dto';
+import { ApplicationsService } from '@applications/applications.service';
+import { ApplicationEmailsService } from '@applications/application-emails.service';
+import { User } from '@users/entities/user.entity';
+import { AiService } from '@ai/ai.service';
 import { EmailSyncStatus } from '../entities/email-sync-record.entity';
 import { EmailSyncRecordsService } from '../email-sync-records.service';
 import { detectStatusByKeywords } from '../utils/status-keywords';

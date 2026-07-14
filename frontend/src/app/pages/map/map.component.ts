@@ -28,8 +28,8 @@ import { fromLonLat } from 'ol/proj';
 import { easeOut } from 'ol/easing';
 import { Style, Circle, Fill, Stroke, Text } from 'ol/style';
 import Overlay from 'ol/Overlay';
-import { MapService, MapApplication } from '../../core/services/map.service';
-import { getStatusTag, getStatusLabel, getStatusMarkerColor } from '../../shared/utils/status-colors.utils';
+import { MapService, MapApplication } from '@core/services/map.service';
+import { getStatusTag, getStatusLabel, getStatusMarkerColor } from '@shared/utils/status-colors.utils';
 
 @Component({
   selector: 'app-map',

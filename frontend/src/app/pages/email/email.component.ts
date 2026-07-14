@@ -12,7 +12,7 @@ import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzModalModule } from 'ng-zorro-antd/modal';
-import { EmailService, EmailConnection } from '../../core/services/email.service';
+import { EmailService, EmailConnection } from '@core/services/email.service';
 
 @Component({
   selector: 'app-email',

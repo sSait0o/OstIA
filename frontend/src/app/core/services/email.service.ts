@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { environment } from '../../../environments/environment';
+import { environment } from '@environments/environment';
 import { AuthService } from './auth.service';
 
 export interface SyncProgress {

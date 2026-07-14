@@ -9,7 +9,7 @@ import {
   ApplicationSource,
   ApplicationStatus,
 } from './entities/application.entity';
-import { User } from '../users/entities/user.entity';
+import { User } from '@users/entities/user.entity';
 
 const mockUser = (): User => ({ id: 'user-1' }) as User;
 

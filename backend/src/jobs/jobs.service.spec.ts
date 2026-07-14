@@ -4,8 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Job } from './entities/job.entity';
 import { JobsService } from './jobs.service';
-import { AiService } from '../ai/ai.service';
-import { UsersService } from '../users/users.service';
+import { AiService } from '@ai/ai.service';
+import { UsersService } from '@users/users.service';
 
 const mockJob = (overrides: Partial<Job> = {}): Job =>
   ({
