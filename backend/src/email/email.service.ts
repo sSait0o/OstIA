@@ -11,12 +11,12 @@ import {
   EmailProvider,
 } from './entities/email-connection.entity';
 import { EmailSyncRecordsService } from './email-sync-records.service';
-import { User } from '../users/entities/user.entity';
-import { AiService } from '../ai/ai.service';
-import { ApplicationsService } from '../applications/applications.service';
-import { ApplicationEmailsService } from '../applications/application-emails.service';
-import { ApplicationStatus } from '../applications/entities/application.entity';
-import { EncryptionService } from '../common/encryption.service';
+import { User } from '@users/entities/user.entity';
+import { AiService } from '@ai/ai.service';
+import { ApplicationsService } from '@applications/applications.service';
+import { ApplicationEmailsService } from '@applications/application-emails.service';
+import { ApplicationStatus } from '@applications/entities/application.entity';
+import { EncryptionService } from '@common/encryption.service';
 import {
   SyncProgress,
   SyncRateLimitedException,

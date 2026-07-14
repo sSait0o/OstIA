@@ -6,8 +6,8 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { AuthService } from '../../../core/services/auth.service';
-import { extractErrorMessage } from '../../../shared/utils/http-error.utils';
+import { AuthService } from '@core/services/auth.service';
+import { extractErrorMessage } from '@shared/utils/http-error.utils';
 
 @Component({
   selector: 'app-forgot-password',

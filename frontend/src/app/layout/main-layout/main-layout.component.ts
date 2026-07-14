@@ -11,12 +11,12 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { AuthService } from '../../core/services/auth.service';
-import { MapService } from '../../core/services/map.service';
-import { EmailService, EmailConnection } from '../../core/services/email.service';
-import { TutorialService } from '../../core/services/tutorial.service';
-import { UserService } from '../../core/services/user.service';
-import { TutorialOverlayComponent } from '../../shared/components/tutorial-overlay/tutorial-overlay.component';
+import { AuthService } from '@core/services/auth.service';
+import { MapService } from '@core/services/map.service';
+import { EmailService, EmailConnection } from '@core/services/email.service';
+import { TutorialService } from '@core/services/tutorial.service';
+import { UserService } from '@core/services/user.service';
+import { TutorialOverlayComponent } from '@shared/components/tutorial-overlay/tutorial-overlay.component';
 
 @Component({
   selector: 'app-main-layout',

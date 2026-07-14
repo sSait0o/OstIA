@@ -5,9 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import pdfParse from 'pdf-parse';
-import { AiService } from '../ai/ai.service';
-import { UsersService } from '../users/users.service';
-import { User } from '../users/entities/user.entity';
+import { AiService } from '@ai/ai.service';
+import { UsersService } from '@users/users.service';
+import { User } from '@users/entities/user.entity';
 
 @Injectable()
 export class CvService {

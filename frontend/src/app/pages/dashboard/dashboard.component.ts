@@ -9,11 +9,11 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { ApplicationsService, ApplicationStats } from '../../core/services/applications.service';
-import { JobsService, Job } from '../../core/services/jobs.service';
-import { UserService } from '../../core/services/user.service';
-import { getScoreColor, scoreFormat } from '../../shared/utils/score.utils';
-import { getStatusHex, getStatusLabel } from '../../shared/utils/status-colors.utils';
+import { ApplicationsService, ApplicationStats } from '@core/services/applications.service';
+import { JobsService, Job } from '@core/services/jobs.service';
+import { UserService } from '@core/services/user.service';
+import { getScoreColor, scoreFormat } from '@shared/utils/score.utils';
+import { getStatusHex, getStatusLabel } from '@shared/utils/status-colors.utils';
 import type { EChartsOption } from 'echarts';
 
 @Component({

@@ -2,8 +2,8 @@ import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
-import { AuthService } from '../../../core/services/auth.service';
-import { extractErrorMessage } from '../../../shared/utils/http-error.utils';
+import { AuthService } from '@core/services/auth.service';
+import { extractErrorMessage } from '@shared/utils/http-error.utils';
 
 @Component({
   selector: 'app-verify-email',

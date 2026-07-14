@@ -1,4 +1,4 @@
-import { ApplicationStatus } from '../../applications/entities/application.entity';
+import { ApplicationStatus } from '@applications/entities/application.entity';
 
 interface StatusRule {
   status: ApplicationStatus;
@@ -9,7 +9,7 @@ const STATUS_RULES: StatusRule[] = [
   {
     status: ApplicationStatus.REJECTED,
     pattern:
-      /\b(regrett?ons|n['’]avons (?:pas|malheureusement pas) retenu|ne (?:pouvons|donnerons) pas (?:donner suite|poursuivre)|malheureusement|réponse négative|candidature n['’]a pas été retenue|refus\w*|poste (?:a été )?pourvu|autre profil (?:a été|a été retenu)|unfortunately|not (?:been )?selected|not moving forward|regret to inform|rejected)\b/i,
+      /\b(regrett?ons|n['’]avons (?:pas|malheureusement pas) retenu|ne (?:pouvons|donnerons) pas (?:donner suite|poursuivre)|réponse négative|candidature n['’]a pas été retenue|poste (?:a été )?pourvu|autre profil (?:a été|a été retenu)|unfortunately|not (?:been )?selected|not moving forward|regret to inform|rejected|refus\w*[^.!?\n]{0,60}\b(?:candidature|poste)\b|\b(?:candidature|poste)\b[^.!?\n]{0,60}refus\w*)\b/i,
   },
   {
     status: ApplicationStatus.OFFER,
@@ -44,8 +44,10 @@ const STATUS_RULES: StatusRule[] = [
 ];
 
 export function detectStatusByKeywords(text: string): ApplicationStatus | null {
+  const matchedStatuses = new Set<ApplicationStatus>();
   for (const rule of STATUS_RULES) {
-    if (rule.pattern.test(text)) return rule.status;
+    if (rule.pattern.test(text)) matchedStatuses.add(rule.status);
   }
-  return null;
+  if (matchedStatuses.size !== 1) return null;
+  return [...matchedStatuses][0];
 }

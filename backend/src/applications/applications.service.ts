@@ -14,7 +14,7 @@ import { ApplicationEmail } from './entities/application-email.entity';
 import { ApplicationEmailsService } from './application-emails.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
-import { User } from '../users/entities/user.entity';
+import { User } from '@users/entities/user.entity';
 
 @Injectable()
 export class ApplicationsService {

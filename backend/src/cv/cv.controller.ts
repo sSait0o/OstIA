@@ -15,9 +15,9 @@ import {
   ApiOperation,
   ApiConsumes,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 import { CvService } from './cv.service';
-import { User } from '../users/entities/user.entity';
+import { User } from '@users/entities/user.entity';
 
 @ApiTags('CV')
 @ApiBearerAuth()

@@ -2,12 +2,12 @@ import { Logger } from '@nestjs/common';
 import {
   ApplicationSource,
   ApplicationStatus,
-} from '../../applications/entities/application.entity';
-import { CreateApplicationDto } from '../../applications/dto/create-application.dto';
-import { ApplicationsService } from '../../applications/applications.service';
-import { ApplicationEmailsService } from '../../applications/application-emails.service';
-import { User } from '../../users/entities/user.entity';
-import { AiService } from '../../ai/ai.service';
+} from '@applications/entities/application.entity';
+import { CreateApplicationDto } from '@applications/dto/create-application.dto';
+import { ApplicationsService } from '@applications/applications.service';
+import { ApplicationEmailsService } from '@applications/application-emails.service';
+import { User } from '@users/entities/user.entity';
+import { AiService } from '@ai/ai.service';
 import { EmailSyncStatus } from '../entities/email-sync-record.entity';
 import { EmailSyncRecordsService } from '../email-sync-records.service';
 import { detectStatusByKeywords } from '../utils/status-keywords';
@@ -21,6 +21,30 @@ import {
 export const AI_REQUEST_DELAY_MS = 2100;
 export const EMAIL_SYNC_LOOKBACK_MONTHS = 2;
 const ETA_UPDATE_INTERVAL_MS = 25_000;
+
+const HIGH_STAKES_STATUSES = new Set<ApplicationStatus>([
+  ApplicationStatus.REJECTED,
+  ApplicationStatus.OFFER,
+]);
+
+const STATUS_PROGRESSION: ApplicationStatus[] = [
+  ApplicationStatus.APPLIED,
+  ApplicationStatus.ACKNOWLEDGED,
+  ApplicationStatus.INTERVIEW,
+  ApplicationStatus.TECHNICAL,
+  ApplicationStatus.OFFER,
+];
+
+function isForwardStatusTransition(
+  current: ApplicationStatus,
+  next: ApplicationStatus,
+): boolean {
+  if (next === ApplicationStatus.REJECTED) return true;
+  const currentRank = STATUS_PROGRESSION.indexOf(current);
+  const nextRank = STATUS_PROGRESSION.indexOf(next);
+  if (currentRank === -1 || nextRank === -1) return true;
+  return nextRank > currentRank;
+}
 
 export interface EmailSyncDeps {
   logger: Logger;
@@ -192,23 +216,28 @@ export async function runEmailSync(
       let newStatus: ApplicationStatus | null;
       if (isSelfSent) {
         newStatus = null;
-      } else if (
-        keywordStatus &&
-        keywordStatus !== ApplicationStatus.REJECTED
-      ) {
+      } else if (keywordStatus && !HIGH_STAKES_STATUSES.has(keywordStatus)) {
         newStatus = keywordStatus;
       } else {
         await sleep(AI_REQUEST_DELAY_MS);
-        newStatus = (await aiService.detectStatusUpdate(
+        const aiResult = await aiService.detectStatusUpdate(
           subject,
           freshBody,
           dossier.company,
           dossier.jobTitle,
           dossier.status,
-        )) as ApplicationStatus | null;
-        if (keywordStatus === ApplicationStatus.REJECTED) {
+        );
+        if (aiResult.status && aiResult.confidence === 'low') {
           logger.log(
-            `${provider.logTag} keyword flagged REJECTED but AI returned ${newStatus} for dossier ${dossier.id}; trusting AI`,
+            `${provider.logTag} AI returned ${aiResult.status} with low confidence for dossier ${dossier.id}; ignoring`,
+          );
+          newStatus = null;
+        } else {
+          newStatus = aiResult.status as ApplicationStatus | null;
+        }
+        if (keywordStatus && keywordStatus !== newStatus) {
+          logger.log(
+            `${provider.logTag} keyword flagged ${keywordStatus} but AI returned ${aiResult.status} (confidence=${aiResult.confidence}) for dossier ${dossier.id}; trusting AI`,
           );
         }
       }
@@ -224,6 +253,16 @@ export async function runEmailSync(
         updates.emailBody = body.slice(0, 50000);
       }
       if (!dossier.threadId && threadId) updates.threadId = threadId;
+      if (
+        newStatus &&
+        newStatus !== dossier.status &&
+        !isForwardStatusTransition(dossier.status, newStatus)
+      ) {
+        logger.log(
+          `${provider.logTag} ignoring backward status transition ${dossier.status} -> ${newStatus} for dossier ${dossier.id}`,
+        );
+        newStatus = null;
+      }
       const statusChanged = !!newStatus && newStatus !== dossier.status;
       if (statusChanged) updates.status = newStatus!;
 
@@ -272,7 +311,7 @@ export async function runEmailSync(
     await sleep(AI_REQUEST_DELAY_MS);
     const parseResult = await aiService.parseEmailForApplication(
       subject,
-      cleanBody,
+      freshBody,
       msgId,
     );
 
@@ -328,13 +367,19 @@ export async function runEmailSync(
 
     let resolvedStatus = (keywordStatus ?? parsed.status) as ApplicationStatus;
     if (
-      keywordStatus === ApplicationStatus.REJECTED &&
-      parsed.status !== (ApplicationStatus.REJECTED as string)
+      keywordStatus &&
+      HIGH_STAKES_STATUSES.has(keywordStatus) &&
+      parsed.status !== (keywordStatus as string)
     ) {
       logger.log(
-        `${provider.logTag} keyword flagged REJECTED but AI parse returned ${parsed.status} for message ${msgId}; trusting AI`,
+        `${provider.logTag} keyword flagged ${keywordStatus} but AI parse returned ${parsed.status} (confidence=${parsed.statusConfidence}) for message ${msgId}; trusting AI`,
       );
       resolvedStatus = parsed.status as ApplicationStatus;
+    } else if (!keywordStatus && parsed.statusConfidence === 'low') {
+      logger.log(
+        `${provider.logTag} low-confidence AI status ${parsed.status} for message ${msgId}; defaulting to APPLIED`,
+      );
+      resolvedStatus = ApplicationStatus.APPLIED;
     }
 
     try {

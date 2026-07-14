@@ -17,9 +17,9 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { FormsModule } from '@angular/forms';
-import { ApplicationsService, Application, ApplicationEmail, CreateApplicationDto } from '../../core/services/applications.service';
-import { ApplicationStatus } from '../../shared/models/application.model';
-import { getStatusTag, getStatusLabel as getStatusRollupLabel } from '../../shared/utils/status-colors.utils';
+import { ApplicationsService, Application, ApplicationEmail, CreateApplicationDto } from '@core/services/applications.service';
+import { ApplicationStatus } from '@shared/models/application.model';
+import { getStatusTag, getStatusLabel as getStatusRollupLabel } from '@shared/utils/status-colors.utils';
 
 interface Column {
   key: ApplicationStatus;

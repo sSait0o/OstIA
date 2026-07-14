@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { EmailProvider } from '../entities/email-connection.entity';
-import { ApplicationStatus } from '../../applications/entities/application.entity';
+import { ApplicationStatus } from '@applications/entities/application.entity';
 
 export interface SyncProgress {
   percent: number;
