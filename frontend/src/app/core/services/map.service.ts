@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
-import { ApplicationStatus, ApplicationSource } from '../../shared/models/application.model';
+import { environment } from '@environments/environment';
+import { ApplicationStatus, ApplicationSource } from '@shared/models/application.model';
 
 export interface MapApplication {
   id: string;

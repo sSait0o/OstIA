@@ -7,7 +7,7 @@ import {
   Application,
   ApplicationSource,
   ApplicationStatus,
-} from '../applications/entities/application.entity';
+} from '@applications/entities/application.entity';
 
 const STATUS_LABELS: Record<ApplicationStatus, string> = {
   [ApplicationStatus.APPLIED]: 'Envoyée',

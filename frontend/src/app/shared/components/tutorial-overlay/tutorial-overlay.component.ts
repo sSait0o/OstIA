@@ -1,5 +1,5 @@
 import { Component, ElementRef, HostListener, ViewChild, computed, effect, inject, signal } from '@angular/core';
-import { TutorialService } from '../../../core/services/tutorial.service';
+import { TutorialService } from '@core/services/tutorial.service';
 
 interface HighlightRect {
   top: number;

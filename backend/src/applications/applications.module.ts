@@ -5,7 +5,7 @@ import { ApplicationEmailsService } from './application-emails.service';
 import { ApplicationsController } from './applications.controller';
 import { Application } from './entities/application.entity';
 import { ApplicationEmail } from './entities/application-email.entity';
-import { EmailModule } from '../email/email.module';
+import { EmailModule } from '@email/email.module';
 
 @Module({
   imports: [

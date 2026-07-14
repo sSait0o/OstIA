@@ -1,12 +1,12 @@
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import axios from 'axios';
-import { ApplicationStatus } from '../../applications/entities/application.entity';
+import { ApplicationStatus } from '@applications/entities/application.entity';
 import {
   EmailConnection,
   EmailProvider,
 } from '../entities/email-connection.entity';
-import { EncryptionService } from '../../common/encryption.service';
+import { EncryptionService } from '@common/encryption.service';
 import { extractEmailAddress } from './email-sync.engine';
 import {
   EmailSyncProvider,

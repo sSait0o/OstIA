@@ -3,8 +3,8 @@ import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CvService } from './cv.service';
 import { CvController } from './cv.controller';
-import { AiModule } from '../ai/ai.module';
-import { UsersModule } from '../users/users.module';
+import { AiModule } from '@ai/ai.module';
+import { UsersModule } from '@users/users.module';
 
 @Module({
   imports: [

@@ -6,8 +6,8 @@ import {
   EmailSyncStatus,
 } from './entities/email-sync-record.entity';
 import { EmailProvider } from './entities/email-connection.entity';
-import { User } from '../users/entities/user.entity';
-import { Application } from '../applications/entities/application.entity';
+import { User } from '@users/entities/user.entity';
+import { Application } from '@applications/entities/application.entity';
 
 @Injectable()
 export class EmailSyncRecordsService {

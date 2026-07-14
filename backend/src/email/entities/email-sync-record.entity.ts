@@ -9,9 +9,9 @@ import {
   Index,
   Unique,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { User } from '@users/entities/user.entity';
 import { EmailProvider } from './email-connection.entity';
-import { Application } from '../../applications/entities/application.entity';
+import { Application } from '@applications/entities/application.entity';
 
 export enum EmailSyncStatus {
   CREATED = 'CREATED',

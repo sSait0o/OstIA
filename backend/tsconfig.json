@@ -13,6 +13,18 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"],
+      "@ai/*": ["src/ai/*"],
+      "@applications/*": ["src/applications/*"],
+      "@auth/*": ["src/auth/*"],
+      "@common/*": ["src/common/*"],
+      "@cv/*": ["src/cv/*"],
+      "@email/*": ["src/email/*"],
+      "@jobs/*": ["src/jobs/*"],
+      "@mail/*": ["src/mail/*"],
+      "@users/*": ["src/users/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,

@@ -3,8 +3,8 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzGridModule } from 'ng-zorro-antd/grid';
-import { JobsService, Job } from '../../core/services/jobs.service';
-import { JobCardComponent } from '../../shared/components/job-card/job-card.component';
+import { JobsService, Job } from '@core/services/jobs.service';
+import { JobCardComponent } from '@shared/components/job-card/job-card.component';
 
 @Component({
   selector: 'app-saved-jobs',

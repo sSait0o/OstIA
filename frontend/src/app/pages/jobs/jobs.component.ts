@@ -17,9 +17,9 @@ import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzAutocompleteModule } from 'ng-zorro-antd/auto-complete';
-import { JobsService, Job, JobSearchParams } from '../../core/services/jobs.service';
-import { CvService, CvData } from '../../core/services/cv.service';
-import { JobCardComponent } from '../../shared/components/job-card/job-card.component';
+import { JobsService, Job, JobSearchParams } from '@core/services/jobs.service';
+import { CvService, CvData } from '@core/services/cv.service';
+import { JobCardComponent } from '@shared/components/job-card/job-card.component';
 
 interface CityOption { name: string; dept: string }
 interface GeoCommune { nom: string; codeDepartement: string }
