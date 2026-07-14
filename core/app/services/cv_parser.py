@@ -2,7 +2,12 @@ import logging
 import re
 from html import unescape
 from app.services.ai_client import complete_json
-from app.constants import VALID_STATUSES, MAX_EMAIL_LENGTH, MAX_CV_LENGTH
+from app.constants import (
+    VALID_STATUSES,
+    VALID_CONFIDENCE_LEVELS,
+    MAX_EMAIL_LENGTH,
+    MAX_CV_LENGTH,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +46,7 @@ Step 2 - If YES, return exactly this JSON (no surrounding text):
   "company": "exact company name (never null)",
   "jobTitle": "exact job title (never null, use best guess if unclear)",
   "status": "APPLIED|ACKNOWLEDGED|INTERVIEW|TECHNICAL|OFFER|REJECTED",
+  "statusConfidence": "high|medium|low",
   "location": "city/country or null",
   "appliedAt": "ISO 8601 date or null",
   "notes": "factual 1-sentence summary"
@@ -53,6 +59,11 @@ Status definitions:
 - TECHNICAL: invitation to a technical test, case study, assessment
 - OFFER: job offer, contract proposal
 - REJECTED: explicit rejection of the application
+
+statusConfidence reflects how certain you are about "status" specifically:
+- high: the email explicitly and unambiguously states this status
+- medium: the status is a reasonable inference from context but not stated outright
+- low: you are guessing based on weak, indirect, or conflicting signals
 
 Company examples: "BNP Paribas", "Thales", "Capgemini" (not "HR team of BNP", not "the recruitment team")
 JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager Apprenticeship" """
@@ -76,10 +87,15 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
         )
         return None
 
+    confidence = result.get("statusConfidence")
+    if confidence not in VALID_CONFIDENCE_LEVELS:
+        confidence = "low"
+
     return {
         "company": company or "Unknown",
         "jobTitle": job_title or "Unknown",
         "status": status,
+        "statusConfidence": confidence,
         "location": result.get("location"),
         "appliedAt": result.get("appliedAt"),
         "notes": result.get("notes"),
@@ -90,7 +106,7 @@ JobTitle examples: "Full Stack Developer", "Data Analyst", "IT Project Manager A
 
 async def detect_status_update(
     subject: str, body: str, company: str, job_title: str, current_status: str
-) -> str | None:
+) -> dict:
     clean_body = _strip_html(body)[:MAX_EMAIL_LENGTH]
 
     prompt = f"""This email is a follow-up in an ongoing job application to "{company}" for the position "{job_title}".
@@ -100,13 +116,25 @@ SUBJECT: {subject}
 CONTENT: {clean_body}
 
 Does this email clearly indicate a NEW status for this application? Reply with exactly this JSON (no surrounding text):
-{{"status": "APPLIED" | "ACKNOWLEDGED" | "INTERVIEW" | "TECHNICAL" | "OFFER" | "REJECTED" | null}}
+{{
+  "status": "APPLIED" | "ACKNOWLEDGED" | "INTERVIEW" | "TECHNICAL" | "OFFER" | "REJECTED" | null,
+  "confidence": "high" | "medium" | "low"
+}}
 
-Return null if the email does not clearly indicate one of these statuses (e.g. a scheduling detail, a generic reply, an out-of-office)."""
+Return status null if the email does not clearly indicate one of these statuses (e.g. a scheduling detail, a generic reply, an out-of-office).
+
+confidence reflects how certain you are about "status" specifically:
+- high: the email explicitly and unambiguously states this status
+- medium: the status is a reasonable inference from context but not stated outright
+- low: you are guessing based on weak, indirect, or conflicting signals"""
 
     result = await complete_json(prompt, max_tokens=1024, system=_SYSTEM_EMAIL)
     status = result.get("status") if result else None
-    return status if status in VALID_STATUSES else None
+    confidence = result.get("confidence") if result else None
+    return {
+        "status": status if status in VALID_STATUSES else None,
+        "confidence": confidence if confidence in VALID_CONFIDENCE_LEVELS else "low",
+    }
 
 
 async def extract_cv(text: str) -> dict:

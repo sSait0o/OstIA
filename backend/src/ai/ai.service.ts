@@ -3,15 +3,23 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { ApplicationSource } from '../applications/entities/application.entity';
 
+export type StatusConfidence = 'high' | 'medium' | 'low';
+
 export interface ParsedApplication {
   company: string;
   jobTitle: string;
   status: string;
+  statusConfidence: StatusConfidence;
   source: ApplicationSource;
   emailId?: string;
   appliedAt?: string;
   notes?: string;
   location?: string;
+}
+
+export interface StatusUpdateResult {
+  status: string | null;
+  confidence: StatusConfidence;
 }
 
 export type EmailParseResult =
@@ -82,9 +90,9 @@ export class AiService {
     company: string,
     jobTitle: string,
     currentStatus: string,
-  ): Promise<string | null> {
+  ): Promise<StatusUpdateResult> {
     try {
-      const { data } = await axios.post<{ status: string | null }>(
+      const { data } = await axios.post<StatusUpdateResult>(
         `${this.coreUrl}/cv/detect-status`,
         {
           subject: emailSubject,
@@ -94,9 +102,9 @@ export class AiService {
           currentStatus,
         },
       );
-      return data.status ?? null;
+      return { status: data.status ?? null, confidence: data.confidence };
     } catch {
-      return null;
+      return { status: null, confidence: 'low' };
     }
   }
 

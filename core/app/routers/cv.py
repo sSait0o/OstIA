@@ -33,14 +33,13 @@ async def parse_email(req: ParseEmailRequest):
 
 @router.post("/detect-status")
 async def detect_status(req: DetectStatusRequest):
-    status = await cv_parser.detect_status_update(
+    return await cv_parser.detect_status_update(
         req.subject,
         req.body,
         req.company,
         req.jobTitle,
         req.currentStatus,
     )
-    return {"status": status}
 
 
 @router.post("/extract")
