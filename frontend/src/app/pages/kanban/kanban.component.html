@@ -152,6 +152,13 @@
         @if (emailHistoryLoading()) {
           <div class="loading-center"><nz-spin></nz-spin></div>
         } @else if (emailHistory().length > 0) {
+          @if (emailStatusCounts().length > 0) {
+            <div class="email-status-summary">
+              @for (item of emailStatusCounts(); track item.status) {
+                <nz-tag [nzColor]="getStatusColor(item.status)">{{ item.label }} · {{ item.count }}</nz-tag>
+              }
+            </div>
+          }
           <nz-collapse>
             @for (mail of emailHistory(); track mail.id; let last = $last) {
               <nz-collapse-panel [nzActive]="last" [nzHeader]="mailHeaderTpl">

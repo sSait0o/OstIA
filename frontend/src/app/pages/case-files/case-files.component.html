@@ -1,0 +1,252 @@
+<div class="case-files-header">
+  <h2>
+    Dossiers
+    <span
+      nz-icon
+      nzType="info-circle"
+      class="ai-hint-icon"
+      nz-tooltip
+      nzTooltipTitle="Chaque dossier peut regrouper plusieurs emails. Un dossier marqué ⚠️ a été rattaché par l'IA sans certitude totale : vérifie le parcours et divise-le si besoin."
+      [nzTooltipOverlayStyle]="{ maxWidth: '280px' }"
+    ></span>
+  </h2>
+  <div class="case-files-header-actions">
+    <nz-input-group [nzPrefix]="searchIcon" class="search-input">
+      <input nz-input placeholder="Rechercher…" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()" />
+    </nz-input-group>
+    <ng-template #searchIcon><span nz-icon nzType="search"></span></ng-template>
+  </div>
+</div>
+
+@if (stats(); as s) {
+  <div class="stats-row">
+    <div class="stats-block">
+      <div class="stats-title">Dossiers actuels par statut</div>
+      <div class="stats-tags">
+        @for (opt of terminalStatusOptions; track opt.value) {
+          @if (s.byStatusCurrent[opt.value] > 0) {
+            <nz-tag [nzColor]="getStatusColor(opt.value)">{{ opt.label }} · {{ s.byStatusCurrent[opt.value] }}</nz-tag>
+          }
+        }
+      </div>
+    </div>
+    <div class="stats-block">
+      <div class="stats-title">
+        Événements de statut détectés
+        <span
+          nz-icon
+          nzType="info-circle"
+          class="stats-hint-icon"
+          nz-tooltip
+          nzTooltipTitle="Compte chaque changement de statut détecté dans l'historique des emails, indépendamment des fusions de dossiers — non biaisé par le regroupement."
+          [nzTooltipOverlayStyle]="{ maxWidth: '260px' }"
+        ></span>
+      </div>
+      <div class="stats-tags">
+        @for (opt of terminalStatusOptions; track opt.value) {
+          @if (s.byStatusEvents[opt.value] > 0) {
+            <nz-tag [nzColor]="getStatusColor(opt.value)">{{ opt.label }} · {{ s.byStatusEvents[opt.value] }}</nz-tag>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<div class="filters-row">
+  <nz-select
+    [ngModel]="statusFilter()"
+    (ngModelChange)="statusFilter.set($event)"
+    nzMode="multiple"
+    nzPlaceHolder="Statut"
+    class="filter-select"
+  >
+    @for (opt of terminalStatusOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+  <nz-select
+    [ngModel]="sourceFilter()"
+    (ngModelChange)="sourceFilter.set($event)"
+    nzAllowClear
+    nzPlaceHolder="Source"
+    class="filter-select"
+  >
+    @for (opt of sourceOptions; track opt.value) {
+      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+    }
+  </nz-select>
+</div>
+
+@if (loading()) {
+  <div class="loading-center"><nz-spin nzSize="large"></nz-spin></div>
+} @else {
+  <div class="case-files-layout" [class.case-files-layout--detail-open]="selectedId()">
+    <div class="case-files-list-pane">
+      @for (caseFile of filteredCaseFiles(); track caseFile.id) {
+        <div
+          class="list-row"
+          [class.list-row--active]="selectedId() === caseFile.id"
+          (click)="select(caseFile)"
+        >
+          <div class="list-row-main">
+            <div class="list-row-top">
+              <span class="list-row-company">{{ caseFile.company }}</span>
+              @if (caseFile.needsReview) {
+                <span nz-icon nzType="warning" nzTheme="fill" class="review-icon-sm"></span>
+              }
+            </div>
+            <div class="list-row-title">{{ caseFile.jobTitle }}</div>
+            @if (caseFile.appliedAt) {
+              <div class="list-row-date">{{ formatDate(caseFile.appliedAt) }}</div>
+            }
+            @if (getSnippet(caseFile); as snippet) {
+              <div class="list-row-snippet">{{ snippet }}</div>
+            }
+          </div>
+          <nz-tag [nzColor]="getStatusColor(caseFile.status)" class="list-row-status">
+            {{ getStatusLabel(caseFile.status) }}
+          </nz-tag>
+        </div>
+      } @empty {
+        <div class="list-empty">
+          <span nz-icon nzType="inbox" class="list-empty-icon"></span>
+          <span>Aucun dossier</span>
+        </div>
+      }
+    </div>
+
+    <div class="case-files-detail-pane">
+      @if (selectedCaseFile(); as caseFile) {
+        <button nz-button nzType="text" class="back-btn" (click)="backToList()">
+          <span nz-icon nzType="arrow-left"></span> Retour
+        </button>
+
+        <div class="detail-header">
+          <div class="detail-header-main">
+            <div class="detail-company">
+              {{ caseFile.company }}
+              @if (caseFile.needsReview) {
+                <span
+                  nz-icon
+                  nzType="warning"
+                  nzTheme="fill"
+                  class="review-icon"
+                  nz-tooltip
+                  nzTooltipTitle="L'IA n'a pas pu confirmer avec certitude que tous les emails de ce dossier concernent la même candidature."
+                ></span>
+              }
+            </div>
+            <div class="detail-title">{{ caseFile.jobTitle }}</div>
+            @if (caseFile.appliedAt) {
+              <div class="detail-date">
+                <span nz-icon nzType="mail"></span> Candidature du {{ formatDate(caseFile.appliedAt) }}
+              </div>
+            }
+          </div>
+          <div class="detail-header-actions">
+            @if (caseFile.source === 'EMAIL') {
+              <nz-tag nzColor="blue" class="source-tag"><span nz-icon nzType="mail"></span> Email</nz-tag>
+            } @else {
+              <nz-tag class="source-tag">{{ getSourceLabel(caseFile.source) }}</nz-tag>
+            }
+            <nz-select
+              [ngModel]="caseFile.status"
+              (ngModelChange)="updateStatus(caseFile, $event)"
+              nzSize="small"
+              class="detail-status-select"
+              [nzLoading]="updatingStatusId() === caseFile.id"
+            >
+              @for (opt of statusOptions; track opt.value) {
+                <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+              }
+            </nz-select>
+            <button
+              nz-button
+              nzType="text"
+              nzDanger
+              nz-popconfirm
+              nzPopconfirmTitle="Supprimer ce dossier ?"
+              nzPopconfirmPlacement="bottom"
+              (nzOnConfirm)="deleteCaseFile(caseFile)"
+              [nzLoading]="deletingId() === caseFile.id"
+            >
+              <span nz-icon nzType="delete"></span>
+            </button>
+          </div>
+        </div>
+
+        @if (isEmailsLoading(caseFile.id)) {
+          <div class="loading-center"><nz-spin></nz-spin></div>
+        } @else {
+          @if (journeySteps().length > 0) {
+            <div class="journey-block">
+              <div class="journey-title">Parcours détecté</div>
+              <nz-timeline class="journey-timeline">
+                @for (step of journeySteps(); track step.date + step.status) {
+                  <nz-timeline-item [nzColor]="step.color">
+                    <span class="journey-status">{{ step.label }}</span>
+                    <span class="journey-date">{{ step.date }}</span>
+                  </nz-timeline-item>
+                }
+              </nz-timeline>
+            </div>
+          }
+
+          @if (selectedEmails().length > 0) {
+            <nz-collapse class="email-thread">
+              @for (mail of selectedEmails(); track mail.id; let last = $last) {
+                <nz-collapse-panel [nzActive]="last" [nzHeader]="mailHeaderTpl">
+                  <ng-template #mailHeaderTpl>
+                    <span class="email-history-subject">{{ mail.subject || caseFile.jobTitle }}</span>
+                    @if (mail.statusDetected) {
+                      <nz-tag [nzColor]="getStatusColor(mail.statusDetected)">{{ getStatusLabel(mail.statusDetected) }}</nz-tag>
+                    }
+                    @if (mail.receivedAt) {
+                      <span class="email-history-date">{{ formatDate(mail.receivedAt) }}</span>
+                    }
+                  </ng-template>
+                  <div
+                    class="email-body-block"
+                    [class.email-body-block--plain]="!isHtml(mail.body)"
+                    [innerHTML]="sanitizeHtml(mail.body)"
+                  ></div>
+                  @if (selectedEmails().length > 1) {
+                    <button
+                      nz-button
+                      nzType="default"
+                      nzSize="small"
+                      nz-popconfirm
+                      nzPopconfirmTitle="Détacher cet email dans un nouveau dossier indépendant ?"
+                      nzPopconfirmPlacement="top"
+                      (nzOnConfirm)="splitEmail(caseFile, mail)"
+                      [nzLoading]="splittingEmailId() === mail.id"
+                      class="split-btn"
+                    >
+                      <span nz-icon nzType="scissor"></span> Diviser ce dossier ici
+                    </button>
+                  }
+                </nz-collapse-panel>
+              }
+            </nz-collapse>
+          } @else if (caseFile.emailBody) {
+            <div
+              class="email-body-block"
+              [class.email-body-block--plain]="!isHtml(caseFile.emailBody)"
+              [innerHTML]="sanitizeHtml(caseFile.emailBody)"
+            ></div>
+          } @else {
+            <div class="email-no-body">
+              <span nz-icon nzType="inbox"></span> Aucun historique d'email pour ce dossier
+            </div>
+          }
+        }
+      } @else {
+        <div class="detail-empty">
+          <span nz-icon nzType="folder-open" class="detail-empty-icon"></span>
+          <span>Sélectionne un dossier dans la liste</span>
+        </div>
+      }
+    </div>
+  </div>
+}

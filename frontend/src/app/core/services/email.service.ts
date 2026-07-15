@@ -16,6 +16,7 @@ export interface SyncProgress {
   updated?: number;
   skipped?: number;
   failed?: number;
+  notRelevant?: number;
   aiUnavailable?: number;
   rateLimited?: boolean;
   retryAfterSeconds?: number;
@@ -162,7 +163,8 @@ export class EmailService {
     const parts: string[] = [`${p.synced} emails analysés`, `${p.created} candidature(s) créée(s)`];
     if (p.updated) parts.push(`${p.updated} mise(s) à jour`);
     if (p.skipped) parts.push(`${p.skipped} doublon(s) ignoré(s)`);
-    if (p.failed) parts.push(`${p.failed} non reconnu(s) par l'IA`);
+    if (p.notRelevant) parts.push(`${p.notRelevant} non pertinent(s)`);
+    if (p.failed) parts.push(`${p.failed} échec(s)`);
     this.message.success(parts.join(', '));
     if (p.aiUnavailable) {
       this.message.warning(

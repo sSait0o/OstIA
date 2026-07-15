@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed, SecurityContext } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { NzCardModule } from 'ng-zorro-antd/card';
@@ -20,6 +20,7 @@ import { FormsModule } from '@angular/forms';
 import { ApplicationsService, Application, ApplicationEmail, CreateApplicationDto } from '@core/services/applications.service';
 import { ApplicationStatus } from '@shared/models/application.model';
 import { getStatusTag, getStatusLabel as getStatusRollupLabel } from '@shared/utils/status-colors.utils';
+import { sanitizeEmailBody, isEmailHtml } from '@shared/utils/email-html.utils';
 
 interface Column {
   key: ApplicationStatus;
@@ -74,8 +75,19 @@ export class KanbanComponent implements OnInit {
   emailHistory = signal<ApplicationEmail[]>([]);
   emailHistoryLoading = signal(false);
 
+  emailStatusCounts = computed(() => {
+    const counts = new Map<ApplicationStatus, number>();
+    for (const mail of this.emailHistory()) {
+      if (!mail.statusDetected) continue;
+      counts.set(mail.statusDetected, (counts.get(mail.statusDetected) ?? 0) + 1);
+    }
+    return this.statusOptions
+      .filter((opt) => counts.has(opt.value))
+      .map((opt) => ({ status: opt.value, label: opt.label, count: counts.get(opt.value)! }));
+  });
+
   columns = signal<Column[]>(
-    (['APPLIED', 'TECHNICAL', 'INTERVIEW', 'OFFER', 'REJECTED'] as ApplicationStatus[]).map((key) => ({
+    (['APPLIED', 'TECHNICAL', 'INTERVIEW'] as ApplicationStatus[]).map((key) => ({
       key,
       label: getStatusRollupLabel(key),
       color: getStatusTag(key),
@@ -167,11 +179,11 @@ export class KanbanComponent implements OnInit {
   }
 
   sanitizeHtml(body: string | null | undefined): string {
-    return this.sanitizer.sanitize(SecurityContext.HTML, body ?? '') ?? '';
+    return sanitizeEmailBody(this.sanitizer, body);
   }
 
   isHtml(body: string | null): boolean {
-    return !!body && /<[a-z][\s\S]*>/i.test(body);
+    return isEmailHtml(body);
   }
 
   selectApp(app: Application) {

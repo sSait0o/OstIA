@@ -334,6 +334,38 @@ html {
   .ant-select-arrow            { color: $text-muted; }
   .ant-select-selection-placeholder { color: rgba(255, 255, 255, .55); }
 
+  .ant-checkbox-wrapper {
+    color: $text;
+  }
+
+  .ant-checkbox-inner {
+    background-color: $surface-2;
+    border-color: $border-strong;
+  }
+
+  .ant-checkbox:hover .ant-checkbox-inner,
+  .ant-checkbox-wrapper:hover .ant-checkbox-inner {
+    border-color: rgba(255,255,255,.5);
+  }
+
+  .ant-checkbox-checked .ant-checkbox-inner {
+    background-color: #1677ff;
+    border-color: #1677ff;
+  }
+
+  .ant-checkbox-checked::after {
+    border-color: #1677ff;
+  }
+
+  .ant-checkbox-disabled .ant-checkbox-inner {
+    background-color: rgba(255,255,255,.05) !important;
+    border-color: rgba(255,255,255,.15) !important;
+  }
+
+  .ant-checkbox-wrapper-disabled {
+    color: $text-muted;
+  }
+
   @include buttons;
 
   .ant-form-item-label > label { color: $text-muted; }

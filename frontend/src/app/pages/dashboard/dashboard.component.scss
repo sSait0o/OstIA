@@ -9,20 +9,6 @@
   flex-wrap: wrap;
 }
 
-.page-title {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #fff;
-  margin: 0;
-}
-
-.loading-center {
-  text-align: center;
-  padding: 80px;
-}
-
 .stats-row {
   margin-bottom: 24px;
 }
@@ -53,73 +39,6 @@
   }
 }
 
-.email-list {
-  padding: 4px 0;
-}
-
-.email-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(255,255,255,.05);
-  gap: 8px;
-  flex-wrap: wrap;
-
-  &:last-child { border-bottom: none; }
-}
-
-.email-item-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.email-item-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.email-provider-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255,255,255,.6);
-}
-
-.email-address {
-  font-size: 12px;
-  color: rgba(255,255,255,.3);
-}
-
-.email-empty {
-  color: rgba(255,255,255,.2);
-  text-align: center;
-  padding: 24px;
-  font-size: 13px;
-  letter-spacing: 0.05em;
-}
-
-.email-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.section-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,.35);
-  margin-bottom: 16px;
-}
-
-.sync-progress {
-  margin-top: 12px;
-  display: block;
-}
-
 .top-jobs-card {
   border-radius: 20px !important;
 }
@@ -136,7 +55,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255,255,255,.35);
+  color: var(--text-dim);
 }
 
 .top-jobs-list {

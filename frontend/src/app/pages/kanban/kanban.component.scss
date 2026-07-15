@@ -1,4 +1,5 @@
 @use 'mixins' as mx;
+@use 'email-timeline' as *;
 
 $col-border: rgba(255,255,255,.07);
 $card-bg: rgba(var(--surface-rgb), .95);
@@ -399,26 +400,11 @@ $card-bg: rgba(var(--surface-rgb), .95);
   cursor: help;
 }
 
-.email-body-block {
-  max-height: 520px;
-  overflow-y: auto;
-  padding: 24px;
-  background: #ffffff;
-  color: #111;
-  word-break: break-word;
-
-  * { max-width: 100%; }
-  img { height: auto; }
-  a { color: #1a73e8; }
-
-  &--plain {
-    background: #1a1a1a;
-    color: rgba(255,255,255,.8);
-    font-size: 14px;
-    line-height: 1.8;
-    white-space: pre-wrap;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-  }
+.email-status-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .email-history-header {
@@ -426,34 +412,6 @@ $card-bg: rgba(var(--surface-rgb), .95);
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-
-.email-history-subject {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255,255,255,.8);
-}
-
-.email-history-date {
-  font-size: 11px;
-  color: rgba(255,255,255,.3);
-  flex-shrink: 0;
-}
-
-.email-no-body {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 40px 24px;
-  color: rgba(255,255,255,.2);
-  font-size: 13px;
-
-  span[nz-icon] { font-size: 20px; }
 }
 
 .cdk-drag-preview {

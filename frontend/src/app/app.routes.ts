@@ -63,6 +63,11 @@ export const routes: Routes = [
           import('./pages/kanban/kanban.component').then((m) => m.KanbanComponent),
       },
       {
+        path: 'case-files',
+        loadComponent: () =>
+          import('./pages/case-files/case-files.component').then((m) => m.CaseFilesComponent),
+      },
+      {
         path: 'jobs',
         loadComponent: () =>
           import('./pages/jobs/jobs.component').then((m) => m.JobsComponent),

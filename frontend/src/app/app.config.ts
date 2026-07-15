@@ -38,8 +38,18 @@ import {
   MenuOutline,
   MenuFoldOutline,
   ArrowRightOutline,
+  ArrowLeftOutline,
   QuestionCircleOutline,
   LinkOutline,
+  FolderOpenOutline,
+  InboxOutline,
+  ScissorOutline,
+  WarningFill,
+  DownloadOutline,
+  CheckCircleOutline,
+  ZoomInOutline,
+  LoadingOutline,
+  SendOutline,
 } from '@ant-design/icons-angular/icons';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
@@ -76,8 +86,18 @@ const icons: IconDefinition[] = [
   MenuOutline,
   MenuFoldOutline,
   ArrowRightOutline,
+  ArrowLeftOutline,
   QuestionCircleOutline,
   LinkOutline,
+  FolderOpenOutline,
+  InboxOutline,
+  ScissorOutline,
+  WarningFill,
+  DownloadOutline,
+  CheckCircleOutline,
+  ZoomInOutline,
+  LoadingOutline,
+  SendOutline,
 ];
 
 export const appConfig: ApplicationConfig = {

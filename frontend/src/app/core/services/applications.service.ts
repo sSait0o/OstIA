@@ -41,7 +41,16 @@ export interface ApplicationStats {
   total: number;
   byStatus: Record<ApplicationStatus, number>;
   responseRate: number;
-  byMonth?: { month: string; count: number }[];
+  byDay?: { day: string; count: number }[];
+}
+
+export interface CaseFile extends Application {
+  needsReview: boolean;
+}
+
+export interface CaseFileStats {
+  byStatusCurrent: Record<ApplicationStatus, number>;
+  byStatusEvents: Record<ApplicationStatus, number>;
 }
 
 export interface CreateApplicationDto {
@@ -94,5 +103,17 @@ export class ApplicationsService {
 
   deduplicateApplications() {
     return this.http.delete<{ removed: number }>(`${this.base}/duplicates`);
+  }
+
+  getCaseFiles() {
+    return this.http.get<CaseFile[]>(`${this.base}/case-files`);
+  }
+
+  getCaseFileStats() {
+    return this.http.get<CaseFileStats>(`${this.base}/case-files/stats`);
+  }
+
+  splitEmail(applicationId: string, emailId: string) {
+    return this.http.post<Application>(`${this.base}/${applicationId}/emails/${emailId}/split`, {});
   }
 }

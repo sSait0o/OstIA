@@ -14,6 +14,7 @@ import { JobsService, Job } from '@core/services/jobs.service';
 import { UserService } from '@core/services/user.service';
 import { getScoreColor, scoreFormat } from '@shared/utils/score.utils';
 import { getStatusHex, getStatusLabel } from '@shared/utils/status-colors.utils';
+import { echartsTooltipTheme, chartAccentColor, chartAccentColorHover } from '@shared/utils/echarts-theme.utils';
 import type { EChartsOption } from 'echarts';
 
 @Component({
@@ -50,7 +51,10 @@ export class DashboardComponent implements OnInit {
         this.buildFunnelChart(s);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.message.error('Erreur lors du chargement des statistiques');
+        this.loading.set(false);
+      },
     });
     this.loadTopJobs();
   }
@@ -68,7 +72,10 @@ export class DashboardComponent implements OnInit {
         URL.revokeObjectURL(url);
         this.exportingData.set(false);
       },
-      error: () => this.exportingData.set(false),
+      error: () => {
+        this.message.error("Erreur lors de l'export des données");
+        this.exportingData.set(false);
+      },
     });
   }
 
@@ -81,6 +88,7 @@ export class DashboardComponent implements OnInit {
           .slice(0, 4);
         this.topJobs.set(withScore);
       },
+      error: () => this.message.error('Erreur lors du chargement des offres sauvegardées'),
     });
   }
 
@@ -88,7 +96,11 @@ export class DashboardComponent implements OnInit {
   readonly getScoreColor = getScoreColor;
 
   private buildPieChart(s: ApplicationStats) {
-    const data = Object.entries(s.byStatus)
+    const byStatus = { ...s.byStatus };
+    byStatus['APPLIED'] = (byStatus['APPLIED'] ?? 0) + (byStatus['ACKNOWLEDGED'] ?? 0);
+    delete (byStatus as Partial<typeof byStatus>)['ACKNOWLEDGED'];
+
+    const data = Object.entries(byStatus)
       .filter(([, v]) => v > 0)
       .map(([k, v]) => ({
         name: getStatusLabel(k),
@@ -101,9 +113,7 @@ export class DashboardComponent implements OnInit {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: <b>{c}</b> ({d}%)',
-        backgroundColor: 'rgba(10,10,30,0.95)',
-        borderColor: 'rgba(255,255,255,0.08)',
-        textStyle: { color: '#e8e8e8', fontSize: 13 },
+        ...echartsTooltipTheme,
       },
       legend: {
         orient: 'horizontal',
@@ -138,16 +148,14 @@ export class DashboardComponent implements OnInit {
       backgroundColor: 'transparent',
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(10,10,30,0.95)',
-        borderColor: 'rgba(255,255,255,0.08)',
-        textStyle: { color: '#e8e8e8', fontSize: 13 },
+        ...echartsTooltipTheme,
       },
       xAxis: {
         type: 'category',
-        data: s.byMonth?.map((m) => m.month) ?? [],
+        data: s.byDay?.map((d) => d.day) ?? [],
         axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
         axisTick: { show: false },
-        axisLabel: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
+        axisLabel: { color: 'rgba(255,255,255,0.45)', fontSize: 12, interval: 'auto', hideOverlap: true },
       },
       yAxis: {
         type: 'value',
@@ -159,10 +167,10 @@ export class DashboardComponent implements OnInit {
       },
       series: [{
         type: 'bar',
-        data: s.byMonth?.map((m) => m.count) ?? [],
-        itemStyle: { color: '#4a9eff', borderRadius: [4, 4, 0, 0] },
-        emphasis: { itemStyle: { color: '#74b8ff' } },
-        barMaxWidth: 40,
+        data: s.byDay?.map((d) => d.count) ?? [],
+        itemStyle: { color: chartAccentColor, borderRadius: [3, 3, 0, 0] },
+        emphasis: { itemStyle: { color: chartAccentColorHover } },
+        barMaxWidth: 16,
       }],
       grid: { left: '2%', right: '2%', bottom: '4%', top: '8%', containLabel: true },
     });
@@ -181,9 +189,7 @@ export class DashboardComponent implements OnInit {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: <b>{c}</b>',
-        backgroundColor: 'rgba(10,10,30,0.95)',
-        borderColor: 'rgba(255,255,255,0.08)',
-        textStyle: { color: '#e8e8e8', fontSize: 13 },
+        ...echartsTooltipTheme,
       },
       series: [{
         type: 'funnel',
