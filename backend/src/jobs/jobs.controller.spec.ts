@@ -34,28 +34,17 @@ describe('JobsController', () => {
   const req = { user: { id: 'user-1' } };
 
   describe('feed', () => {
-    it('awaits the sync when the user has never synced before', async () => {
+    it('does not await the sync when the user has never synced before (fire-and-forget)', async () => {
       usersService.findById.mockResolvedValue({
         cvData: {},
         jobsLastSyncedAt: null,
       });
       jobsService.isJobsSyncStale.mockReturnValue(true);
-
-      let syncResolved = false;
-      jobsService.syncJobsForUser.mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => {
-              syncResolved = true;
-              resolve(undefined);
-            }, 10),
-          ),
-      );
+      jobsService.syncJobsForUser.mockReturnValue(new Promise(() => {}));
 
       const result = await controller.feed(req);
 
-      expect(syncResolved).toBe(true);
-      expect(result.syncing).toBe(false);
+      expect(result.syncing).toBe(true);
       expect(jobsService.getFeed).toHaveBeenCalled();
     });
 
