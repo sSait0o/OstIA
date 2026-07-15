@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-15
+
+### Added
+
+- Case files review page (`/case-files`): every dossier listed with a `needsReview` flag for ambiguous email matches, ability to split a wrongly-merged email into its own application, a per-status event breakdown, and an email timeline component shared with Kanban.
+- Email verification: registration now sends a signed verification link via SMTP and login is blocked until the account is verified.
+- Ambiguous email-to-application match detection: the AI now confirms an email genuinely belongs to a fuzzy-matched application before updating it, tracked via a new `matchConfidence` column on sync records.
+
+### Security
+
+- Extended AES-256-GCM at-rest encryption to `EmailConnection.email`, `ApplicationEmail.subject`/`body`, and `Application.company`/`jobTitle`/`location`/`emailSubject` (previously only user identity, CV data, and OAuth tokens were covered).
+- Fixed the Outlook OAuth callback: its `state` parameter was never signed like Gmail's, so `verifyOAuthState` always rejected it — Outlook connections were effectively broken and are now CSRF-protected the same way as Gmail.
+
+### Fixed
+
+- Removed the orphaned `lastContactAt` column/field, already dropped from the database by an earlier migration but still referenced in code (broke CSV export).
+- AI-driven status detection: added a confidence score to avoid trusting low-certainty guesses, rejected backward status transitions, extended the AI double-check to OFFER in addition to REJECTED, and now requires AI confirmation before applying a keyword-detected REJECTED status.
+- Job matching: accented skills (e.g. "développeur") now match unaccented job descriptions during keyword scoring.
+- CV analysis: unreadable/scanned PDFs and failed AI extraction now return a clear error instead of a raw 500.
+- Dashboard activity chart: applications synced from email now group by their real `appliedAt` date instead of the sync timestamp; the chart also switched from a monthly to a 30-day view.
+- Job sync: offers are now written via a single batched upsert keyed on `(user, externalId)` instead of per-job find-then-save, backed by a unique constraint that also dedupes pre-existing rows.
+
+### Changed
+
+- Replaced deep relative imports with TypeScript path aliases (`@core`, `@shared`, `@users`, `@applications`, etc.) across frontend and backend.
+- No-reply email domain updated to `ostia-app.com`.
+
 ## [1.4.1] - 2026-07-09
 
 ### Fixed
