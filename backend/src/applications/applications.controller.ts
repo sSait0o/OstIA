@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
   Optional,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
@@ -65,6 +66,40 @@ export class ApplicationsController {
   @ApiOperation({ summary: 'Candidatures avec coordonnées pour la carte' })
   map(@Request() req: { user: User }) {
     return this.applicationsService.findForMap(req.user.id);
+  }
+
+  @Get('case-files')
+  @ApiOperation({ summary: 'Tous les dossiers avec leur historique de statuts' })
+  listCaseFiles(@Request() req: { user: User }) {
+    if (!this.emailService) throw new NotFoundException();
+    return this.emailService.listCaseFiles(req.user.id);
+  }
+
+  @Get('case-files/stats')
+  @ApiOperation({
+    summary:
+      'Statistiques par statut, dossiers actuels vs événements détectés',
+  })
+  caseFileStats(@Request() req: { user: User }) {
+    if (!this.emailService) throw new NotFoundException();
+    return this.emailService.getCaseFileStats(req.user.id);
+  }
+
+  @Post(':id/emails/:emailId/split')
+  @ApiOperation({
+    summary: 'Détacher un email vers un nouveau dossier indépendant',
+  })
+  splitDossier(
+    @Request() req: { user: User },
+    @Param('id') id: string,
+    @Param('emailId') emailId: string,
+  ) {
+    if (!this.emailService) throw new NotFoundException();
+    return this.emailService.splitEmailIntoNewApplication(
+      req.user.id,
+      id,
+      emailId,
+    );
   }
 
   @Get(':id/emails')

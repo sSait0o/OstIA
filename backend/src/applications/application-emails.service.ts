@@ -58,4 +58,38 @@ export class ApplicationEmailsService {
       order: { receivedAt: 'ASC', createdAt: 'ASC' },
     });
   }
+
+  async findOneForUser(
+    userId: string,
+    id: string,
+  ): Promise<ApplicationEmail | null> {
+    return this.repo.findOne({
+      where: { id, user: { id: userId } },
+      relations: { application: true },
+    });
+  }
+
+  async reassign(id: string, applicationId: string): Promise<void> {
+    await this.repo.update(id, {
+      application: { id: applicationId } as Application,
+    });
+  }
+
+  async getStatusEventCounts(
+    userId: string,
+  ): Promise<Record<ApplicationStatus, number>> {
+    const rows = await this.repo.find({
+      where: { user: { id: userId } },
+      select: { statusDetected: true },
+    });
+
+    const result = Object.values(ApplicationStatus).reduce(
+      (acc, s) => ({ ...acc, [s]: 0 }),
+      {} as Record<ApplicationStatus, number>,
+    );
+    for (const row of rows) {
+      if (row.statusDetected) result[row.statusDetected] += 1;
+    }
+    return result;
+  }
 }

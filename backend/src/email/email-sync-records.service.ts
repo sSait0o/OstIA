@@ -51,18 +51,24 @@ export class EmailSyncRecordsService {
     provider: EmailProvider,
     externalMessageId: string,
     status: EmailSyncStatus,
-    opts?: { applicationId?: string; reason?: string },
+    opts?: {
+      applicationId?: string;
+      reason?: string;
+      matchConfidence?: 'certain' | 'ambiguous';
+    },
   ): Promise<EmailSyncRecord> {
     const existing = await this.find(userId, provider, externalMessageId);
     const application = opts?.applicationId
       ? ({ id: opts.applicationId } as Application)
       : null;
     const reason = opts?.reason?.slice(0, 255) ?? null;
+    const matchConfidence = opts?.matchConfidence ?? null;
 
     if (existing) {
       existing.status = status;
       existing.application = application;
       existing.reason = reason;
+      existing.matchConfidence = matchConfidence;
       existing.attemptCount += 1;
       return this.repo.save(existing);
     }
@@ -75,8 +81,21 @@ export class EmailSyncRecordsService {
         status,
         application,
         reason,
+        matchConfidence,
         attemptCount: 1,
       }),
+    );
+  }
+
+  async findAmbiguousApplicationIds(userId: string): Promise<Set<string>> {
+    const records = await this.repo.find({
+      where: { user: { id: userId }, matchConfidence: 'ambiguous' },
+      relations: { application: true },
+    });
+    return new Set(
+      records
+        .map((r) => r.application?.id)
+        .filter((id): id is string => !!id),
     );
   }
 }

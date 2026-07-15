@@ -13,6 +13,7 @@ export interface SyncProgress {
   updated?: number;
   skipped?: number;
   failed?: number;
+  notRelevant?: number;
   aiUnavailable?: number;
   rateLimited?: boolean;
   retryAfterSeconds?: number;
@@ -28,7 +29,7 @@ export interface SyncStatus {
 export class SyncRateLimitedException extends HttpException {
   constructor(public readonly retryAfterSeconds: number) {
     super(
-      `Synchronisation limitée à 3 essais toutes les 20 heures. Réessayez dans ${Math.ceil(retryAfterSeconds / 3600)} heure(s).`,
+      `Synchronisation limitée à 3 essais, puis 1 essai toutes les 6 heures. Réessayez dans ${Math.ceil(retryAfterSeconds / 3600)} heure(s).`,
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
@@ -40,6 +41,7 @@ export interface SyncResult {
   updated: number;
   skipped: number;
   failed: number;
+  notRelevant: number;
   aiUnavailable: number;
   labelMissing?: boolean;
 }
@@ -56,7 +58,10 @@ export interface NormalizedEmailMessage {
 export interface EmailSyncProvider {
   readonly provider: EmailProvider;
   readonly logTag: string;
-  fetchMessages(cutoff: Date): Promise<NormalizedEmailMessage[]>;
+  fetchMessages(
+    cutoff: Date,
+    maxMessages?: number,
+  ): Promise<NormalizedEmailMessage[]>;
   applyLabel(msgId: string, status: ApplicationStatus): Promise<void>;
 }
 

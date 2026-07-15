@@ -16,6 +16,11 @@ import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { User } from '@users/entities/user.entity';
 
+export type DossierMatch =
+  | { kind: 'certain'; application: Application }
+  | { kind: 'ambiguous'; application: Application }
+  | { kind: 'none' };
+
 @Injectable()
 export class ApplicationsService {
   constructor(
@@ -193,36 +198,58 @@ export class ApplicationsService {
     return this.appRepo.findOne({ where: { user: { id: userId }, emailId } });
   }
 
+  async clearEmailId(userId: string, id: string): Promise<void> {
+    await this.appRepo.update(
+      { id, user: { id: userId } },
+      { emailId: null as unknown as string },
+    );
+  }
+
   async findDossierForEmail(
     userId: string,
     params: { threadId?: string; text: string },
-  ): Promise<Application | null> {
+    candidates?: Application[],
+  ): Promise<DossierMatch> {
     const { threadId, text } = params;
 
     if (threadId) {
       const byThread = await this.appRepo.findOne({
         where: { user: { id: userId }, threadId },
       });
-      if (byThread) return byThread;
+      if (byThread) return { kind: 'certain', application: byThread };
     }
 
-    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const nText = norm(text);
-    const existing = await this.findAllByUser(userId);
+    const existing = candidates ?? (await this.findAllByUser(userId));
 
-    return (
-      existing.find((a) => {
-        if (ApplicationsService.TERMINAL_STATUSES.has(a.status)) return false;
-        const nc = norm(a.company);
-        const nj = norm(a.jobTitle);
-        return (
-          nc.length > 0 &&
-          nj.length > 0 &&
-          nText.includes(nc) &&
-          nText.includes(nj)
-        );
-      }) ?? null
-    );
+    const fuzzyMatch = existing.find((a) => {
+      if (ApplicationsService.TERMINAL_STATUSES.has(a.status)) return false;
+      const companyPattern = ApplicationsService.toWordBoundaryPattern(
+        a.company,
+      );
+      const jobTitlePattern = ApplicationsService.toWordBoundaryPattern(
+        a.jobTitle,
+      );
+      return (
+        !!companyPattern &&
+        !!jobTitlePattern &&
+        companyPattern.test(text) &&
+        jobTitlePattern.test(text)
+      );
+    });
+
+    return fuzzyMatch
+      ? { kind: 'ambiguous', application: fuzzyMatch }
+      : { kind: 'none' };
+  }
+
+  private static toWordBoundaryPattern(phrase: string): RegExp | null {
+    const words = phrase
+      .toLowerCase()
+      .split(/[^a-z0-9]+/i)
+      .filter(Boolean);
+    if (words.length === 0) return null;
+    const escaped = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return new RegExp(`\\b${escaped.join('\\W+')}\\b`, 'i');
   }
 
   async getStats(userId: string) {
@@ -245,23 +272,22 @@ export class ApplicationsService {
     const responseRate =
       apps.length > 0 ? Math.round((responded / apps.length) * 100) : 0;
 
-    const now = new Date();
-    const byMonth = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      const label = d.toLocaleString('fr-FR', {
+    const startOfDay = (d: Date) =>
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const today = startOfDay(new Date());
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const byDay = Array.from({ length: 30 }, (_, i) => {
+      const dayTime = today - (29 - i) * DAY_MS;
+      const label = new Date(dayTime).toLocaleString('fr-FR', {
+        day: 'numeric',
         month: 'short',
-        year: '2-digit',
       });
-      const count = apps.filter((a) => {
-        const date = new Date(a.appliedAt ?? a.createdAt);
-        return (
-          date.getFullYear() === d.getFullYear() &&
-          date.getMonth() === d.getMonth()
-        );
-      }).length;
-      return { month: label, count };
+      const count = apps.filter(
+        (a) => startOfDay(new Date(a.appliedAt ?? a.createdAt)) === dayTime,
+      ).length;
+      return { day: label, count };
     });
 
-    return { total, byStatus, responseRate, byMonth };
+    return { total, byStatus, responseRate, byDay };
   }
 }

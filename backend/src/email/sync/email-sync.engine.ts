@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import {
+  Application,
   ApplicationSource,
   ApplicationStatus,
 } from '@applications/entities/application.entity';
@@ -59,6 +60,15 @@ export function getSyncCutoffDate(): Date {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - EMAIL_SYNC_LOOKBACK_MONTHS);
   return cutoff;
+}
+
+function isValidApplicationStatus(
+  value: string | null,
+): value is ApplicationStatus {
+  return (
+    !!value &&
+    (Object.values(ApplicationStatus) as string[]).includes(value)
+  );
 }
 
 export function extractEmailAddress(raw: string): string {
@@ -125,7 +135,10 @@ export async function runEmailSync(
   } = deps;
 
   onProgress({ percent: 5 });
-  const allMessages = await provider.fetchMessages(getSyncCutoffDate());
+  const allMessages = await provider.fetchMessages(
+    getSyncCutoffDate(),
+    deps.maxMessages,
+  );
   const messages = deps.maxMessages
     ? allMessages.slice(0, deps.maxMessages)
     : allMessages;
@@ -141,9 +154,12 @@ export async function runEmailSync(
   let updated = 0;
   let skipped = 0;
   let failed = 0;
+  let notRelevant = 0;
   let aiUnavailable = 0;
   const user = { id: userId } as User;
   const normalizedConnectionEmail = connectionEmail.toLowerCase();
+  const applications: Application[] =
+    total > 0 ? await applicationsService.findAllByUser(userId) : [];
 
   const syncStartedAt = Date.now();
   const estimateEta = createEtaEstimator(syncStartedAt);
@@ -195,105 +211,160 @@ export async function runEmailSync(
       continue;
     }
 
-    const dossier = await applicationsService.findDossierForEmail(userId, {
-      threadId,
-      text: fullText,
-    });
+    const dossierMatch = await applicationsService.findDossierForEmail(
+      userId,
+      { threadId, text: fullText },
+      applications,
+    );
 
-    if (dossier) {
+    if (dossierMatch.kind !== 'none') {
+      const dossier = dossierMatch.application;
+      const matchConfidence = dossierMatch.kind;
       if (dossier.status === ApplicationStatus.REJECTED) {
         await syncRecordsService.upsert(
           userId,
           provider.provider,
           msgId,
           EmailSyncStatus.DUPLICATE,
-          { applicationId: dossier.id },
+          { applicationId: dossier.id, matchConfidence },
         );
         skipped++;
         continue;
       }
 
-      let newStatus: ApplicationStatus | null;
-      if (isSelfSent) {
-        newStatus = null;
-      } else if (keywordStatus && !HIGH_STAKES_STATUSES.has(keywordStatus)) {
-        newStatus = keywordStatus;
-      } else {
-        await sleep(AI_REQUEST_DELAY_MS);
-        const aiResult = await aiService.detectStatusUpdate(
-          subject,
-          freshBody,
-          dossier.company,
-          dossier.jobTitle,
-          dossier.status,
-        );
-        if (aiResult.status && aiResult.confidence === 'low') {
-          logger.log(
-            `${provider.logTag} AI returned ${aiResult.status} with low confidence for dossier ${dossier.id}; ignoring`,
-          );
+      let sameApplication = true;
+
+      try {
+        let newStatus: ApplicationStatus | null;
+        if (isSelfSent) {
           newStatus = null;
-        } else {
-          newStatus = aiResult.status as ApplicationStatus | null;
-        }
-        if (keywordStatus && keywordStatus !== newStatus) {
-          logger.log(
-            `${provider.logTag} keyword flagged ${keywordStatus} but AI returned ${aiResult.status} (confidence=${aiResult.confidence}) for dossier ${dossier.id}; trusting AI`,
+        } else if (dossierMatch.kind === 'ambiguous') {
+          await sleep(AI_REQUEST_DELAY_MS);
+          const aiResult = await aiService.detectStatusUpdate(
+            subject,
+            freshBody,
+            dossier.company,
+            dossier.jobTitle,
+            dossier.status,
           );
+          sameApplication = aiResult.sameApplication;
+          if (aiResult.status && !isValidApplicationStatus(aiResult.status)) {
+            logger.warn(
+              `${provider.logTag} AI returned unknown status "${aiResult.status}" for message ${msgId}, ignoring`,
+            );
+          }
+          const aiStatus =
+            isValidApplicationStatus(aiResult.status) &&
+            aiResult.confidence !== 'low'
+              ? aiResult.status
+              : null;
+          newStatus = sameApplication
+            ? keywordStatus && !HIGH_STAKES_STATUSES.has(keywordStatus)
+              ? keywordStatus
+              : aiStatus
+            : null;
+        } else if (keywordStatus && !HIGH_STAKES_STATUSES.has(keywordStatus)) {
+          newStatus = keywordStatus;
+        } else {
+          await sleep(AI_REQUEST_DELAY_MS);
+          const aiResult = await aiService.detectStatusUpdate(
+            subject,
+            freshBody,
+            dossier.company,
+            dossier.jobTitle,
+            dossier.status,
+          );
+          if (aiResult.status && aiResult.confidence === 'low') {
+            logger.log(
+              `${provider.logTag} AI returned ${aiResult.status} with low confidence for dossier ${dossier.id}; ignoring`,
+            );
+            newStatus = null;
+          } else {
+            newStatus = isValidApplicationStatus(aiResult.status)
+              ? aiResult.status
+              : null;
+          }
+          if (keywordStatus && keywordStatus !== newStatus) {
+            logger.log(
+              `${provider.logTag} keyword flagged ${keywordStatus} but AI returned ${aiResult.status} (confidence=${aiResult.confidence}) for dossier ${dossier.id}; trusting AI`,
+            );
+          }
         }
-      }
 
-      const updates: {
-        emailSubject?: string;
-        emailBody?: string;
-        threadId?: string;
-        status?: ApplicationStatus;
-      } = {};
-      if (!dossier.emailBody && body) {
-        updates.emailSubject = subject;
-        updates.emailBody = body.slice(0, 50000);
-      }
-      if (!dossier.threadId && threadId) updates.threadId = threadId;
-      if (
-        newStatus &&
-        newStatus !== dossier.status &&
-        !isForwardStatusTransition(dossier.status, newStatus)
-      ) {
+        if (sameApplication) {
+          const updates: {
+            emailSubject?: string;
+            emailBody?: string;
+            threadId?: string;
+            status?: ApplicationStatus;
+          } = {};
+          if (!dossier.emailBody && body) {
+            updates.emailSubject = subject;
+            updates.emailBody = body.slice(0, 50000);
+          }
+          if (!dossier.threadId && threadId) updates.threadId = threadId;
+          if (
+            newStatus &&
+            newStatus !== dossier.status &&
+            !isForwardStatusTransition(dossier.status, newStatus)
+          ) {
+            logger.log(
+              `${provider.logTag} ignoring backward status transition ${dossier.status} -> ${newStatus} for dossier ${dossier.id}`,
+            );
+            newStatus = null;
+          }
+          const statusChanged = !!newStatus && newStatus !== dossier.status;
+          if (statusChanged) updates.status = newStatus!;
+
+          if (Object.keys(updates).length > 0) {
+            await applicationsService.update(userId, dossier.id, updates);
+            Object.assign(dossier, updates);
+          }
+          if (!isSelfSent) {
+            await applicationEmailsService.record(
+              userId,
+              dossier.id,
+              provider.provider,
+              msgId,
+              {
+                subject,
+                body: body.slice(0, 50000),
+                statusDetected: statusChanged ? newStatus : null,
+                receivedAt,
+              },
+            );
+          }
+          await provider.applyLabel(msgId, newStatus ?? dossier.status);
+          await syncRecordsService.upsert(
+            userId,
+            provider.provider,
+            msgId,
+            EmailSyncStatus.DUPLICATE,
+            { applicationId: dossier.id, matchConfidence },
+          );
+          if (statusChanged) updated++;
+          else skipped++;
+          continue;
+        }
+
         logger.log(
-          `${provider.logTag} ignoring backward status transition ${dossier.status} -> ${newStatus} for dossier ${dossier.id}`,
+          `${provider.logTag} AI rejected ambiguous dossier match for message ${msgId} (dossier ${dossier.id}); treating as a separate application`,
         );
-        newStatus = null;
-      }
-      const statusChanged = !!newStatus && newStatus !== dossier.status;
-      if (statusChanged) updates.status = newStatus!;
-
-      if (Object.keys(updates).length > 0) {
-        await applicationsService.update(userId, dossier.id, updates);
-      }
-      if (!isSelfSent) {
-        await applicationEmailsService.record(
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(
+          `${provider.logTag} Failed to update dossier for message ${msgId}: ${msg}`,
+        );
+        await syncRecordsService.upsert(
           userId,
-          dossier.id,
           provider.provider,
           msgId,
-          {
-            subject,
-            body: body.slice(0, 50000),
-            statusDetected: statusChanged ? newStatus : null,
-            receivedAt,
-          },
+          EmailSyncStatus.FAILED,
+          { reason: msg },
         );
+        failed++;
+        continue;
       }
-      await provider.applyLabel(msgId, newStatus ?? dossier.status);
-      await syncRecordsService.upsert(
-        userId,
-        provider.provider,
-        msgId,
-        EmailSyncStatus.DUPLICATE,
-        { applicationId: dossier.id },
-      );
-      if (statusChanged) updated++;
-      else skipped++;
-      continue;
     }
 
     if (isSelfSent) {
@@ -304,7 +375,7 @@ export async function runEmailSync(
         EmailSyncStatus.NOT_RELEVANT,
         { reason: 'Self-sent message' },
       );
-      failed++;
+      notRelevant++;
       continue;
     }
 
@@ -323,7 +394,7 @@ export async function runEmailSync(
         EmailSyncStatus.NOT_RELEVANT,
         { reason: parseResult.reason },
       );
-      failed++;
+      notRelevant++;
       continue;
     }
 
@@ -361,7 +432,7 @@ export async function runEmailSync(
         EmailSyncStatus.NOT_RELEVANT,
         { reason: 'Missing company or jobTitle' },
       );
-      failed++;
+      notRelevant++;
       continue;
     }
 
@@ -393,11 +464,12 @@ export async function runEmailSync(
         emailId: msgId,
         threadId,
         location: parsed.location ?? undefined,
-        appliedAt: parsed.appliedAt ?? undefined,
+        appliedAt: parsed.appliedAt ?? receivedAt?.toISOString() ?? undefined,
         notes: parsed.notes ?? undefined,
       };
       const app = await applicationsService.create(user, dto);
       created++;
+      applications.push(app);
       await applicationEmailsService.record(
         userId,
         app.id,
@@ -434,5 +506,13 @@ export async function runEmailSync(
     }
   }
 
-  return { synced: total, created, updated, skipped, failed, aiUnavailable };
+  return {
+    synced: total,
+    created,
+    updated,
+    skipped,
+    failed,
+    notRelevant,
+    aiUnavailable,
+  };
 }

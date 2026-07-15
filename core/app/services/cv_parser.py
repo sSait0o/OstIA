@@ -109,19 +109,20 @@ async def detect_status_update(
 ) -> dict:
     clean_body = _strip_html(body)[:MAX_EMAIL_LENGTH]
 
-    prompt = f"""This email is a follow-up in an ongoing job application to "{company}" for the position "{job_title}".
+    prompt = f"""This email may be related to an ongoing job application to "{company}" for the position "{job_title}".
 Current tracked status: {current_status}
 
 SUBJECT: {subject}
 CONTENT: {clean_body}
 
-Does this email clearly indicate a NEW status for this application? Reply with exactly this JSON (no surrounding text):
-{{
-  "status": "APPLIED" | "ACKNOWLEDGED" | "INTERVIEW" | "TECHNICAL" | "OFFER" | "REJECTED" | null,
-  "confidence": "high" | "medium" | "low"
-}}
+First, decide whether this email is actually about THIS SPECIFIC application (same company AND same position) — as opposed to a different job application, a different role at the same company, or something unrelated.
 
-Return status null if the email does not clearly indicate one of these statuses (e.g. a scheduling detail, a generic reply, an out-of-office).
+Then, only if it is the same application, decide whether this email clearly indicates a NEW status for it.
+
+Reply with exactly this JSON (no surrounding text):
+{{"sameApplication": true | false, "status": "APPLIED" | "ACKNOWLEDGED" | "INTERVIEW" | "TECHNICAL" | "OFFER" | "REJECTED" | null, "confidence": "high" | "medium" | "low"}}
+
+If sameApplication is false, status must be null. Also return status null if the email does not clearly indicate one of these statuses (e.g. a scheduling detail, a generic reply, an out-of-office).
 
 confidence reflects how certain you are about "status" specifically:
 - high: the email explicitly and unambiguously states this status
@@ -130,9 +131,11 @@ confidence reflects how certain you are about "status" specifically:
 
     result = await complete_json(prompt, max_tokens=1024, system=_SYSTEM_EMAIL)
     status = result.get("status") if result else None
+    same_application = bool(result.get("sameApplication", True)) if result else True
     confidence = result.get("confidence") if result else None
     return {
         "status": status if status in VALID_STATUSES else None,
+        "sameApplication": same_application,
         "confidence": confidence if confidence in VALID_CONFIDENCE_LEVELS else "low",
     }
 

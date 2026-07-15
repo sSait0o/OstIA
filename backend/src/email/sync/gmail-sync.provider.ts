@@ -9,6 +9,29 @@ import {
   OSTIA_LABEL,
 } from './email-sync.types';
 
+const GMAIL_FETCH_CONCURRENCY = 10;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R | null>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const current = items[nextIndex++];
+        const result = await fn(current);
+        if (result !== null) results.push(result);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 const OSTIA_SUBLABELS = [
   'Accepté',
   'Entretien',
@@ -236,7 +259,10 @@ export class GmailSyncProvider implements EmailSyncProvider {
     private readonly logger: Logger,
   ) {}
 
-  async fetchMessages(cutoff: Date): Promise<NormalizedEmailMessage[]> {
+  async fetchMessages(
+    cutoff: Date,
+    maxMessages?: number,
+  ): Promise<NormalizedEmailMessage[]> {
     const ostiaLabelId = this.labelMap.get(OSTIA_LABEL)!;
     const cutoffQuery = `after:${cutoff.getFullYear()}/${String(
       cutoff.getMonth() + 1,
@@ -256,33 +282,47 @@ export class GmailSyncProvider implements EmailSyncProvider {
       pageToken = page.data.nextPageToken ?? undefined;
     } while (pageToken);
 
-    const msgList = allMessages.filter((m) => !!m.id);
+    let msgList = allMessages.filter((m) => !!m.id);
+    if (maxMessages && msgList.length > maxMessages) {
+      msgList = msgList.slice(0, maxMessages);
+    }
 
-    const fetched = await Promise.all(
-      msgList.map(async (msg): Promise<NormalizedEmailMessage> => {
-        const full = await this.gmail.users.messages.get({
-          userId: 'me',
-          id: msg.id!,
-          format: 'full',
-        });
-        const headers: gmail_v1.Schema$MessagePartHeader[] =
-          full.data?.payload?.headers ?? [];
-        const subject = headers.find((h) => h.name === 'Subject')?.value ?? '';
-        const from = extractEmailAddress(
-          headers.find((h) => h.name === 'From')?.value ?? '',
-        );
-        const body = extractGmailBody(full.data?.payload);
-        const threadId = full.data?.threadId ?? undefined;
-        const internalDate = Number(full.data?.internalDate ?? 0);
-        return {
-          msgId: msg.id!,
-          subject,
-          from,
-          body,
-          threadId,
-          receivedAt: internalDate ? new Date(internalDate) : null,
-        };
-      }),
+    const fetched = await mapWithConcurrency(
+      msgList,
+      GMAIL_FETCH_CONCURRENCY,
+      async (msg): Promise<NormalizedEmailMessage | null> => {
+        try {
+          const full = await this.gmail.users.messages.get({
+            userId: 'me',
+            id: msg.id!,
+            format: 'full',
+          });
+          const headers: gmail_v1.Schema$MessagePartHeader[] =
+            full.data?.payload?.headers ?? [];
+          const subject =
+            headers.find((h) => h.name === 'Subject')?.value ?? '';
+          const from = extractEmailAddress(
+            headers.find((h) => h.name === 'From')?.value ?? '',
+          );
+          const body = extractGmailBody(full.data?.payload);
+          const threadId = full.data?.threadId ?? undefined;
+          const internalDate = Number(full.data?.internalDate ?? 0);
+          return {
+            msgId: msg.id!,
+            subject,
+            from,
+            body,
+            threadId,
+            receivedAt: internalDate ? new Date(internalDate) : null,
+          };
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          this.logger.warn(
+            `[EmailSync] Failed to fetch message ${msg.id}: ${errMsg}`,
+          );
+          return null;
+        }
+      },
     );
     fetched.sort(
       (a, b) => (a.receivedAt?.getTime() ?? 0) - (b.receivedAt?.getTime() ?? 0),

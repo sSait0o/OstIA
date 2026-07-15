@@ -15,13 +15,18 @@ import { User } from '@users/entities/user.entity';
 import { AiService } from '@ai/ai.service';
 import { ApplicationsService } from '@applications/applications.service';
 import { ApplicationEmailsService } from '@applications/application-emails.service';
-import { ApplicationStatus } from '@applications/entities/application.entity';
+import {
+  Application,
+  ApplicationSource,
+  ApplicationStatus,
+} from '@applications/entities/application.entity';
 import {
   SyncProgress,
   SyncRateLimitedException,
   SyncResult,
   SyncStatus,
 } from './sync/email-sync.types';
+import { EmailSyncStatus } from './entities/email-sync-record.entity';
 import { EmailSyncDeps, runEmailSync } from './sync/email-sync.engine';
 import {
   applyGmailSublabel,
@@ -36,7 +41,7 @@ import {
 } from './sync/outlook-sync.provider';
 
 const SYNC_BURST_LIMIT = 3;
-const SYNC_COOLDOWN_MS = 20 * 60 * 60 * 1000;
+const SYNC_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 @Injectable()
 export class EmailService {
@@ -226,6 +231,7 @@ export class EmailService {
         updated: 0,
         skipped: 0,
         failed: 0,
+        notRelevant: 0,
         aiUnavailable: 0,
         labelMissing: true,
       };
@@ -341,6 +347,7 @@ export class EmailService {
         updated: 0,
         skipped: 0,
         failed: 0,
+        notRelevant: 0,
         aiUnavailable: 0,
         labelMissing: true,
       };
@@ -478,7 +485,7 @@ export class EmailService {
     if (elapsed >= SYNC_COOLDOWN_MS) {
       return {
         available: true,
-        attemptsRemaining: SYNC_BURST_LIMIT,
+        attemptsRemaining: 1,
         retryAfterMs: 0,
       };
     }
@@ -498,11 +505,103 @@ export class EmailService {
         Math.ceil(availability.retryAfterMs / 1000),
       );
     }
-    connection.syncAttemptCount =
-      connection.syncAttemptCount >= SYNC_BURST_LIMIT
-        ? 1
-        : connection.syncAttemptCount + 1;
+    connection.syncAttemptCount = Math.min(
+      connection.syncAttemptCount + 1,
+      SYNC_BURST_LIMIT,
+    );
     connection.lastSyncedAt = new Date();
     await this.connectionRepo.save(connection);
+  }
+
+  async listCaseFiles(
+    userId: string,
+  ): Promise<Array<Application & { needsReview: boolean }>> {
+    const [applications, ambiguousIds] = await Promise.all([
+      this.applicationsService.findAllByUser(userId),
+      this.syncRecordsService.findAmbiguousApplicationIds(userId),
+    ]);
+    return applications.map((app) => ({
+      ...app,
+      needsReview: ambiguousIds.has(app.id),
+    }));
+  }
+
+  async getCaseFileStats(userId: string): Promise<{
+    byStatusCurrent: Record<ApplicationStatus, number>;
+    byStatusEvents: Record<ApplicationStatus, number>;
+  }> {
+    const [applications, byStatusEvents] = await Promise.all([
+      this.applicationsService.findAllByUser(userId),
+      this.applicationEmailsService.getStatusEventCounts(userId),
+    ]);
+    const byStatusCurrent = Object.values(ApplicationStatus).reduce(
+      (acc, s) => ({ ...acc, [s]: 0 }),
+      {} as Record<ApplicationStatus, number>,
+    );
+    for (const app of applications) {
+      byStatusCurrent[app.status] += 1;
+    }
+    return { byStatusCurrent, byStatusEvents };
+  }
+
+  async splitEmailIntoNewApplication(
+    userId: string,
+    applicationId: string,
+    applicationEmailId: string,
+  ): Promise<Application> {
+    const email = await this.applicationEmailsService.findOneForUser(
+      userId,
+      applicationEmailId,
+    );
+    if (!email || email.application.id !== applicationId) {
+      throw new NotFoundException('Email non trouvé pour ce dossier');
+    }
+
+    const oldApplication = email.application;
+    const subject = email.subject ?? '';
+    const body = email.body ?? '';
+
+    const parseResult = await this.aiService.parseEmailForApplication(
+      subject,
+      body,
+      email.externalMessageId,
+    );
+    const company =
+      parseResult.kind === 'ok'
+        ? parseResult.data.company
+        : oldApplication.company;
+    const jobTitle =
+      parseResult.kind === 'ok'
+        ? parseResult.data.jobTitle
+        : oldApplication.jobTitle;
+
+    const newApplication = await this.applicationsService.create(
+      { id: userId } as User,
+      {
+        company,
+        jobTitle,
+        status: email.statusDetected ?? ApplicationStatus.APPLIED,
+        source: ApplicationSource.EMAIL,
+        emailSubject: email.subject ?? undefined,
+        emailBody: body || undefined,
+        emailId: email.externalMessageId,
+      },
+    );
+
+    await this.applicationEmailsService.reassign(email.id, newApplication.id);
+
+    if (oldApplication.emailId === email.externalMessageId) {
+      await this.applicationsService.clearEmailId(userId, oldApplication.id);
+    }
+
+    await this.syncRecordsService.upsert(
+      userId,
+      email.provider,
+      email.externalMessageId,
+      EmailSyncStatus.CREATED,
+      { applicationId: newApplication.id },
+    );
+
+    return newApplication;
   }
 }

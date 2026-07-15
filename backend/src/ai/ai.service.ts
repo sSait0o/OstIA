@@ -17,16 +17,17 @@ export interface ParsedApplication {
   location?: string;
 }
 
-export interface StatusUpdateResult {
-  status: string | null;
-  confidence: StatusConfidence;
-}
-
 export type EmailParseResult =
   | { kind: 'ok'; data: ParsedApplication }
   | { kind: 'not-relevant'; reason?: string }
   | { kind: 'unavailable'; reason: string }
   | { kind: 'failed'; reason: string };
+
+export interface DetectStatusResult {
+  status: string | null;
+  confidence: StatusConfidence;
+  sameApplication: boolean;
+}
 
 export interface CvMatchResult {
   score: number;
@@ -90,9 +91,9 @@ export class AiService {
     company: string,
     jobTitle: string,
     currentStatus: string,
-  ): Promise<StatusUpdateResult> {
+  ): Promise<DetectStatusResult> {
     try {
-      const { data } = await axios.post<StatusUpdateResult>(
+      const { data } = await axios.post<DetectStatusResult>(
         `${this.coreUrl}/cv/detect-status`,
         {
           subject: emailSubject,
@@ -102,9 +103,13 @@ export class AiService {
           currentStatus,
         },
       );
-      return { status: data.status ?? null, confidence: data.confidence };
+      return {
+        status: data.status ?? null,
+        confidence: data.confidence ?? 'low',
+        sameApplication: data.sameApplication ?? true,
+      };
     } catch {
-      return { status: null, confidence: 'low' };
+      return { status: null, confidence: 'low', sameApplication: true };
     }
   }
 

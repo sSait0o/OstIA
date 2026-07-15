@@ -47,6 +47,9 @@ export class EmailSyncRecord {
   @Column({ type: 'varchar', nullable: true, length: 255 })
   reason: string | null;
 
+  @Column({ type: 'varchar', nullable: true, length: 20 })
+  matchConfidence: 'certain' | 'ambiguous' | null;
+
   @Column({ type: 'int', default: 1 })
   attemptCount: number;
 

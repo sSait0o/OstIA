@@ -124,7 +124,10 @@ export class OutlookSyncProvider implements EmailSyncProvider {
     private readonly folderId: string,
   ) {}
 
-  async fetchMessages(cutoff: Date): Promise<NormalizedEmailMessage[]> {
+  async fetchMessages(
+    cutoff: Date,
+    _maxMessages?: number,
+  ): Promise<NormalizedEmailMessage[]> {
     const allMessages: OutlookMessage[] = [];
     let messagesUrl: string | undefined =
       `https://graph.microsoft.com/v1.0/me/mailFolders/${this.folderId}/messages` +
