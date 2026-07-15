@@ -101,9 +101,6 @@ export class Application {
   @Column({ nullable: true })
   appliedAt: Date;
 
-  @Column({ nullable: true })
-  lastContactAt: Date;
-
   @CreateDateColumn()
   createdAt: Date;
 

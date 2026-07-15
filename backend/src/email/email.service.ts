@@ -254,7 +254,7 @@ export class EmailService {
       `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize` +
       `?client_id=${clientId}&response_type=code` +
       `&redirect_uri=${encodeURIComponent(redirectUri as string)}` +
-      `&scope=${scope}&state=${userId}`
+      `&scope=${scope}&state=${this.createOAuthState(userId)}`
     );
   }
 

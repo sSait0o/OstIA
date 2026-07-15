@@ -132,7 +132,6 @@ export class UsersService {
       'Lieu',
       'Salaire',
       'Date de candidature',
-      'Dernier contact',
       'Notes',
       'Créée le',
     ];
@@ -145,7 +144,6 @@ export class UsersService {
       a.location ?? '',
       a.salary ?? '',
       formatDate(a.appliedAt),
-      formatDate(a.lastContactAt),
       a.notes ?? '',
       formatDate(a.createdAt),
     ]);
