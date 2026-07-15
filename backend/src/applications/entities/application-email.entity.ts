@@ -11,6 +11,7 @@ import {
 import { User } from '@users/entities/user.entity';
 import { EmailProvider } from '@email/entities/email-connection.entity';
 import { Application, ApplicationStatus } from './application.entity';
+import { encryptedStringTransformer } from '../../common/encrypted.transformer';
 
 @Entity('application_emails')
 @Unique(['application', 'provider', 'externalMessageId'])
@@ -34,10 +35,18 @@ export class ApplicationEmail {
   @Column()
   externalMessageId: string;
 
-  @Column({ type: 'varchar', nullable: true, length: 500 })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: encryptedStringTransformer,
+  })
   subject: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: encryptedStringTransformer,
+  })
   body: string | null;
 
   @Column({ type: 'enum', enum: ApplicationStatus, nullable: true })

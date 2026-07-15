@@ -36,10 +36,10 @@ export class Application {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column()
+  @Column({ type: 'text', transformer: encryptedStringTransformer })
   company: string;
 
-  @Column()
+  @Column({ type: 'text', transformer: encryptedStringTransformer })
   jobTitle: string;
 
   @Column({
@@ -63,7 +63,11 @@ export class Application {
   @Column({ nullable: true })
   threadId: string;
 
-  @Column({ nullable: true, length: 500 })
+  @Column({
+    nullable: true,
+    type: 'text',
+    transformer: encryptedStringTransformer,
+  })
   emailSubject: string;
 
   @Column({
@@ -76,7 +80,11 @@ export class Application {
   @Column({ nullable: true })
   jobUrl: string;
 
-  @Column({ nullable: true })
+  @Column({
+    nullable: true,
+    type: 'text',
+    transformer: encryptedStringTransformer,
+  })
   location: string;
 
   @Column({ nullable: true })

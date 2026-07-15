@@ -31,7 +31,7 @@ export class EmailConnection {
   @Column({ type: 'enum', enum: EmailProvider })
   provider: EmailProvider;
 
-  @Column()
+  @Column({ type: 'text', transformer: encryptedStringTransformer })
   email: string;
 
   @Column({ type: 'text', transformer: encryptedStringTransformer })
