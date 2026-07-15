@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import unicodedata
 from fastapi import HTTPException
 from app.services.ai_client import complete_json
 from app.constants import MAX_JOB_TEXT_LENGTH
@@ -10,14 +11,21 @@ logger = logging.getLogger(__name__)
 _MAX_TEXT_LENGTH = MAX_JOB_TEXT_LENGTH
 
 
+def _strip_accents(text: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in normalized if not unicodedata.combining(c))
+
+
 def _keyword_overlap_score(cv_skills: list[str], job_description: str) -> float:
     if not cv_skills:
         return 0.0
-    desc_lower = job_description.lower()
+    desc_normalized = _strip_accents(job_description.lower())
     matches = sum(
         1
         for skill in cv_skills
-        if re.search(r"\b" + re.escape(skill.lower()) + r"\b", desc_lower)
+        if re.search(
+            r"\b" + re.escape(_strip_accents(skill.lower())) + r"\b", desc_normalized
+        )
     )
     return round(matches / len(cv_skills) * 100, 1)
 
