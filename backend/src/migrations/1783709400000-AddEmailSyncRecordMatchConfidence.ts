@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddEmailSyncRecordMatchConfidence1783709400000
-  implements MigrationInterface
-{
+export class AddEmailSyncRecordMatchConfidence1783709400000 implements MigrationInterface {
   name = 'AddEmailSyncRecordMatchConfidence1783709400000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

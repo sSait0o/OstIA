@@ -93,9 +93,7 @@ export class EmailSyncRecordsService {
       relations: { application: true },
     });
     return new Set(
-      records
-        .map((r) => r.application?.id)
-        .filter((id): id is string => !!id),
+      records.map((r) => r.application?.id).filter((id): id is string => !!id),
     );
   }
 }

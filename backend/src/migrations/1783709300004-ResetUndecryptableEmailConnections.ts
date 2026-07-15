@@ -7,15 +7,13 @@ interface EmailConnectionRow {
   refreshToken: string | null;
 }
 
-export class ResetUndecryptableEmailConnections1783709300004
-  implements MigrationInterface
-{
+export class ResetUndecryptableEmailConnections1783709300004 implements MigrationInterface {
   name = 'ResetUndecryptableEmailConnections1783709300004';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const rows: EmailConnectionRow[] = await queryRunner.query(
+    const rows = (await queryRunner.query(
       `SELECT id, "accessToken", "refreshToken" FROM "email_connections"`,
-    );
+    )) as EmailConnectionRow[];
 
     const staleIds = rows
       .filter((row) => !this.isDecryptable(row.accessToken, row.refreshToken))

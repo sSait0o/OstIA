@@ -17,14 +17,14 @@ import {
   CaseFile,
   CaseFileStats,
   ApplicationEmail,
-} from '../../core/services/applications.service';
-import { ApplicationStatus, ApplicationSource } from '../../shared/models/application.model';
+} from '@core/services/applications.service';
+import { ApplicationStatus, ApplicationSource } from '@shared/models/application.model';
 import {
   getStatusTag,
   getStatusLabel as getStatusRollupLabel,
   getStatusHex,
-} from '../../shared/utils/status-colors.utils';
-import { sanitizeEmailBody, isEmailHtml, emailSnippet } from '../../shared/utils/email-html.utils';
+} from '@shared/utils/status-colors.utils';
+import { sanitizeEmailBody, isEmailHtml, emailSnippet } from '@shared/utils/email-html.utils';
 
 const SOURCE_LABELS: Record<ApplicationSource, string> = {
   EMAIL: 'Email',

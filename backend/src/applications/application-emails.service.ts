@@ -71,7 +71,7 @@ export class ApplicationEmailsService {
 
   async reassign(id: string, applicationId: string): Promise<void> {
     await this.repo.update(id, {
-      application: { id: applicationId } as Application,
+      application: { id: applicationId },
     });
   }
 

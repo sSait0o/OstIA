@@ -69,7 +69,9 @@ export class ApplicationsController {
   }
 
   @Get('case-files')
-  @ApiOperation({ summary: 'Tous les dossiers avec leur historique de statuts' })
+  @ApiOperation({
+    summary: 'Tous les dossiers avec leur historique de statuts',
+  })
   listCaseFiles(@Request() req: { user: User }) {
     if (!this.emailService) throw new NotFoundException();
     return this.emailService.listCaseFiles(req.user.id);
@@ -77,8 +79,7 @@ export class ApplicationsController {
 
   @Get('case-files/stats')
   @ApiOperation({
-    summary:
-      'Statistiques par statut, dossiers actuels vs événements détectés',
+    summary: 'Statistiques par statut, dossiers actuels vs événements détectés',
   })
   caseFileStats(@Request() req: { user: User }) {
     if (!this.emailService) throw new NotFoundException();

@@ -11,7 +11,7 @@ import {
 import { User } from '@users/entities/user.entity';
 import { EmailProvider } from '@email/entities/email-connection.entity';
 import { Application, ApplicationStatus } from './application.entity';
-import { encryptedStringTransformer } from '../../common/encrypted.transformer';
+import { encryptedStringTransformer } from '@common/encrypted.transformer';
 
 @Entity('application_emails')
 @Unique(['application', 'provider', 'externalMessageId'])

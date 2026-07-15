@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class BackfillApplicationAppliedAtFromEmails1783709500000
-  implements MigrationInterface
-{
+export class BackfillApplicationAppliedAtFromEmails1783709500000 implements MigrationInterface {
   name = 'BackfillApplicationAppliedAtFromEmails1783709500000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

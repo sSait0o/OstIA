@@ -66,8 +66,7 @@ function isValidApplicationStatus(
   value: string | null,
 ): value is ApplicationStatus {
   return (
-    !!value &&
-    (Object.values(ApplicationStatus) as string[]).includes(value)
+    !!value && (Object.values(ApplicationStatus) as string[]).includes(value)
   );
 }
 
