@@ -121,8 +121,8 @@ export class JobsComponent implements OnInit {
   );
 
   filteredJobs = computed(() => {
-    if (this.mode() === 'feed') return this.jobs();
     const threshold = this.scoreThreshold(this._scoreFilter());
+    if (threshold === 0) return this.jobs();
     return [...this.jobs()]
       .filter((j) => (j.matchScore ?? 0) >= threshold)
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
@@ -221,13 +221,6 @@ export class JobsComponent implements OnInit {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  onScoreFilterChange() {
-    if (this.mode() === 'feed') {
-      this.currentPage.set(1);
-      this.fetchFeed(1);
-    }
-  }
-
   onJobApplied(jobId: string) {
     this.jobs.update((list) => list.map((j) => (j.id === jobId ? { ...j, isApplied: true } : j)));
     this.jobsService.patchJob(jobId, { isApplied: true });
@@ -279,7 +272,6 @@ export class JobsComponent implements OnInit {
     this.jobsService.getFeed({
       page,
       pageSize: this.pageSize,
-      minScore: this.scoreThreshold(this._scoreFilter()) || undefined,
       sortBy: this.sortBy || undefined,
     }).subscribe({
       next: ({ jobs, total, syncing }) => {

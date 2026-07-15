@@ -121,16 +121,12 @@ export class JobsController {
 
     let syncing = false;
     if (this.jobsService.isJobsSyncStale(user?.jobsLastSyncedAt)) {
-      if (!user?.jobsLastSyncedAt) {
-        await this.jobsService.syncJobsForUser(req.user.id, cvData);
-      } else {
-        syncing = true;
-        this.jobsService.syncJobsForUser(req.user.id, cvData).catch((err) => {
-          this.logger.error(
-            `Background jobs sync failed for user ${req.user.id}: ${err}`,
-          );
-        });
-      }
+      syncing = true;
+      this.jobsService.syncJobsForUser(req.user.id, cvData).catch((err) => {
+        this.logger.error(
+          `Background jobs sync failed for user ${req.user.id}: ${err}`,
+        );
+      });
     }
 
     const result = await this.jobsService.getFeed(req.user.id, {

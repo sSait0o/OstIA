@@ -10,6 +10,7 @@ import {
 import { User } from '@users/entities/user.entity';
 
 @Entity('jobs')
+@Index(['user', 'externalId'], { unique: true })
 export class Job {
   @PrimaryGeneratedColumn('uuid')
   id: string;

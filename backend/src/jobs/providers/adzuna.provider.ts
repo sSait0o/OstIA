@@ -25,6 +25,7 @@ const ADZUNA_UNSUPPORTED_CONTRACT_TYPES = new Set(['APP', 'PRO', 'SAI']);
 export async function searchAdzunaJobs(
   params: JobSearchParams,
   configService: ConfigService,
+  perPage = 9,
 ): Promise<{ offers: JobOffer[]; total: number }> {
   const appId = configService.get<string>('ADZUNA_APP_ID');
   const appKey = configService.get<string>('ADZUNA_APP_KEY');
@@ -35,7 +36,7 @@ export async function searchAdzunaJobs(
   const queryParams: Record<string, string | number> = {
     app_id: appId,
     app_key: appKey,
-    results_per_page: 3,
+    results_per_page: perPage,
     max_days_old: 30,
   };
 

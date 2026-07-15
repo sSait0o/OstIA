@@ -29,6 +29,7 @@ describe('JobsService', () => {
     findAndCount: jest.Mock;
     create: jest.Mock;
     delete: jest.Mock;
+    upsert: jest.Mock;
   };
   let usersService: { updateJobsLastSyncedAt: jest.Mock };
 
@@ -40,6 +41,7 @@ describe('JobsService', () => {
       findAndCount: jest.fn().mockResolvedValue([[], 0]),
       create: jest.fn((data: Partial<Job>) => data),
       delete: jest.fn(),
+      upsert: jest.fn().mockResolvedValue(undefined),
     };
     usersService = {
       updateJobsLastSyncedAt: jest.fn().mockResolvedValue(undefined),
@@ -157,7 +159,7 @@ describe('JobsService', () => {
 
       expect(result.jobs).toHaveLength(1);
       expect(result.jobs[0].matchScore).toBe(80);
-      expect(jobRepo.save).toHaveBeenCalled();
+      expect(jobRepo.upsert).toHaveBeenCalled();
     });
 
     it('reuses an existing valid score without calling the AI matcher again', async () => {
@@ -252,7 +254,9 @@ describe('JobsService', () => {
         skills: ['Node.js', 'TypeScript'],
       });
 
-      expect(jobRepo.save).toHaveBeenCalledTimes(1);
+      expect(jobRepo.upsert).toHaveBeenCalledTimes(1);
+      const [toWrite] = jobRepo.upsert.mock.calls[0] as [unknown[]];
+      expect(toWrite).toHaveLength(1);
     });
 
     it('does nothing (no fetch) when the CV has no skills', async () => {
@@ -272,7 +276,7 @@ describe('JobsService', () => {
       await expect(
         service.syncJobsForUser('user-1', { skills: ['Bad', 'Good'] }),
       ).resolves.not.toThrow();
-      expect(jobRepo.save).toHaveBeenCalled();
+      expect(jobRepo.upsert).toHaveBeenCalled();
     });
   });
 

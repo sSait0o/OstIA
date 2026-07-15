@@ -54,17 +54,27 @@ export interface JobFeedResult extends JobSearchResult {
   syncing: boolean;
 }
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface CacheEntry {
+  result: JobSearchResult;
+  expiresAt: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class JobsService {
   private readonly base = `${environment.apiUrl}/jobs`;
-  private readonly pagesCache = new Map<string, JobSearchResult>();
+  private readonly pagesCache = new Map<string, CacheEntry>();
 
   constructor(private readonly http: HttpClient) {}
 
   search(params: JobSearchParams) {
     const cacheKey = this.cacheKey(params);
     const cached = this.pagesCache.get(cacheKey);
-    if (cached) return of(cached);
+    if (cached) {
+      if (cached.expiresAt > Date.now()) return of(cached.result);
+      this.pagesCache.delete(cacheKey);
+    }
 
     const httpParams: Record<string, string | number | boolean> = {};
 
@@ -80,7 +90,9 @@ export class JobsService {
     if (params.page && params.page > 1) httpParams['page'] = params.page;
 
     return this.http.get<JobSearchResult>(`${this.base}/search`, { params: httpParams }).pipe(
-      tap((result) => this.pagesCache.set(cacheKey, result)),
+      tap((result) =>
+        this.pagesCache.set(cacheKey, { result, expiresAt: Date.now() + CACHE_TTL_MS }),
+      ),
     );
   }
 
@@ -95,11 +107,14 @@ export class JobsService {
   }
 
   patchJob(id: string, patch: Partial<Job>) {
-    for (const [key, result] of this.pagesCache) {
-      if (result.jobs.some((j) => j.id === id)) {
+    for (const [key, entry] of this.pagesCache) {
+      if (entry.result.jobs.some((j) => j.id === id)) {
         this.pagesCache.set(key, {
-          ...result,
-          jobs: result.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)),
+          ...entry,
+          result: {
+            ...entry.result,
+            jobs: entry.result.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)),
+          },
         });
       }
     }

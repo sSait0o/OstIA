@@ -28,6 +28,7 @@ const JOBS_SYNC_STALE_MS = 6 * 60 * 60 * 1000;
 const JOBS_PURGE_AFTER_DAYS = 30;
 const MAX_SYNC_SKILLS = 5;
 const SYNC_PER_SKILL_PAGE_SIZE = 20;
+const MAX_CONCURRENT_MATCH_CALLS = 5;
 
 @Injectable()
 export class JobsService {
@@ -60,8 +61,9 @@ export class JobsService {
 
   async searchAdzuna(
     params: JobSearchParams,
+    perPage = 9,
   ): Promise<{ offers: JobOffer[]; total: number }> {
-    return searchAdzunaJobs(params, this.configService);
+    return searchAdzunaJobs(params, this.configService, perPage);
   }
 
   async searchAndScore(
@@ -71,9 +73,12 @@ export class JobsService {
   ): Promise<{ jobs: Job[]; total: number }> {
     const resolvedParams = { ...params };
 
+    await this.purgeStaleJobsForUser(userId);
+
     let ftOffers: JobOffer[] = [];
     let ftTotal = 0;
     let adzunaOffers: JobOffer[] = [];
+    let adzunaTotal = 0;
 
     const hasAdzuna =
       !!this.configService.get('ADZUNA_APP_ID') &&
@@ -82,7 +87,7 @@ export class JobsService {
     const [ftResult, adzunaResult] = await Promise.allSettled([
       this.searchFranceTravail(resolvedParams, 9),
       hasAdzuna
-        ? this.searchAdzuna(resolvedParams)
+        ? this.searchAdzuna(resolvedParams, 9)
         : Promise.resolve({ offers: [], total: 0 }),
     ]);
 
@@ -94,7 +99,7 @@ export class JobsService {
       );
     }
     if (adzunaResult.status === 'fulfilled') {
-      ({ offers: adzunaOffers } = adzunaResult.value);
+      ({ offers: adzunaOffers, total: adzunaTotal } = adzunaResult.value);
     } else if (hasAdzuna) {
       this.logger.error(
         `Adzuna search failed: ${this.describeAxiosError(adzunaResult.reason)}`,
@@ -102,7 +107,7 @@ export class JobsService {
     }
 
     const allOffers = [...ftOffers, ...adzunaOffers];
-    const total = Math.max(ftTotal, allOffers.length);
+    const total = ftTotal + adzunaTotal;
 
     const jobs = await this.upsertAndScoreOffers(userId, allOffers, cvData);
 
@@ -110,6 +115,26 @@ export class JobsService {
       jobs: jobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0)),
       total,
     };
+  }
+
+  private async runWithConcurrency<T, R>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = new Array<R>(items.length);
+    let next = 0;
+    const workers = Array.from(
+      { length: Math.min(limit, items.length) },
+      async () => {
+        while (next < items.length) {
+          const index = next++;
+          results[index] = await fn(items[index]);
+        }
+      },
+    );
+    await Promise.all(workers);
+    return results;
   }
 
   private async upsertAndScoreOffers(
@@ -129,8 +154,10 @@ export class JobsService {
       existingJobs.map((j) => [j.externalId, j]),
     );
 
-    return Promise.all(
-      offers.map(async (offer) => {
+    const results = await this.runWithConcurrency(
+      offers,
+      MAX_CONCURRENT_MATCH_CALLS,
+      async (offer): Promise<{ job: Job; needsWrite: boolean }> => {
         const existing = existingByExternalId.get(offer.externalId);
 
         const alreadyScoredWithCv =
@@ -139,7 +166,7 @@ export class JobsService {
             (existing.matchDetails?.summary !== NO_CV_MATCH_SUMMARY &&
               existing.matchDetails?.summary !== AI_MATCH_ERROR_SUMMARY));
         if (existing && alreadyScoredWithCv) {
-          return existing;
+          return { job: existing, needsWrite: false };
         }
 
         const match:
@@ -150,29 +177,21 @@ export class JobsService {
               missingSkills: string[];
               summary: string;
             } = hasCv
-          ? await this.aiService
-              .matchCvToJob(cvData, offer.title, offer.description || '')
-              .catch(() => ({
-                score: null as number | null,
-                matchedSkills: [] as string[],
-                missingSkills: [] as string[],
-                summary: '',
-              }))
+          ? await this.aiService.matchCvToJob(
+              cvData,
+              offer.title,
+              offer.description || '',
+            )
           : {
-              score: null as number | null,
-              matchedSkills: [] as string[],
-              missingSkills: [] as string[],
+              score: null,
+              matchedSkills: [],
+              missingSkills: [],
               summary: NO_CV_MATCH_SUMMARY,
             };
 
-        if (existing) {
-          existing.matchScore = match.score ?? 0;
-          existing.matchDetails = match;
-          return this.jobRepo.save(existing);
-        }
-
         const job = this.jobRepo.create({
           ...offer,
+          id: existing?.id,
           user: { id: userId } as User,
           matchScore: match.score ?? 0,
           matchDetails: match,
@@ -180,8 +199,28 @@ export class JobsService {
             ? new Date(offer.publishedAt)
             : undefined,
         });
-        return this.jobRepo.save(job);
-      }),
+        return { job, needsWrite: true };
+      },
+    );
+
+    const toWrite = results.filter((r) => r.needsWrite).map((r) => r.job);
+    if (toWrite.length) {
+      await this.jobRepo.upsert(toWrite, {
+        conflictPaths: ['user', 'externalId'],
+        skipUpdateIfNoValuesChanged: true,
+      });
+    }
+
+    const externalIdsToFetch = toWrite.map((j) => j.externalId);
+    const written = externalIdsToFetch.length
+      ? await this.jobRepo.find({
+          where: { externalId: In(externalIdsToFetch), user: { id: userId } },
+        })
+      : [];
+    const writtenByExternalId = new Map(written.map((j) => [j.externalId, j]));
+
+    return results.map(
+      (r) => writtenByExternalId.get(r.job.externalId) ?? r.job,
     );
   }
 
