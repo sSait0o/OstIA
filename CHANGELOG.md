@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-08-03
+
+### Fixed
+
+- Email sync rate limit was consumed even when the sync failed before actually running (e.g. an expired Gmail/Outlook token after a long period of inactivity), locking users out for 6h despite never having a successful sync. The burst attempt is now only recorded once the provider auth succeeds.
+
 ## [1.5.0] - 2026-07-15
 
 ### Added
