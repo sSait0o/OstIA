@@ -220,10 +220,11 @@ export class EmailService {
       where: { user: { id: userId }, provider: EmailProvider.GMAIL },
     });
     if (!connection) throw new NotFoundException('Connexion Gmail non trouvée');
-    await this.enforceSyncRateLimit(connection);
+    this.checkSyncRateLimit(connection);
 
     const gmail = this.buildGmailClient(connection);
     const provider = await createGmailSyncProvider(gmail, this.logger);
+    await this.recordSyncAttempt(connection);
     if (!provider) {
       return {
         synced: 0,
@@ -331,13 +332,14 @@ export class EmailService {
     });
     if (!connection)
       throw new NotFoundException('Connexion Outlook non trouvée');
-    await this.enforceSyncRateLimit(connection);
+    this.checkSyncRateLimit(connection);
 
     const token = await refreshMicrosoftTokenIfNeeded(
       connection,
       this.configService,
       this.connectionRepo,
     );
+    await this.recordSyncAttempt(connection);
     const headers = { Authorization: `Bearer ${token}` };
     const provider = await createOutlookSyncProvider(headers);
     if (!provider) {
@@ -496,15 +498,16 @@ export class EmailService {
     };
   }
 
-  private async enforceSyncRateLimit(
-    connection: EmailConnection,
-  ): Promise<void> {
+  private checkSyncRateLimit(connection: EmailConnection): void {
     const availability = this.getSyncAvailability(connection);
     if (!availability.available) {
       throw new SyncRateLimitedException(
         Math.ceil(availability.retryAfterMs / 1000),
       );
     }
+  }
+
+  private async recordSyncAttempt(connection: EmailConnection): Promise<void> {
     connection.syncAttemptCount = Math.min(
       connection.syncAttemptCount + 1,
       SYNC_BURST_LIMIT,
